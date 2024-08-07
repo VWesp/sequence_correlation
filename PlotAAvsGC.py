@@ -3,6 +3,7 @@ import sys
 import numpy as np
 import sympy as sp
 import pandas as pd
+import seaborn as sns
 import collections as col
 import matplotlib.pyplot as plt
 from Bio.Data import CodonTable
@@ -14,7 +15,7 @@ if __name__ == "__main__":
     output = sys.argv[3]
     plot_name = sys.argv[4]
 
-    os.makedirs(output, exist_ok=True)
+    #os.makedirs(output, exist_ok=True)
 
     aa_dis_df = pd.read_csv(path_to_data, sep="\t", index_col=0, dtype=str)
     aa_dis_df["GC"] = aa_dis_df["GC"].astype(float)
@@ -68,15 +69,16 @@ if __name__ == "__main__":
         aa_freq_values = aa_np_equation(sorted_gc_values)
         aa_gc_calc_freq[aa] = aa_freq_values
 
-    for aa in amino_acids:
+    '''for aa in amino_acids:
         freq_data = aa_gc_data_freq[aa]
         sorted_freq_data = dict(sorted(freq_data.items()))
         gcs = np.asarray(list(sorted_freq_data.keys()))
         data_aa_freqs = np.asarray(list(sorted_freq_data.values()))
+        data_aa_freqs_fit = np.poly1d(np.polyfit(gcs, data_aa_freqs, 3))(gcs)
+        calc_aa_freqs = aa_gc_calc_freq[aa]
         plt.scatter(gcs, data_aa_freqs, color="red", alpha=0.5,
                     edgecolor="black", label="Genome data")
 
-        data_aa_freqs_fit = np.poly1d(np.polyfit(gcs, data_aa_freqs, 3))(gcs)
         plt.plot(gcs, data_aa_freqs_fit, color="black", linewidth=3)
         plt.plot(gcs, data_aa_freqs_fit, color="#44a5c2", linewidth=2,
                  label="Fitted genome data")
@@ -100,4 +102,42 @@ if __name__ == "__main__":
                                aa+"_"+"_".join(genetic_name.lower().split(" ")))
         plt.savefig(plot_output+".svg", bbox_inches="tight")
         plt.savefig(plot_output+".pdf", bbox_inches="tight")
-        plt.close()
+        plt.close()'''
+
+    fitted_data = pd.DataFrame({"GC": [], "AminoAcid": [],
+                                "Type": [], "Frequency": []})
+    theoretical_data = pd.DataFrame({"GC": [], "AminoAcid": [],
+                                     "Type": [], "Frequency": []})
+    for aa in amino_acids:
+        freq_data = aa_gc_data_freq[aa]
+        sorted_freq_data = dict(sorted(freq_data.items()))
+        gcs = np.asarray(list(sorted_freq_data.keys()))
+        data_aa_freqs = np.asarray(list(sorted_freq_data.values()))
+        data_aa_freqs_fit = np.poly1d(np.polyfit(gcs, data_aa_freqs, 3))(gcs)
+        calc_aa_freqs = aa_gc_calc_freq[aa]
+        amino = [aa] * len(gcs)
+
+        new_rows = pd.DataFrame({"GC": gcs, "AminoAcid": amino,
+                              "Type": "Fitted", "Frequency": data_aa_freqs_fit})
+        fitted_data = pd.concat([fitted_data, new_rows], ignore_index=True)
+
+        new_rows = pd.DataFrame({"GC": gcs, "AminoAcid": amino,
+                              "Type": "Calculated", "Frequency": calc_aa_freqs})
+        theoretical_data = pd.concat([theoretical_data, new_rows],
+                                      ignore_index=True)
+
+    combined_data = pd.concat([fitted_data, theoretical_data])
+    heatmap_data = combined_data.pivot_table(index=["AminoAcid", "Type"],
+                               columns="GC", values="Frequency", aggfunc="mean")
+
+    plt.figure(figsize=(14, 16))
+    ax = sns.heatmap(heatmap_data, cmap="YlGnBu",
+                     cbar_kws={"label": "Frequency"})
+    new_labels = [label[0] if i % 2 == 0 else ""
+                  for i,label in enumerate(heatmap_data.index)]
+    #ax.set_yticklabels(new_labels)
+    ax.hlines(np.arange(0, 41, 2), *ax.get_xlim(), colors="black")
+    plt.title("Heatmap of New Theoretical and Fitted Amino Acid Frequency vs. GC Content")
+    plt.xlabel("GC Content")
+    plt.ylabel("Amino Acid and Type")
+    plt.show()
