@@ -2,263 +2,302 @@ import os
 import sys
 import math
 import numpy as np
+import sympy as sp
 import pandas as pd
+import seaborn as sns
 import textwrap as tw
-import networkx as nx
 import collections as col
 import scipy.stats as sci
 from collections import Counter
+import equation_functions as ef
 from Bio.Data import CodonTable
 import matplotlib.pyplot as plt
 import matplotlib.patches as patch
 
+# Function to plot and save heatmaps
+def plot_heatmap(df, types, cmap, label, xticklabels, yticks, yticklabels,
+                 title, name, code_output):
+    fig, ax = plt.subplots(figsize=(10, 6))
 
-def normalize(value, actual_bounds, desired_bounds):
-    return (desired_bounds[0] + (value - actual_bounds[0]) *
-           (desired_bounds[1] - desired_bounds[0]) /
-           (actual_bounds[1] - actual_bounds[0]))
+    sns.heatmap(
+        df[types], cmap=cmap, cbar_kws={"label": label}, ax=ax
+    )
 
+    # Add vertical lines between amino acid columns
+    ax.vlines(np.arange(1, len(types)), *ax.get_ylim(),
+              colors="white", lw=1)
 
-if __name__ == "__main__":
-    path_to_file = sys.argv[1]
-    output = sys.argv[2]
-    plot_name = sys.argv[3]
+    # Set x-ticks, y-ticks, and labels
+    ax.set_xticks(np.arange(0.5, len(xticklabels), 1))
+    ax.set_xticklabels(xticklabels, rotation=0)
+    ax.set_yticks(yticks)
+    ax.set_yticklabels(yticklabels)
+    ax.set_xlabel("Amino acid")
+    ax.set_ylabel("GC content")
 
-    os.makedirs(output, exist_ok=True)
+    title = title = tw.fill(title, 50)
+    ax.set_title(title)
 
+    # Save the heatmap in both SVG and PDF formats
+    for ext in ["svg", "pdf"]:
+        plt.savefig(f"{code_output}/{name}.{ext}", bbox_inches="tight")
+    plt.close()
+
+# Main function for analysis
+def main(path_to_file, output_dir, plot_name):
+    os.makedirs(output_dir, exist_ok=True)
     aa_dis_df = pd.read_csv(path_to_file, sep="\t", index_col=0, dtype=str)
 
-    # list of amino acids
-    amino_acids = ["M", "W", "C", "D", "E", "F", "H", "K", "N", "Q", "Y", "I",
-                   "A", "G", "P", "T", "V", "L", "R", "S", "*"]
+    # Initialize list of amino acids and iterate over genetic codes
+    amino_acids = None
+    for code_id, codon_table in CodonTable.unambiguous_dna_by_id.items():
+        genetic_name = " ".join(codon_table.names[:-1]).lower().replace(
+            " ", "_")
+        code_output = os.path.join(output_dir, genetic_name)
+        os.makedirs(code_output, exist_ok=True)
 
-    code_ids = CodonTable.unambiguous_dna_by_id.keys()
-    for code_id in code_ids:
-        # get the genetic code given the ID
-        codon_table = CodonTable.unambiguous_dna_by_id[code_id]
-        genetic_name = " ".join(codon_table.names[:-1])
-        # add the stop codons to the codon table
-        for stop in codon_table.stop_codons:
-            codon_table.forward_table[stop] = "*"
+        # Map amino acids to their corresponding codons
+        aa_to_codon = col.defaultdict(list)
+        for codon, aa in codon_table.forward_table.items():
+            aa_to_codon[aa].append(codon)
 
-        canon_codons = col.defaultdict(lambda: [])
-        for cod,aa in codon_table.forward_table.items():
-            canon_codons[aa].append(cod)
-
-        # list containing the number of codons for each amino acid
+        # Count the number of codons for each amino acid
         codon_count = Counter(codon_table.forward_table.values())
-        genetic_code_num = np.asarray([codon_count[aa]/np.sum(list(codon_count.values()))
-                                       for aa in amino_acids])
 
+        # Initialize and sort amino acids list based on the first genetic code
+        if amino_acids is None:
+            amino_acids = sorted(codon_count, key=lambda x: (codon_count[x],
+                                                             x))
 
+        # Calculate the frequency percentage for each amino acid
+        total_codons = sum(codon_count.values())
+        genetic_code_num = np.array([codon_count[aa] / total_codons
+                                     for aa in amino_acids])
+
+        # Initialize the plot for amino acid distribution
         fig, ax = plt.subplots()
-        sum_aa = col.defaultdict(lambda: 0)
         max_codon_num = max(codon_count.values())
-        color_space = plt.cm.rainbow(np.linspace(0, 1, max_codon_num))
-        color_map = [c for i, c in enumerate(color_space)]
+        color_map = plt.cm.rainbow(np.linspace(0, 1, max_codon_num))
+
+        # Create legend patches
         patches = []
-        for i in range(len(color_map)):
-            patches.append(patch.Patch(facecolor=color_map[i],
-                                       edgecolor="black", hatch="//"))
+        for color in color_map:
+            patches.append(patch.Patch(facecolor=color, edgecolor="black",
+                           hatch="//"))
             patches.append(patch.Patch(facecolor="white", edgecolor="black",
-                                       hatch="\\\\"))
+                           hatch="\\\\"))
 
-        aa_codon_dis = col.defaultdict(lambda: col.defaultdict(lambda: 0))
-        l_index = 0
-        for aa in amino_acids:
-            aa_data = aa_dis_df[aa]
-            codon_dis = col.defaultdict(lambda: 0)
-            for codon_num in aa_data:
-                codons = codon_num.split(";")
-                for codon in codons:
-                    c = codon.split(":")[0]
-                    if(c != "XXX"):
-                        n = int(codon.split(":")[1])
-                        codon_dis[c] += n
+        patches += [
+            patch.Patch(facecolor="grey", edgecolor="black", hatch="//"),
+            patch.Patch(facecolor="white", edgecolor="black", hatch="\\\\")
+        ]
 
+        # Accumulate amino acid counts
+        sum_aa = col.defaultdict(int)
+        for l_index, aa in enumerate(amino_acids):
+            codon_dis = col.defaultdict(int)
+
+            # Count occurrences of each codon for the current amino acid
+            for codon_num in aa_dis_df[aa]:
+                for codon_entry in codon_num.split(";"):
+                    codon, count = codon_entry.split(":")
+                    if codon != "XXX":
+                        codon_dis[codon] += int(count)
+
+            # Plot observed counts with color for canonical codons
             bottom = 0
-            c_index = 0
-            aa_codon_dis[aa]["NCC"] = 0
-            for codon,num in codon_dis.items():
-                color = "grey"
-                if(c_index < len(color_map)):
-                    color = color_map[c_index]
+            for c_index, codon in enumerate(aa_to_codon[aa]):
+                cod_num = codon_dis[codon]
+                sum_aa[aa] += cod_num
+                ax.bar(l_index - 0.15, cod_num, width=0.3, edgecolor="black",
+                       linewidth=0.75, bottom=bottom, color=color_map[c_index],
+                       hatch="//")
+                bottom += cod_num
 
-                sum_aa[aa] += num
-                # plot the amino acid sum for the dataset
-                ax.bar(l_index-0.15, num, width=0.3, edgecolor="black",
-                       linewidth=0.75, bottom=bottom, color=color, hatch="//")
-                bottom += num
-                c_index += 1
+            # Plot non-canonical codons in grey
+            for codon, num in codon_dis.items():
+                if codon not in aa_to_codon[aa]:
+                    sum_aa[aa] += num
+                    ax.bar(l_index - 0.15, num, width=0.3, edgecolor="black",
+                           linewidth=0.75, bottom=bottom, color="grey",
+                           hatch="//")
+                    bottom += num
 
-                if(codon in canon_codons[aa]):
-                    aa_codon_dis[aa][codon] = num
-                else:
-                    aa_codon_dis[aa]["NCC"] += num
-
-            l_index += 1
-
-
-
+        # Plot the expected amino acid counts
         sum_aa_list = list(sum_aa.values())
-        x_data = np.arange(0, len(amino_acids), 1)
-        # plot the theroetical amino acid mean for the genetic code
+        x_data = np.arange(len(amino_acids))
         genetic_calc_list = genetic_code_num * sum(sum_aa_list)
-        ax.bar(x_data+0.15, genetic_calc_list, width=0.3, color="white",
+        ax.bar(x_data + 0.15, genetic_calc_list, width=0.3, color="white",
                edgecolor="black", linewidth=0.75, hatch="\\\\")
 
-        # value for the distance between the bar and the number line
+        # Calculate and plot differences between observed and expected counts
         dif_text_max_high = max(max(sum_aa_list), max(genetic_calc_list))
-        # value for the upper horizontal line
         dif_text_upper = dif_text_max_high * 0.01
-        # value for the lower vertical line
         dif_text_lower = dif_text_max_high * 0.02
-        # value for the text position
         dif_text_num = dif_text_max_high * 0.03
-        # loop over the x-axis/bars
+
         for index in x_data:
-            # value for the line for the current bar
-            dif_text_high = max(sum_aa_list[index],
-                                genetic_calc_list[index])
-            # value for the left border
+            dif_text_high = max(sum_aa_list[index], genetic_calc_list[index])
             left_text = x_data[index] - 0.15
-            # value for the right border
             right_text = x_data[index] + 0.15
-            # x-axis values for the line
-            bar_x = [left_text-0.15, left_text-0.15, right_text+0.15,
-                     right_text+0.15]
-            # y-axis values for the line
-            bar_y = [sum_aa_list[index]+dif_text_upper,
-                     dif_text_high+dif_text_lower, dif_text_high+dif_text_lower,
-                     genetic_calc_list[index]+dif_text_upper]
-            # plot the number line above the bar
+            bar_x = [left_text - 0.15, left_text - 0.15,
+                     right_text + 0.15, right_text + 0.15]
+            bar_y = [sum_aa_list[index] + dif_text_upper,
+                     dif_text_high + dif_text_lower,
+                     dif_text_high + dif_text_lower,
+                     genetic_calc_list[index] + dif_text_upper]
             plt.plot(bar_x, bar_y, "k-", lw=1)
-            # difference between the frequency of the data and the genetic code
-            data_dif = sum_aa_list[index] - genetic_calc_list[index]
-            # average of the frequency of the data and the genetic code
-            data_ave = (sum_aa_list[index] + genetic_calc_list[index]) / 2
-            # percentage difference between the frequency of the data and the
-            # genetic code
-            data_dif_perc = data_dif / data_ave * 100
-            # plot the numnber above the number line
-            plt.text((left_text+right_text)/2, dif_text_high+dif_text_num,
-                     "{:.1f}".format(data_dif_perc), size=4, ha="center",
-                     va="bottom")
 
+            # Calculate percentage difference between observed and expected
+            data_dif_perc = (sum_aa_list[index] - genetic_calc_list[index]) / (
+                (sum_aa_list[index] + genetic_calc_list[index]) / 2) * 100
 
-        # calculation of Pearson correlation with and without Stop
-        pcc_w_stop,pcc_p_w_stop = sci.pearsonr(sum_aa_list, genetic_code_num)
-        ppc_text = "pcc+: {:.2f}; $p_{{pcc}}$+: {:.1e}".format(pcc_w_stop,
-                                                               pcc_p_w_stop)
-        pcc_wo_stop,pcc_p_wo_stop = sci.pearsonr(sum_aa_list[:-1],
-                                                 genetic_code_num[:-1])
-        ppc_wo_text = "pcc-: {:.2f}; $p_{{pcc}}$-: {:.1e}".format(pcc_wo_stop,
-                                                                  pcc_p_wo_stop)
-        ax.text(1.02, 0.98, ppc_text+"\n"+ppc_wo_text, transform=ax.transAxes,
-                fontsize=8, verticalalignment="top", bbox=dict(boxstyle="round",
-                facecolor="white", edgecolor="grey", alpha=0.5))
+            plt.text((left_text + right_text) / 2,
+                     dif_text_high + dif_text_num, f"{data_dif_perc:.1f}",
+                     size=4, ha="center", va="bottom")
 
+        # Calculate Pearson and Spearman correlation coefficients
+        pcc, pcc_p = sci.pearsonr(sum_aa_list, genetic_code_num)
+        r2, r2_p = sci.spearmanr(sum_aa_list, genetic_code_num)
 
-        # calculation of Spearman correlation with and without Stop
-        r2_w_stop,r2_p_w_stop = sci.spearmanr(sum_aa_list, genetic_code_num)
-        r2_text = "$r_2$+: {:.2f}; $p_{{r2}}$+: {:.1e}".format(r2_w_stop,
-                                                               r2_p_w_stop)
-        r2_wo_stop,r2_p_wo_stop = sci.spearmanr(sum_aa_list[:-1],
-                                                genetic_code_num[:-1])
-        r2_wo_text = "$r_2$-: {:.2f}; $p_{{r2}}$-: {:.1e}".format(r2_wo_stop,
-                                                                  r2_p_wo_stop)
-        ax.text(1.02, 0.88, r2_text+"\n"+r2_wo_text, transform=ax.transAxes,
-                fontsize=8, verticalalignment="top", bbox=dict(boxstyle="round",
-                facecolor="white", edgecolor="grey", alpha=0.5))
+        # Add correlation text box to the plot
+        ax.text(1.02, 0.98,
+                f"pcc: {pcc:.2f}; $p_{{pcc}}$: {pcc_p:.1e}\n"
+                f"$r2$: {r2:.2f}; $p_{{r2}}$: {r2_p:.1e}",
+                transform=ax.transAxes, fontsize=8,
+                verticalalignment="top",
+                bbox=dict(boxstyle="round", facecolor="white",
+                          edgecolor="grey", alpha=0.5))
 
-        labels = [""]*(max_codon_num*2-2) + ["Genomic data", "Genetic code"]
-        plt.legend(handles=patches, labels=labels, ncol=max_codon_num,
-                   handletextpad=0.5, handlelength=1.0, columnspacing=-0.5,
-                   loc="best")
-        # x label
-        plt.xlabel("Amino acids (plus Stop)")
-        # y label
+        # Set up legend, labels, and title
+        plt.legend(handles=patches,
+                   labels=[""] * (max_codon_num * 2) +
+                   ["Genomic data", "Genetic code"],
+                   ncol=max_codon_num + 1, handletextpad=0.5,
+                   handlelength=1.0, columnspacing=-0.5, loc="upper left")
+        plt.xlabel("Amino acid")
         plt.ylabel("Summed amino acid number")
-        # set the x-axis ticks to the amino acids
         plt.xticks(np.arange(len(amino_acids)), amino_acids)
 
-        title_text = "Correlation between amino acid and codon number for genetic code:"
-        title = "{}, {}\n{}".format(plot_name, title_text, genetic_name)
-        title = "\n".join(tw.wrap(title, 50))
+        genetic_name = genetic_name.capitalize().replace("_", " ")
+        title = tw.fill(f"{plot_name} - Correlation between amino acid "
+                        f"and codon number for genetic code: {genetic_name}",
+                        50)
         plt.title(title)
 
-        # output
-        plot_output = os.path.join(output,
-                                   "_".join(genetic_name.lower().split(" ")))
-        plt.savefig(plot_output+".svg", bbox_inches="tight")
-        plt.savefig(plot_output+".pdf", bbox_inches="tight")
+        for ext in ["svg", "pdf"]:
+            plt.savefig(f"{code_output}/barplot.{ext}", bbox_inches="tight")
         plt.close()
 
-        graph_dir = os.path.join(output, genetic_name)
-        os.makedirs(graph_dir, exist_ok=True)
-        for aa,cod_num in aa_codon_dis.items():
-            node_sizes = col.defaultdict(lambda: 0)
-            # create a graph
-            G = nx.DiGraph()
-            G.add_node(aa, type="amino_acid", font_weight="bold")
-            # add edges with weights (frequency)
-            for cod,num in cod_num.items():
-                node_sizes[cod] = normalize(num, [min(cod_num.values()),
-                                            max(cod_num.values())], [1000,
-                                            10000])
-                G.add_node(cod, type="codon")
-                G.add_edge(aa, cod, weight=num)
+        # Prepare symbols and functions for expected frequency calculations
+        g = sp.symbols("g", float=True)
+        funcs = ef.build_functions(aa_to_codon)["amino"]
 
-            # define node colors and sizes based on type
-            node_colors = ["skyblue" if G.nodes[node]["type"] == "amino_acid"
-                           else "lightgreen" for node in G.nodes]
-            node_sizes = [1000 if G.nodes[node]["type"] == "amino_acid"
-                          else node_sizes[node] for node in G.nodes]
+        # Iterate over each proteome to calculate amino acid counts
+        aa_count_lst = []
+        for proteome_id in set(aa_dis_df["Genome_Tax_ID"]):
+            prot_aa_count = aa_dis_df[aa_dis_df["Genome_Tax_ID"] ==
+                                      proteome_id]
+            aa_count_dic = {}
 
-            # draw the network with shell_layout
-            plt.figure(figsize=(10,10))
+            # Calculate the observed amino acid counts
+            for aa in amino_acids:
+                aa_count_dic[aa] = np.median([
+                    sum(int(c.split(":")[1]) for c in codon_num.split(";")
+                        if c.split(":")[0] != "XXX")
+                    for codon_num in prot_aa_count[aa]
+                ])
 
-            # define the shell layout
-            shell_layout = nx.shell_layout(G)
+            # Calculate the overall amino acid sum and average GC content
+            aa_sum = sum(aa_count_dic.values())
+            aa_count_dic["GC_ave"] = np.mean(prot_aa_count["GC"].astype(float))
 
-            # scale the positions of the outer nodes to avoid overlap with the central node
-            central_pos = shell_layout[aa]
-            scale_factor = 1.5
-            labels = {}
-            for node, position in shell_layout.items():
-                if node != aa:
-                    labels[node] = node
-                    shell_layout[node] = [
-                        central_pos[0] + scale_factor * (position[0] - central_pos[0]),
-                        central_pos[1] + scale_factor * (position[1] - central_pos[1])
-                    ]
-                else:
-                    labels[node] = f"$\mathbf{{{node}}}$"
+            # Calculate expected counts, residuals, and log-transformed values
+            for aa in amino_acids:
+                aa_exp = aa + "_expected"
+                aa_res = aa + "_residual"
+                aa_count_dic[aa] = np.log2(aa_count_dic[aa] + 1)
+                expected_count = float(funcs[aa].subs(g,
+                                                      aa_count_dic["GC_ave"])
+                                       ) * aa_sum
+                aa_count_dic[aa_exp] = np.log2(expected_count)
+                aa_count_dic[aa_res] = (aa_count_dic[aa] -
+                                        aa_count_dic[aa_exp])
 
-            nx.draw_networkx_nodes(G, shell_layout, node_color=node_colors,
-                                   node_size=node_sizes, edgecolors="black")
-            nx.draw_networkx_labels(G, shell_layout, labels=labels)
-            nx.draw_networkx_edges(G, shell_layout, edgelist=G.edges,
-                                   edge_color="black")
-            nx.draw_networkx_edge_labels(G, shell_layout, edge_labels={(u, v): d["weight"]
-                                         for u, v, d in G.edges(data=True)})
+            # Calculate Pearson and Spearman correlations with p-values
+            obs_aa_count = [aa_count_dic[aa] for aa in amino_acids]
+            exp_aa_count = [aa_count_dic[aa + "_expected"]
+                            for aa in amino_acids]
+            aa_count_dic["Pearson"], aa_count_dic["p-value: Pearson"] = (
+                sci.pearsonr(obs_aa_count, exp_aa_count))
+            aa_count_dic["Spearman"], aa_count_dic["p-value: Spearman"] = (
+                sci.spearmanr(obs_aa_count, exp_aa_count))
 
-            aa_index = amino_acids.index(aa)
-            actual_count = sum_aa_list[aa_index]
-            theoretical_count = genetic_calc_list[aa_index]
+            aa_count_lst.append(aa_count_dic)
 
-            # draw the pie chart at the position of the amino acid node
-            ax = plt.gca()
-            sizes = [actual_count, theoretical_count]
-            colors = ["blue", "red"]
-            wedges,texts = ax.pie(sizes, colors=colors, startangle=90,
-                                  radius=0.2, center=central_pos, frame=True)
-            ax.set_xlim([1.1 * x for x in ax.get_xlim()])
-            ax.set_ylim([1.1 * y for y in ax.get_ylim()])
-            pie_labels = ["Genomic data", "Genetic code"]
-            ax.legend(wedges, pie_labels, loc="upper left")
+        # Create DataFrame from the list of dictionaries and sort by "GC_ave"
+        exp_amino_acids = [aa + "_expected" for aa in amino_acids]
+        res_amino_acids = [aa + "_residual" for aa in amino_acids]
+        columns = (["GC_ave"] + amino_acids + exp_amino_acids +
+                   res_amino_acids + ["Pearson", "p-value: Pearson",
+                                      "Spearman", "p-value: Spearman"])
 
-            graph_output = os.path.join(graph_dir, aa + "_graph")
-            plt.savefig(graph_output + ".svg", bbox_inches="tight")
-            plt.savefig(graph_output + ".pdf", bbox_inches="tight")
-            plt.close()
+        aa_proteome_df = pd.DataFrame(aa_count_lst, columns=columns)
+        aa_proteome_df = aa_proteome_df.sort_values("GC_ave", ascending=False)
+
+        # Define y-ticks and y-tick labels based on GC content
+        yticks = np.linspace(0, len(aa_proteome_df["GC_ave"]) - 1, 20,
+                             dtype=int)
+        yticklabels = [f"{aa_proteome_df['GC_ave'].iloc[idx]:.2f}"
+                       for idx in yticks]
+
+        # Plot observed, expected, and residual heatmaps
+        plot_heatmap(aa_proteome_df, amino_acids, "YlGnBu",
+                     "log2-Median amino acid count", amino_acids, yticks,
+                     yticklabels, f"{plot_name} - Observed amino acid count "
+                     f"for genetic code: {genetic_name}", "obs_heatmap",
+                     code_output)
+
+        plot_heatmap(aa_proteome_df, exp_amino_acids, "YlGnBu",
+                     "log2-Median amino acid count", amino_acids, yticks,
+                     yticklabels, f"{plot_name} - Expected amino acid count "
+                     f"for genetic code: {genetic_name}", "exp_heatmap",
+                     code_output)
+
+        plot_heatmap(aa_proteome_df, res_amino_acids, "coolwarm",
+                     "Residual (Observed - Expected)", amino_acids, yticks,
+                     yticklabels, f"{plot_name} - Residual between observed "
+                     f"and expected count for genetic code: {genetic_name}",
+                     "res_heatmap", code_output)
+
+        # Plotting Pearson and Spearman correlation coefficients vs. GC content
+        fig, ax = plt.subplots(figsize=(10, 6))
+        pearson_df = aa_proteome_df[aa_proteome_df["p-value: Pearson"] < 0.05]
+        spearman_df = aa_proteome_df[aa_proteome_df["p-value: Spearman"] <
+                                     0.05]
+
+        ax.scatter(pearson_df["GC_ave"], pearson_df["Pearson"], alpha=0.7,
+                   color="red", edgecolor="black", label="Pearson correlation")
+
+        ax.scatter(spearman_df["GC_ave"], spearman_df["Spearman"], alpha=0.7,
+                   color="blue", edgecolor="black", label="Spearman correlation")
+
+        # Set plot labels and title
+        cor_title = tw.fill(f"{plot_name} - Pearson/Spearman correlation "
+                            f"for genetic code: {genetic_name}", 50)
+        ax.set_xlabel("GC content")
+        ax.set_ylabel("Pearson/Spearman correlation coefficient")
+        ax.set_title(cor_title)
+        plt.legend(loc="upper left")
+
+        # Save the correlation plot
+        for ext in ["svg", "pdf"]:
+            plt.savefig(f"{code_output}/correlation.{ext}",
+                        bbox_inches="tight")
+        plt.close()
+
+        # Save the DataFrame to a CSV file
+        aa_proteome_df.to_csv(f"{code_output}/data_heatmap.csv", sep="\t")
+
+if __name__ == "__main__":
+    main(sys.argv[1], sys.argv[2], sys.argv[3])
