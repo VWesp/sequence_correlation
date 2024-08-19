@@ -1,303 +1,327 @@
 import os
 import sys
-import math
 import numpy as np
 import sympy as sp
 import pandas as pd
-import seaborn as sns
 import textwrap as tw
+import seaborn as sns
 import collections as col
 import scipy.stats as sci
-from collections import Counter
 import equation_functions as ef
 from Bio.Data import CodonTable
 import matplotlib.pyplot as plt
-import matplotlib.patches as patch
 
-# Function to plot and save heatmaps
-def plot_heatmap(df, types, cmap, label, xticklabels, yticks, yticklabels,
-                 title, name, code_output):
-    fig, ax = plt.subplots(figsize=(10, 6))
+import warnings
+warnings.filterwarnings("ignore")
 
-    sns.heatmap(
-        df[types], cmap=cmap, cbar_kws={"label": label}, ax=ax
+
+# Function for sorting and returning the amino acids based on a genetic code
+def get_amino_acids(id):
+    codon_table = CodonTable.unambiguous_dna_by_id[id]
+    codon_map = col.Counter(codon_table.forward_table.values())
+    codon_map = dict(sorted(codon_map.items(), key=lambda x: (x[1], x[0])))
+    return list(codon_map.keys())
+
+
+# Function to calculate the sum of values
+def count_amino_acids(codon_dis, canon_codons):
+    return sum(
+        int(codon.split(":")[1])
+        for codon in codon_dis.split(";")
+        if codon.split(":")[0] in canon_codons
     )
 
-    # Add vertical lines between amino acid columns
-    ax.vlines(np.arange(1, len(types)), *ax.get_ylim(),
-              colors="white", lw=1)
 
-    # Set x-ticks, y-ticks, and labels
-    ax.set_xticks(np.arange(0.5, len(xticklabels), 1))
-    ax.set_xticklabels(xticklabels, rotation=0)
-    ax.set_yticks(yticks)
-    ax.set_yticklabels(yticklabels)
-    ax.set_xlabel("Amino acid")
-    ax.set_ylabel("GC content")
+if __name__ == "__main__":
+    path,ouput,name = sys.argv[1:4]
+    # Load amino acid distribution file
+    aa_dis_df = pd.read_csv(path, sep="\t", index_col=0, dtype=str)
+    aa_dis_df["GC"] = aa_dis_df["GC"].astype(float)
+    aa_dis_df["Length"] = aa_dis_df["Length"].astype(int)
 
-    title = title = tw.fill(title, 50)
-    ax.set_title(title)
+    cmap = plt.get_cmap("viridis")
 
-    # Save the heatmap in both SVG and PDF formats
-    for ext in ["svg", "pdf"]:
-        plt.savefig(f"{code_output}/{name}.{ext}", bbox_inches="tight")
-    plt.close()
+    # Get the amino acid order based on the Standard genetic code
+    amino_acids = get_amino_acids(1)
+    aa_gc_cols = [aa+"_gc" for aa in amino_acids]
 
-# Main function for analysis
-def main(path_to_file, output_dir, plot_name):
-    os.makedirs(output_dir, exist_ok=True)
-    aa_dis_df = pd.read_csv(path_to_file, sep="\t", index_col=0, dtype=str)
+    # IDs of the proteomes
+    proteome_ids = set(aa_dis_df["Genome_Tax_ID"])
+
+    # Calculate the average GC content
+    ave_gc = np.average(aa_dis_df["GC"])
+
+    # Group amino acids based on their attributes
+    aa_groups = {"Aliphatic": ["A", "G", "I", "L", "M", "V"], "Aromatic": ["F",
+                 "W", "Y"], "Charged": ["D", "E", "H", "K", "R"],
+                 "Uncharged": ["C", "N", "P", "Q", "S", "T"]}
+
+    # Calculate metabolic cost of amino acids based on Akashai and Gojobori
+    # and convert them to percentages
+    costs = {"A": 11.7, "C": 24.7, "D": 12.7, "E": 15.3, "F": 52.0,
+             "G": 11.7, "H": 38.3, "I": 32.3, "K": 30.3, "L": 27.3,
+             "M": 34.3, "N": 14.7, "P": 20.3, "Q": 16.3, "R": 27.3,
+             "S": 11.7, "T": 18.7, "V": 23.3, "W": 74.3, "Y": 50.0}
+    costs_inv = {aa:1/costs[aa] for aa in amino_acids}
+    costs_inv_adj = {aa:costs_inv[aa]/np.sum(list(costs_inv.values()))
+                     for aa in amino_acids}
+
+    # Calculate ATP yield of amino acids based on Kaleta and convert them to
+    # percentages
+    atp_yield = {"A": [2,1,0.5], "R": [1,0.5,0.27], "N": [1.73,1,0.47],
+                 "D": [2,1,0.5], "C": [1.24,0.71,0.32], "E": [1,0.5,0.33],
+                 "Q": [1,0.5,0.33], "G": [2,1,0.5], "H": [0.75,0.42,0.19],
+                 "I": [0.79,0.45,0.21], "L": [0.67,0.33,0.2], "P": [1,0.5,0.29],
+                 "M": [0.71,0.4,0.19], "F": [0.57,0.3,0.14], "S": [2,1,0.5],
+                 "T": [1.37,0.78,0.37], "W": [0.44,0.25,0.11], "V": [1,0.5,0.25],
+                 "Y": [0.57,0.3,0.15], "K": [0.84,0.48,0.22]}
+    atp_yield_ave = {aa:np.average(atp_yield[aa]) for aa in amino_acids}
+    atp_yield_adj ={aa:atp_yield_ave[aa]/np.sum(list(atp_yield_ave.values()))
+                    for aa in amino_acids}
 
     # Initialize list of amino acids and iterate over genetic codes
-    amino_acids = None
     for code_id, codon_table in CodonTable.unambiguous_dna_by_id.items():
-        genetic_name = " ".join(codon_table.names[:-1]).lower().replace(
-            " ", "_")
-        code_output = os.path.join(output_dir, genetic_name)
+        # Name of the genetic code for the directory
+        genetic_name = " ".join(codon_table.names[:-1]).lower().replace(" ","_")
+        # Name of the genetic name for the plot
+        plot_name = genetic_name.capitalize().replace("_", " ")
+        print(f"Current code: {plot_name}...")
+
+        code_output = os.path.join(ouput, genetic_name)
         os.makedirs(code_output, exist_ok=True)
 
         # Map amino acids to their corresponding codons
-        aa_to_codon = col.defaultdict(list)
+        codon_map = col.defaultdict(list)
         for codon, aa in codon_table.forward_table.items():
-            aa_to_codon[aa].append(codon)
+            codon_map[aa].append(codon)
 
-        # Count the number of codons for each amino acid
-        codon_count = Counter(codon_table.forward_table.values())
+        # List of canonical codons in each genetic code
+        canon_codons = sorted([codon for codons in list(codon_map.values())
+                               for codon in codons])
 
-        # Initialize and sort amino acids list based on the first genetic code
-        if amino_acids is None:
-            amino_acids = sorted(codon_count, key=lambda x: (codon_count[x],
-                                                             x))
+        # Calculate the frequency percentage for each amino acid based on the
+        # codon number
+        total_codon_num = np.sum([len(codon_map[aa]) for aa in amino_acids])
+        codon_num_adj = {aa:len(codon_map[aa])/total_codon_num
+                         for aa in amino_acids}
 
-        # Calculate the frequency percentage for each amino acid
-        total_codons = sum(codon_count.values())
-        genetic_code_num = np.array([codon_count[aa] / total_codons
-                                     for aa in amino_acids])
-
-        # Initialize the plot for amino acid distribution
-        fig, ax = plt.subplots()
-        max_codon_num = max(codon_count.values())
-        color_map = plt.cm.rainbow(np.linspace(0, 1, max_codon_num))
-
-        # Create legend patches
-        patches = []
-        for color in color_map:
-            patches.append(patch.Patch(facecolor=color, edgecolor="black",
-                           hatch="//"))
-            patches.append(patch.Patch(facecolor="white", edgecolor="black",
-                           hatch="\\\\"))
-
-        patches += [
-            patch.Patch(facecolor="grey", edgecolor="black", hatch="//"),
-            patch.Patch(facecolor="white", edgecolor="black", hatch="\\\\")
-        ]
-
-        # Accumulate amino acid counts
-        sum_aa = col.defaultdict(int)
-        for l_index, aa in enumerate(amino_acids):
-            codon_dis = col.defaultdict(int)
-
-            # Count occurrences of each codon for the current amino acid
-            for codon_num in aa_dis_df[aa]:
-                for codon_entry in codon_num.split(";"):
-                    codon, count = codon_entry.split(":")
-                    if codon != "XXX":
-                        codon_dis[codon] += int(count)
-
-            # Plot observed counts with color for canonical codons
-            bottom = 0
-            for c_index, codon in enumerate(aa_to_codon[aa]):
-                cod_num = codon_dis[codon]
-                sum_aa[aa] += cod_num
-                ax.bar(l_index - 0.15, cod_num, width=0.3, edgecolor="black",
-                       linewidth=0.75, bottom=bottom, color=color_map[c_index],
-                       hatch="//")
-                bottom += cod_num
-
-            # Plot non-canonical codons in grey
-            for codon, num in codon_dis.items():
-                if codon not in aa_to_codon[aa]:
-                    sum_aa[aa] += num
-                    ax.bar(l_index - 0.15, num, width=0.3, edgecolor="black",
-                           linewidth=0.75, bottom=bottom, color="grey",
-                           hatch="//")
-                    bottom += num
-
-        # Plot the expected amino acid counts
-        sum_aa_list = list(sum_aa.values())
-        x_data = np.arange(len(amino_acids))
-        genetic_calc_list = genetic_code_num * sum(sum_aa_list)
-        ax.bar(x_data + 0.15, genetic_calc_list, width=0.3, color="white",
-               edgecolor="black", linewidth=0.75, hatch="\\\\")
-
-        # Calculate and plot differences between observed and expected counts
-        dif_text_max_high = max(max(sum_aa_list), max(genetic_calc_list))
-        dif_text_upper = dif_text_max_high * 0.01
-        dif_text_lower = dif_text_max_high * 0.02
-        dif_text_num = dif_text_max_high * 0.03
-
-        for index in x_data:
-            dif_text_high = max(sum_aa_list[index], genetic_calc_list[index])
-            left_text = x_data[index] - 0.15
-            right_text = x_data[index] + 0.15
-            bar_x = [left_text - 0.15, left_text - 0.15,
-                     right_text + 0.15, right_text + 0.15]
-            bar_y = [sum_aa_list[index] + dif_text_upper,
-                     dif_text_high + dif_text_lower,
-                     dif_text_high + dif_text_lower,
-                     genetic_calc_list[index] + dif_text_upper]
-            plt.plot(bar_x, bar_y, "k-", lw=1)
-
-            # Calculate percentage difference between observed and expected
-            data_dif_perc = (sum_aa_list[index] - genetic_calc_list[index]) / (
-                (sum_aa_list[index] + genetic_calc_list[index]) / 2) * 100
-
-            plt.text((left_text + right_text) / 2,
-                     dif_text_high + dif_text_num, f"{data_dif_perc:.1f}",
-                     size=4, ha="center", va="bottom")
-
-        # Calculate Pearson and Spearman correlation coefficients
-        pcc, pcc_p = sci.pearsonr(sum_aa_list, genetic_code_num)
-        r2, r2_p = sci.spearmanr(sum_aa_list, genetic_code_num)
-
-        # Add correlation text box to the plot
-        ax.text(1.02, 0.98,
-                f"pcc: {pcc:.2f}; $p_{{pcc}}$: {pcc_p:.1e}\n"
-                f"$r2$: {r2:.2f}; $p_{{r2}}$: {r2_p:.1e}",
-                transform=ax.transAxes, fontsize=8,
-                verticalalignment="top",
-                bbox=dict(boxstyle="round", facecolor="white",
-                          edgecolor="grey", alpha=0.5))
-
-        # Set up legend, labels, and title
-        plt.legend(handles=patches,
-                   labels=[""] * (max_codon_num * 2) +
-                   ["Genomic data", "Genetic code"],
-                   ncol=max_codon_num + 1, handletextpad=0.5,
-                   handlelength=1.0, columnspacing=-0.5, loc="upper left")
-        plt.xlabel("Amino acid")
-        plt.ylabel("Summed amino acid number")
-        plt.xticks(np.arange(len(amino_acids)), amino_acids)
-
-        genetic_name = genetic_name.capitalize().replace("_", " ")
-        title = tw.fill(f"{plot_name} - Correlation between amino acid "
-                        f"and codon number for genetic code: {genetic_name}",
-                        50)
-        plt.title(title)
-
-        for ext in ["svg", "pdf"]:
-            plt.savefig(f"{code_output}/barplot.{ext}", bbox_inches="tight")
-        plt.close()
-
-        # Prepare symbols and functions for expected frequency calculations
+        # Load frequency functions for each amino acid based on GC content
         g = sp.symbols("g", float=True)
-        funcs = ef.build_functions(aa_to_codon)["amino"]
+        freq_funcs = ef.build_functions(codon_map)["amino"]
 
-        # Iterate over each proteome to calculate amino acid counts
-        aa_count_lst = []
-        for proteome_id in set(aa_dis_df["Genome_Tax_ID"]):
-            prot_aa_count = aa_dis_df[aa_dis_df["Genome_Tax_ID"] ==
-                                      proteome_id]
-            aa_count_dic = {}
-
-            # Calculate the observed amino acid counts
+        # Dataframe for amino acid frequency for each proteome based on
+        # observation and calculation
+        amino_acid_df = pd.DataFrame(index=range(len(proteome_ids)),
+                                     columns=amino_acids+["Len_mean", "GC_mean"])
+        amino_acid_df.index = proteome_ids
+        amino_acid_df.index.name = "Proteome_ID"
+        # Loop over all proteomes and calculate the observed and statistical
+        # amino acid frequencies
+        for id in proteome_ids:
+            proteome_df = aa_dis_df[aa_dis_df["Genome_Tax_ID"]==id]
+            # Count for each protein the amino acids based on the observed
+            # codons
             for aa in amino_acids:
-                aa_count_dic[aa] = np.median([
-                    sum(int(c.split(":")[1]) for c in codon_num.split(";")
-                        if c.split(":")[0] != "XXX")
-                    for codon_num in prot_aa_count[aa]
-                ])
+                proteome_df[aa] = proteome_df[aa].apply(count_amino_acids,
+                                                      canon_codons=canon_codons)
 
-            # Calculate the overall amino acid sum and average GC content
-            aa_sum = sum(aa_count_dic.values())
-            aa_count_dic["GC_ave"] = np.mean(prot_aa_count["GC"].astype(float))
-
-            # Calculate expected counts, residuals, and log-transformed values
+            # Sum the observed amino acids for each protein
+            proteome_df["Sum"] = proteome_df[amino_acids].sum(axis=1)
+            # Filter out all proteins where the number of observed amino acids
+            # does not equal the length of protein
+            proteome_df = proteome_df[proteome_df["Sum"]==proteome_df["Length"]]
+            # Calculate the observed amino acids frequencies for the proteome
+            amino_acid_df.loc[id, amino_acids] = (proteome_df[amino_acids].sum()
+                                                  / proteome_df["Sum"].sum())
+            # Calculate the mean length of GC content of all proteins of the
+            # proteome
+            amino_acid_df.loc[id, "Len_mean"] = np.mean(proteome_df["Length"])
+            gc_mean = np.mean(proteome_df["GC"])
+            amino_acid_df.loc[id, "GC_mean"] = gc_mean
+            # Calculate for the proteome the expected amino acid frequencies
+            # based on the mean GC content
             for aa in amino_acids:
-                aa_exp = aa + "_expected"
-                aa_res = aa + "_residual"
-                aa_count_dic[aa] = np.log2(aa_count_dic[aa] + 1)
-                expected_count = float(funcs[aa].subs(g,
-                                                      aa_count_dic["GC_ave"])
-                                       ) * aa_sum
-                aa_count_dic[aa_exp] = np.log2(expected_count)
-                aa_count_dic[aa_res] = (aa_count_dic[aa] -
-                                        aa_count_dic[aa_exp])
+                amino_acid_df.loc[id,aa+"_gc"] = float(freq_funcs[aa].subs(g,
+                                                                       gc_mean))
 
-            # Calculate Pearson and Spearman correlations with p-values
-            obs_aa_count = [aa_count_dic[aa] for aa in amino_acids]
-            exp_aa_count = [aa_count_dic[aa + "_expected"]
-                            for aa in amino_acids]
-            aa_count_dic["Pearson"], aa_count_dic["p-value: Pearson"] = (
-                sci.pearsonr(obs_aa_count, exp_aa_count))
-            aa_count_dic["Spearman"], aa_count_dic["p-value: Spearman"] = (
-                sci.spearmanr(obs_aa_count, exp_aa_count))
+        # Dataframes for Pearson and Spearman correlations
+        pearson_df = pd.DataFrame(columns=["correlation", "p-value", "Type"])
+        spearman_df = pd.DataFrame(columns=["correlation", "p-value", "Type"])
+        cor_data = {"Codon number": list(codon_num_adj.values()),
+                    "GC content": None,
+                    "Metbaolic cost": list(costs_inv_adj.values()),
+                    "ATP yield": list(atp_yield_adj.values())}
+        # Calculate the correlation coefficients of different factor for each
+        # proteome
+        for type,data in cor_data.items():
+            cor_pear_df = pd.DataFrame(index=range(len(proteome_ids)),
+                                     columns=["correlation", "p-value", "Type"])
+            cor_pear_df.index = proteome_ids
+            cor_pear_df.index.name = "Proteome_ID"
+            cor_spear_df = pd.DataFrame(index=range(len(proteome_ids)),
+                                     columns=["correlation", "p-value", "Type"])
+            cor_spear_df.index = proteome_ids
+            cor_spear_df.index.name = "Proteome_ID"
+            if(data is None):
 
-            aa_count_lst.append(aa_count_dic)
+        break
+                # Calculate Pearson correlation based on GC content
+                cor_pear_df[["correlation", "p-value"]] = amino_acid_df.apply(
+                                                    lambda row: pd.Series(sci.pearsonr(
+                                                    row[amino_acids], row[aa_gc_cols])),
+                                                    axis=1)
+                # Calculate Spearman correlation based on GC content
+                cor_spear_df[["correlation", "p-value"]] = amino_acid_df.apply(
+                                                    lambda row: pd.Series(sci.spearmanr(
+                                                    row[amino_acids], row[aa_gc_cols])),
+                                                    axis=1)
+            else:
+                # Calculate Pearson correlation based on codon number,
+                # metabolic cost or ATP yield
+                cor_pear_df[["correlation", "p-value"]] = amino_acid_df.apply(
+                                                    lambda row: pd.Series(sci.pearsonr(
+                                                    row[amino_acids], data)), axis=1)
+                # Calculate Spearman correlation based on codon number,
+                # metabolic cost or ATP yield
+                cor_spear_df[["correlation", "p-value"]] = amino_acid_df.apply(
+                                                    lambda row: pd.Series(sci.spearmanr(
+                                                    row[amino_acids], data)), axis=1)
 
-        # Create DataFrame from the list of dictionaries and sort by "GC_ave"
-        exp_amino_acids = [aa + "_expected" for aa in amino_acids]
-        res_amino_acids = [aa + "_residual" for aa in amino_acids]
-        columns = (["GC_ave"] + amino_acids + exp_amino_acids +
-                   res_amino_acids + ["Pearson", "p-value: Pearson",
-                                      "Spearman", "p-value: Spearman"])
+            cor_pear_df["Type"] = [type] * len(cor_pear_df)
+            pearson_df = pd.concat([pearson_df, cor_pear_df])
+            cor_spear_df["Type"] = [type] * len(cor_spear_df)
+            spearman_df = pd.concat([spearman_df, cor_spear_df])
 
-        aa_proteome_df = pd.DataFrame(aa_count_lst, columns=columns)
-        aa_proteome_df = aa_proteome_df.sort_values("GC_ave", ascending=False)
+        amino_acid_df.to_csv(f"{code_output}/aa_dis_frequencies.csv", sep="\t")
+        pearson_df.to_csv(f"{code_output}/pearsons.csv", sep="\t")
+        spearman_df.to_csv(f"{code_output}/spearmans.csv", sep="\t")
 
-        # Define y-ticks and y-tick labels based on GC content
-        yticks = np.linspace(0, len(aa_proteome_df["GC_ave"]) - 1, 20,
-                             dtype=int)
-        yticklabels = [f"{aa_proteome_df['GC_ave'].iloc[idx]:.2f}"
-                       for idx in yticks]
+        overall_aa_mean = {aa:amino_acid_df[amino_acids].mean()[aa]
+                           for aa in amino_acids}
+        overall_aa_gc_mean = {aa:amino_acid_df[aa_gc_cols].mean()[aa+"_gc"]
+                              for aa in amino_acids}
+        for type,aa_list in aa_groups.items():
+            fig, ax = plt.subplots()
+            x_data = np.arange(len(aa_list))
+            w = 0.15
 
-        # Plot observed, expected, and residual heatmaps
-        plot_heatmap(aa_proteome_df, amino_acids, "YlGnBu",
-                     "log2-Median amino acid count", amino_acids, yticks,
-                     yticklabels, f"{plot_name} - Observed amino acid count "
-                     f"for genetic code: {genetic_name}", "obs_heatmap",
-                     code_output)
+            # Observed frequency of amino acids and plot them
+            obs_aas = np.array([overall_aa_mean[aa] for aa in aa_list])
+            ax.bar(x_data-w*2, obs_aas, width=w, color=cmap(0.1),
+                   edgecolor="black", linewidth=0.75, hatch="//",
+                   label="Observed amount")
 
-        plot_heatmap(aa_proteome_df, exp_amino_acids, "YlGnBu",
-                     "log2-Median amino acid count", amino_acids, yticks,
-                     yticklabels, f"{plot_name} - Expected amino acid count "
-                     f"for genetic code: {genetic_name}", "exp_heatmap",
-                     code_output)
+            # Expected frequency of amino acids based on codon number and plot
+            # them
+            codon_aas = np.array([codon_num_adj[aa] for aa in aa_list])
+            ax.bar(x_data-w, codon_aas, width=w, color=cmap(0.3),
+                   edgecolor="black", linewidth=0.75, hatch="\\\\",
+                   label="Codon number")
+            # Calculate Pearson and Spearman correlation coefficients for the
+            # codon number
+            codon_pcc, codon_pcc_p = sci.pearsonr(list(overall_aa_mean.values()),
+                                                  list(codon_num_adj.values()))
+            codon_r2, codon_r2_p = sci.spearmanr(list(overall_aa_mean.values()),
+                                                 list(codon_num_adj.values()))
+            # Add correlation text box for the codon number
+            ax.text(1.02, 0.65, f"$Codon$ correlation:\n"
+                    f"  - $pcc$: {codon_pcc:.2f}; $p_{{pcc}}$: {codon_pcc_p:.1e}\n"
+                    f"  - $r2$: {codon_r2:.2f}; $p_{{r2}}$: {codon_r2_p:.1e}",
+                    transform=ax.transAxes, fontsize=8, verticalalignment="top",
+                    bbox=dict(boxstyle="round", facecolor="white",
+                              edgecolor="grey", alpha=0.5))
 
-        plot_heatmap(aa_proteome_df, res_amino_acids, "coolwarm",
-                     "Residual (Observed - Expected)", amino_acids, yticks,
-                     yticklabels, f"{plot_name} - Residual between observed "
-                     f"and expected count for genetic code: {genetic_name}",
-                     "res_heatmap", code_output)
+            # Expected frequency of amino acids based on GC content and plot
+            # them
+            gc_aas = np.array([overall_aa_gc_mean[aa] for aa in aa_list])
+            ax.bar(x_data, gc_aas, width=w, color=cmap(0.5),
+                   edgecolor="black", linewidth=0.75, hatch="//",
+                   label="GC content")
+            # Calculate Pearson and Spearman correlation coefficients for the
+            # GC content
+            gc_pcc, gc_pcc_p = sci.pearsonr(list(overall_aa_mean.values()),
+                                            list(overall_aa_gc_mean.values()))
+            gc_r2, gc_r2_p = sci.spearmanr(list(overall_aa_mean.values()),
+                                           list(overall_aa_gc_mean.values()))
+            # Add correlation text box for the GC content
+            ax.text(1.02, 0.5, f"$GC$ correlation:\n"
+                    f"  - $pcc$: {gc_pcc:.2f}; $p_{{pcc}}$: {gc_pcc_p:.1e}\n"
+                    f"  - $r2$: {gc_r2:.2f}; $p_{{r2}}$: {gc_r2_p:.1e}",
+                    transform=ax.transAxes, fontsize=8, verticalalignment="top",
+                    bbox=dict(boxstyle="round", facecolor="white",
+                              edgecolor="grey", alpha=0.5))
 
-        # Plotting Pearson and Spearman correlation coefficients vs. GC content
-        fig, ax = plt.subplots(figsize=(10, 6))
-        pearson_df = aa_proteome_df[aa_proteome_df["p-value: Pearson"] < 0.05]
-        spearman_df = aa_proteome_df[aa_proteome_df["p-value: Spearman"] <
-                                     0.05]
+            # Expected frequency of amino acids based on metabolic cost and plot
+            # them
+            cost_aas = np.array([costs_inv_adj[aa] for aa in aa_list])
+            ax.bar(x_data+w, cost_aas, width=w, color=cmap(0.7),
+                   edgecolor="black", linewidth=0.75, hatch="\\\\",
+                   label="Metabolic cost")
+            # Calculate Pearson and Spearman correlation coefficients for the
+            # metabolic cost
+            cost_pcc, cost_pcc_p = sci.pearsonr(list(overall_aa_mean.values()),
+                                                list(costs_inv_adj.values()))
+            cost_r2, cost_r2_p = sci.spearmanr(list(overall_aa_mean.values()),
+                                               list(costs_inv_adj.values()))
+            # Add correlation text box for the metabolic cost
+            ax.text(1.02, 0.35, f"$Cost$ correlation:\n"
+                    f"   - $pcc$: {cost_pcc:.2f}; $p_{{pcc}}$: {cost_pcc_p:.1e}\n"
+                    f"   - $r2$: {cost_r2:.2f}; $p_{{r2}}$: {cost_r2_p:.1e}",
+                    transform=ax.transAxes, fontsize=8, verticalalignment="top",
+                    bbox=dict(boxstyle="round", facecolor="white",
+                              edgecolor="grey", alpha=0.5))
 
-        ax.scatter(pearson_df["GC_ave"], pearson_df["Pearson"], alpha=0.7,
-                   color="red", edgecolor="black", label="Pearson correlation")
+            # Expected frequency of amino acids based on ATP yield and plot them
+            yield_aas = np.array([atp_yield_adj[aa] for aa in aa_list])
+            ax.bar(x_data+w*2, yield_aas, width=w, color=cmap(0.9),
+                   edgecolor="black", linewidth=0.75, hatch="//",
+                   label="ATP yield")
+            # Calculate Pearson and Spearman correlation coefficients for the
+            # ATP yield
+            cost_pcc, cost_pcc_p = sci.pearsonr(list(overall_aa_mean.values()),
+                                                list(atp_yield_adj.values()))
+            cost_r2, cost_r2_p = sci.spearmanr(list(overall_aa_mean.values()),
+                                               list(atp_yield_adj.values()))
+            # Add correlation text box for the metabolic cost
+            ax.text(1.02, 0.2, f"$Yield$ correlation:\n"
+                    f"   - $pcc$: {cost_pcc:.2f}; $p_{{pcc}}$: {cost_pcc_p:.1e}\n"
+                    f"   - $r2$: {cost_r2:.2f}; $p_{{r2}}$: {cost_r2_p:.1e}",
+                    transform=ax.transAxes, fontsize=8, verticalalignment="top",
+                    bbox=dict(boxstyle="round", facecolor="white",
+                              edgecolor="grey", alpha=0.5))
 
-        ax.scatter(spearman_df["GC_ave"], spearman_df["Spearman"], alpha=0.7,
-                   color="blue", edgecolor="black", label="Spearman correlation")
+            ax.set_xticks(np.arange(len(aa_list)), aa_list)
+            ax.set_xlabel(f"{type} amino acid")
+            ax.set_ylabel("Mean amino acid count")
+            ax.legend(loc="upper center", bbox_to_anchor=(1.19, 1.02),
+                      fancybox=True)
+            title = tw.fill(f"{name} - Correlation between amino acid "
+                            f"and codon number for genetic code: {plot_name}",
+                            50)
+            plt.title(title)
+            for ext in ["svg", "pdf"]:
+                plt.savefig(f"{code_output}/{type.lower()}.{ext}",
+                            bbox_inches="tight")
 
-        # Set plot labels and title
-        cor_title = tw.fill(f"{plot_name} - Pearson/Spearman correlation "
-                            f"for genetic code: {genetic_name}", 50)
-        ax.set_xlabel("GC content")
-        ax.set_ylabel("Pearson/Spearman correlation coefficient")
-        ax.set_title(cor_title)
-        plt.legend(loc="upper left")
+            plt.close()
 
-        # Save the correlation plot
-        for ext in ["svg", "pdf"]:
-            plt.savefig(f"{code_output}/correlation.{ext}",
-                        bbox_inches="tight")
-        plt.close()
+        # Plot the Pearson and Spearman correlation coefficients for each
+        # proteome as a density plot
+        for type,data in {"Pearson": pearson_df,
+                          "Spearman": spearman_df}.items():
+            ax=sns.kdeplot(
+               data=data, x="correlation", hue="Type", fill=True,
+               common_norm=False, alpha=0.5, linewidth=2.5
+            )
 
-        # Save the DataFrame to a CSV file
-        aa_proteome_df.to_csv(f"{code_output}/data_heatmap.csv", sep="\t")
+            sns.move_legend(ax, "upper left")
+            plt.xlabel(f"{type} correlation")
+            plt.ylabel("Density")
+            title = tw.fill(f"{name} - Density of {type} correlation "
+                            f" coefficients for genetic code: {plot_name}", 50)
+            plt.title(title)
+            for ext in ["svg", "pdf"]:
+                plt.savefig(f"{code_output}/{type.lower()}_plot.{ext}",
+                            bbox_inches="tight")
 
-if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2], sys.argv[3])
+            plt.close()
