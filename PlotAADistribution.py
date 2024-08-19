@@ -144,6 +144,8 @@ if __name__ == "__main__":
                 amino_acid_df.loc[id,aa+"_gc"] = float(freq_funcs[aa].subs(g,
                                                                        gc_mean))
 
+        # Drop all rows with NaN values
+        amino_acid_df = amino_acid_df.dropna()
         # Dataframes for Pearson and Spearman correlations
         pearson_df = pd.DataFrame(columns=["correlation", "p-value", "Type"])
         spearman_df = pd.DataFrame(columns=["correlation", "p-value", "Type"])
@@ -163,8 +165,6 @@ if __name__ == "__main__":
             cor_spear_df.index = proteome_ids
             cor_spear_df.index.name = "Proteome_ID"
             if(data is None):
-
-        break
                 # Calculate Pearson correlation based on GC content
                 cor_pear_df[["correlation", "p-value"]] = amino_acid_df.apply(
                                                     lambda row: pd.Series(sci.pearsonr(
