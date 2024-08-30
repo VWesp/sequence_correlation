@@ -22,14 +22,6 @@ def get_amino_acids(id):
     return list(codon_map.keys())
 
 
-# Function to calculate the sum of codons
-def count_amino_acids(codon_dis, canon_codons):
-    return sum(
-        int(codon.split(":")[1])
-        for codon in codon_dis.split(";")
-    )
-
-
 if __name__ == "__main__":
     path, output = sys.argv[1:3]
     # Load amino acid distribution file
@@ -81,8 +73,7 @@ if __name__ == "__main__":
 
         a = 0.2
         # Metabolic amino acid cost adjusted by codon number
-        cod_ajd_fac = {aa:1/codon_num_adj[aa] for aa in amino_acids}
-        cod_costs = {aa:(1-a)*costs[aa]+a*cod_ajd_fac[aa]
+        cod_costs = {aa:(1-a)*costs[aa]+a/codon_num_adj[aa]
                      for aa in amino_acids}
         cod_costs_inv = {aa:1/cod_costs[aa] for aa in amino_acids}
         cod_costs_inv_adj = {aa:(cod_costs_inv[aa]
@@ -107,15 +98,11 @@ if __name__ == "__main__":
             # Sum the observed amino acids for each protein
             proteome_df["AA_Sum"] = proteome_df[amino_acids].sum(axis=1)
             # Filter out all proteins where the number of observed amino acids
-            # does not equal the length of protein
+            # does not equal the length of he protein
             proteome_df = proteome_df[proteome_df["AA_Sum"]==proteome_df["Length"]]
             proteome_df = proteome_df.drop("AA_Sum", axis=1)
-            # Median values over the entire dataframe
-            proteome_df = proteome_df.median(axis=0)
-
-            # Relative amino acid frequencies
-            proteome_df[amino_acids] = (proteome_df[amino_acids]
-                                        / np.sum(proteome_df[amino_acids]))
+            # Mean values over the entire dataframe
+            proteome_df = proteome_df.mean(axis=0)
 
             # Calculated amino acid frequencies based on GC content
             gc_freqs = {aa:float(freq_funcs[aa].subs(g, proteome_df["GC"]))
@@ -128,15 +115,16 @@ if __name__ == "__main__":
                                     / np.sum(list(gc_costs_inv.values())))
                                 for aa in amino_acids}
 
-            len_mean = proteome_df["Length"]
             for aa in amino_acids:
-                proteome_df[aa] *= len_mean
-                proteome_df[aa+"_codon"] = codon_num_adj[aa] * len_mean
-                proteome_df[aa+"_gc"] = gc_freqs[aa] * len_mean
-                proteome_df[aa+"_cost"] = costs_inv_adj[aa] * len_mean
-                proteome_df[aa+"_cost_codon"] = (cod_costs_inv_adj[aa]
-                                                 * len_mean)
-                proteome_df[aa+"_cost_gc"] = gc_costs_inv_adj[aa] * len_mean
+                proteome_df[aa+"_codon"] = (codon_num_adj[aa] *
+                                                          proteome_df["Length"])
+                proteome_df[aa+"_gc"] = gc_freqs[aa] * proteome_df["Length"]
+                proteome_df[aa+"_cost"] = (costs_inv_adj[aa] *
+                                                          proteome_df["Length"])
+                proteome_df[aa+"_cost_codon"] = (cod_costs_inv_adj[aa] *
+                                                          proteome_df["Length"])
+                proteome_df[aa+"_cost_gc"] = (gc_costs_inv_adj[aa] *
+                                                          proteome_df["Length"])
 
             gen_code_l.append(proteome_df)
 
@@ -144,6 +132,8 @@ if __name__ == "__main__":
         gen_code_df.index = proteome_ids
         gen_code_df.index.name = "Proteome_IDs"
         gen_code_df = gen_code_df.dropna()
+
+        # Calculate all Pearson and Spearman correlation coefficients
         for aa_type in ["codon", "gc", "cost", "cost_codon", "cost_gc"]:
             aa_ar = [aa+f"_{aa_type}" for aa in amino_acids]
             # Calculate Pearson correlation between the observed frequencies
@@ -163,51 +153,3 @@ if __name__ == "__main__":
 
         gen_code_df.to_csv(os.path.join(code_output, "proteome_freqs.csv"),
                            sep="\t")
-
-        # Plot the density of each amino acid in the dataset
-        if(code_id==1):
-            df = np.log2(gen_code_df[amino_acids]+1)
-            df = df.reset_index().melt(id_vars="Proteome_IDs",
-                                       var_name="Amino acid",
-                                       value_name="log2-Amino acid frequency")
-            df = df.drop(columns=["Proteome_IDs"])
-            df = df.reset_index(drop=True)
-
-            pal = sns.color_palette("crest", as_cmap=True)(np.linspace(0, 1,
-                                                              len(amino_acids)))
-            sns.set_theme(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})
-
-            g = sns.FacetGrid(df, row="Amino acid", hue="Amino acid",
-                              aspect=15, height=0.5, palette=pal)
-
-            # Draw the densities
-            g.map(sns.kdeplot, "log2-Amino acid frequency", bw_adjust=0.5,
-                  clip_on=False, fill=True, alpha=0.5, linewidth=2.5)
-            g.map(sns.kdeplot, "log2-Amino acid frequency", clip_on=False,
-                  color="white", lw=2,  bw_adjust=0.5)
-            g.refline(y=0, linewidth=2, linestyle="-", color=None,
-                      clip_on=False)
-
-            # Label function
-            def label(x, color, label):
-                ax = plt.gca()
-                ax.text(0, .2, label, fontweight="bold", color=color,
-                        ha="left", va="center", transform=ax.transAxes,
-                        fontsize=10)
-
-            g.map(label, "log2-Amino acid frequency")
-
-            # Overlap subplots
-            g.figure.subplots_adjust(hspace=-.25)
-
-            # Remove axes details
-            g.set_titles("")
-            g.set(yticks=[], ylabel="")
-            g.despine(bottom=True, left=True)
-
-            title = "Density of all amino acids"
-            g.fig.suptitle(title, y=0.9)
-            for ext in ["svg", "pdf"]:
-                plt.savefig(f"{output}/aa_density.{ext}", bbox_inches="tight")
-
-            plt.close()
