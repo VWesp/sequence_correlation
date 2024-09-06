@@ -1,14 +1,9 @@
 import os
 import sys
 import numpy as np
-import sympy as sp
 import pandas as pd
 import textwrap as tw
 import seaborn as sns
-import collections as col
-import scipy.stats as sci
-import equation_functions as ef
-from Bio.Data import CodonTable
 import matplotlib.pyplot as plt
 
 import warnings
@@ -108,9 +103,9 @@ if __name__ == "__main__":
         j = 0
         for type,aa_list in aa_groups.items():
             x_data = np.arange(len(aa_list))
-            wid = 0.1
-            b_pos = -0.25
-            col = 0.15
+            wid = 0.15
+            b_pos = -0.3
+            col = 0.18
             hatch = "//"
             # Plot observed median frequency of amino acids
             obs_aas = np.array([med_data_df[aa] for aa in aa_list])
@@ -119,18 +114,20 @@ if __name__ == "__main__":
                           label="Observed", zorder=2)
 
             c_pos = 0.2
-            for calc_type in ["codon", "gc", "cost", "cost_codon", "cost_gc"]:
+            for calc_type in ["codon", "gc", "cost_a", "cost_k"]:
                 hatch = "\\\\" if hatch=="//" else "//"
                 b_pos += wid
-                col += 0.15
+                col += 0.18
                 # Plot median frequency of amino acids of the current type
                 obs_aas = np.array([med_data_df[aa+f"_{calc_type}"]
                                     for aa in aa_list])
                 label = calc_type.capitalize().replace("_", "+")
                 if(calc_type=="gc"):
                     label = "Codon+GC"
-                elif(calc_type=="cost_gc"):
-                    label = "Cost+codon+GC"
+                elif(calc_type=="cost_a"):
+                    label = "Cost (Akashi)"
+                elif(calc_type=="cost_k"):
+                    label = "Cost (Kaleta)"
 
                 axes[i,j].bar(x_data+b_pos, obs_aas, width=wid, color=cmap(col),
                               edgecolor="black", linewidth=0.75, hatch=hatch,
@@ -151,7 +148,7 @@ if __name__ == "__main__":
                         spear_ar = [f"spearman {calc_type}",
                                     f"p-spearman {calc_type}"]
                         r2, r2_p = med_data_df[spear_ar]
-                        label = tw.fill(f"${label}$ correlation:", 25)
+                        label = tw.fill(f"${label}$ correlation:", 30)
                         axes[i,j].text(1.03, c_pos, f"{label}\n"
                             f"  - $pcc$: {pcc:.2f}; $p_{{pcc}}$: {pcc_p:.1e}\n"
                             f"  - $r2$: {r2:.2f}; $p_{{r2}}$: {r2_p:.1e}",
@@ -167,7 +164,7 @@ if __name__ == "__main__":
         for ax in axes.reshape(-1):
             ax.set_ylim(0, y_max)
 
-        axes[0,0].legend(loc="upper center", bbox_to_anchor=(1.23, 0.8),
+        axes[0,0].legend(loc="upper center", bbox_to_anchor=(1.23, 0.7),
                          fancybox=True, fontsize=12)
 
         fig.subplots_adjust(wspace=0.6, hspace=0.3)
@@ -189,15 +186,16 @@ if __name__ == "__main__":
             for cor_type in ["pearson", "spearman"]:
                 cor_df = pd.DataFrame()
                 ridge_df = pd.DataFrame()
-                for calc_type in ["codon", "gc", "cost", "cost_codon",
-                                  "cost_gc"]:
+                for calc_type in ["codon", "gc", "cost_a", "cost_k"]:
                     cor_col = f"{cor_type} {calc_type}"
                     p_col = f"p-{cor_type} {calc_type}"
                     label = calc_type.capitalize().replace("_", "+")
                     if(calc_type=="gc"):
                         label = "Codon+GC"
-                    elif(calc_type=="cost_gc"):
-                        label = "Cost+codon+GC"
+                    elif(calc_type=="cost_a"):
+                        label = "Cost (Akashi)"
+                    elif(calc_type=="cost_k"):
+                        label = "Cost (Kaleta)"
 
                     data = data_df[[cor_col, p_col]]
                     data = data_df[data_df[p_col] <= sig]

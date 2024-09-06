@@ -10,7 +10,6 @@ if __name__ == "__main__":
 
     Entrez.email = "valentin.wesp@uni-jena.de"
     ids = set(aa_dis_df["Genome_Tax_ID"])
-    ids = ['UP000000437_7955']
     tax_ids = []
     genetic_ids = []
     missing_ids = []

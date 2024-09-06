@@ -31,23 +31,20 @@ def get_aa_dis(prot_path, dna_path, output):
                             if name.startswith("sp")}
 
             for prot_id,prot_rec in prot_sp_seqio.items():
-                for dna_id,dna_rec in dna_sp_seqio.items():
-                    if(prot_id == dna_id):
-                        prot_seq = str(prot_rec.seq)
-                        dna_seq = str(dna_rec.seq)
-                        codon_counts = aa_codon_count(prot_seq, dna_seq)
-                        if(codon_counts != None):
-                            for aa,codons in codon_counts.items():
-                                codon_list = []
-                                for codon,count in codons.items():
-                                    codon_list.append("{}:{}".format(codon, count))
+                dna_rec = dna_sp_seqio[prot_id]
+                prot_seq = str(prot_rec.seq)
+                dna_seq = str(dna_rec.seq)
+                codon_counts = aa_codon_count(prot_seq, dna_seq)
+                if(codon_counts != None):
+                    for aa,codons in codon_counts.items():
+                        codon_list = []
+                        for codon,count in codons.items():
+                            codon_list.append("{}:{}".format(codon, count))
 
-                                all_aa_to_codons[prot_id][aa] = ";".join(codon_list)
+                        all_aa_to_codons[prot_id][aa] = ";".join(codon_list)
 
-                            all_aa_to_codons[prot_id]["Length"] = len(prot_rec.seq)
-                            all_aa_to_codons[prot_id]["GC"] = util.gc_fraction(dna_seq)
-
-                        break
+                    all_aa_to_codons[prot_id]["Length"] = len(prot_rec.seq)
+                    all_aa_to_codons[prot_id]["GC"] = util.gc_fraction(dna_seq)
 
     if(len(all_aa_to_codons)):
         aa_codon_df = pd.DataFrame.from_dict(all_aa_to_codons, orient="index")
