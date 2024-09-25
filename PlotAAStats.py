@@ -36,9 +36,6 @@ if __name__ == "__main__":
                  "Uncharged": ["C", "N", "P", "Q", "S", "T"]}
     aas_cod = [f"{aa}_cod" for aa in amino_acids]
     aas_gc = [f"{aa}_gc" for aa in amino_acids]
-    aas_ener_cod = [f"{aa}_ener_cod" for aa in amino_acids]
-    aas_ener_gc = [f"{aa}_ener_gc" for aa in amino_acids]
-
 
     for folder in folders:
         # Name of the genetic code
@@ -50,8 +47,8 @@ if __name__ == "__main__":
         data_df = pd.read_csv(os.path.join(folder, "proteome_cor_data.csv"),
                               sep="\t", index_col=0)
 
-        # Plot the distributions of average amino acid counts, GC contents and
-        # median proteome length of each proteome
+        # Plot the distributions of mean amino acid counts, GC contents and
+        # mean proteome length
         if(code_name == "Standard"):
             # Plot amino acid distribution
             amino_df = data_df[amino_acids]
@@ -68,8 +65,8 @@ if __name__ == "__main__":
             plt.boxplot(aa_data_filtered, labels=amino_acids, vert=False,
                         notch=True, patch_artist=True,
                         flierprops={"markerfacecolor": "red", "alpha": 0.5})
-            title = tw.fill(f"{name} - Median amino acid frequency per "
-                            "proteome", 100)
+            title = tw.fill(f"{name} - Mean amino acid frequency per proteome",
+                            100)
             plt.title(title)
             plt.xlabel("Amino acid frequency")
             plt.ylabel("Amino acid")
@@ -82,7 +79,7 @@ if __name__ == "__main__":
             bins = optimal_bin(data_df["GC"])
             sns.histplot(data_df, x="GC", bins=bins, alpha=0.4, color="maroon",
                          kde=True, line_kws={"linewidth": 2, "linestyle": "--"})
-            title = tw.fill(f"{name} - Density of median proteome GC content",
+            title = tw.fill(f"{name} - Density of mean proteome GC content",
                             100)
             plt.title(title)
             plt.xlabel("GC content")
@@ -92,12 +89,12 @@ if __name__ == "__main__":
 
             plt.close()
 
-            # Plot proteome length distribution
+            # Plot mean proteome length distribution
             bins = optimal_bin(data_df["Length"])
             sns.histplot(data_df, x="Length", bins=bins, alpha=0.4,
                          color="maroon", kde=True, log_scale=10,
                          line_kws={"linewidth": 2, "linestyle": "--"})
-            title = tw.fill(f"{name} - Density of median proteome length", 100)
+            title = tw.fill(f"{name} - Density of mean proteome length", 100)
             plt.title(title)
             plt.xlabel("log10-Proteome length")
             plt.ylabel("Length density")
@@ -118,7 +115,8 @@ if __name__ == "__main__":
             wid = 0.25
             b_pos = -0.25
             col = 0.3
-            # Plot observed mean relative abundance of each amino acid
+            # Plot observed mean relative abundance and standard deviation of
+            # each amino acid
             list_data = list(data_df[aa_list].mean(axis=0))
             list_data_err = list(data_df[aa_list].std(axis=0))
             axes[i,j].bar(x_data+b_pos, list_data, yerr=list_data_err,
@@ -156,12 +154,12 @@ if __name__ == "__main__":
                         label = tw.fill(f"${label}$ correlation:", 30)
 
                         axes[i,j].text(1.03, c_pos, f"{label}\n"
-                            f"  - Pearson:\n"
-                            f"    - Coefficient: {pcc:.6f}\n"
-                            f"    - p-value: {pcc_p:.6f}\n"
-                            f"\n  - Spearman:\n"
-                            f"    - Coefficient: {r2:.6f}\n"
-                            f"    - p-value: {r2_p:.6f}",
+                            f"  - Mean Pearson:\n"
+                            f"    - Coefficient: {pcc:.5f}\n"
+                            f"    - p-value: {pcc_p:.5e}\n"
+                            f"\n  - Mean Spearman:\n"
+                            f"    - Coefficient: {r2:.5f}\n"
+                            f"    - p-value: {r2_p:.5e}",
                             transform=axes[0,0].transAxes, fontsize=11,
                             verticalalignment="top", linespacing=1.5,
                             bbox=dict(boxstyle="round", facecolor="white",
@@ -179,7 +177,7 @@ if __name__ == "__main__":
                          fancybox=True, fontsize=12)
 
         fig.subplots_adjust(wspace=0.6, hspace=0.3)
-        title = tw.fill(f"{name} - Mean proteomic amino acid frequency "
+        title = tw.fill(f"{name} - Mean proteome amino acid frequency "
                         f"for genetic code: {code_name}", 100)
         fig.suptitle(title, fontsize=15, y=0.95)
         fig.set_figheight(10)
@@ -268,7 +266,7 @@ if __name__ == "__main__":
 
         plt.close()
 
-        for aa in amino_acids:
+        '''for aa in amino_acids:
             pair_df = pd.DataFrame({"Amino acid frequency": data_df[aa],
                                     "log10-Length": np.log10(data_df["Length"]),
                                     "GC": data_df["GC"],
@@ -291,7 +289,7 @@ if __name__ == "__main__":
                 plt.savefig(f"{folder}/{aa}_cor_matrix_plot.{ext}",
                             bbox_inches="tight")
 
-            plt.close()
+            plt.close()'''
 
         # Amino acid correlation data
         data_df = pd.read_csv(os.path.join(folder, "amino_acid_cor_data.csv"),

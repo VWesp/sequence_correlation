@@ -1,38 +1,44 @@
 import yaml
 import numpy as np
+import sympy as sp
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import equation_functions as ef
 from settings import AA_TO_ONE_LETTER
 
-def test(stuff):
-    print(stuff)
-
-def calcCostFreq(df):
-    df = df.copy()
-    df.replace(0, 1, inplace=True)
-    # Calculate the negative natural logarithm of each amino acid frequency
-    aa_ln = np.log(df)
-    # Estimate constant C
-    const_c = -np.mean(aa_ln, axis=1)
-    # Calculate energetic cost
-    en_cost = (-aa_ln).subtract(const_c, axis=0)
-    # Calculate the exponentials of the negative energetic costs
-    exp_neg_cost = np.exp(-en_cost)
-    # Sum the exponentials
-    sum_exp = np.sum(exp_neg_cost, axis=1)
-    # Return the frequency of each amino acid
-    return exp_neg_cost.div(sum_exp, axis=0)
 
 amino_acids = ["M", "W", "C", "D", "E", "F", "H", "K", "N", "Q", "Y", "I",
                "A", "G", "P", "T", "V", "L", "R", "S"]
+aa_test = [f"{aa}_test" for aa in amino_acids]
+# Load genetic code file
+yaml_code = None
+with open("genetic_codes/standard.yaml", "r") as code_reader:
+    yaml_code = yaml.safe_load(code_reader)
+
+# Map amino acids to their one letter code
+codon_map = {AA_TO_ONE_LETTER[aa]:yaml_code[aa]
+             for aa,codons in yaml_code.items()}
+codon_map = {aa:codon_map[aa] for aa in amino_acids}
 
 df = pd.read_csv("species_sprot/eukaryota/aa_code_correlations/standard/proteome_cor_data.csv", sep="\t", index_col=0)
-median_df = df.groupby("Genome_Tax_ID").median()
-aa_ener = [f"{aa}_ener" for aa in amino_acids]
-median_df[aa_ener] = calcCostFreq(median_df[amino_acids])
-#df = df.merge(median_df[aa_ener], left_on="Genome_Tax_ID", right_index=True)
-df.apply(lambda row: test(row), axis=1)
+print(df)
+df = df.groupby("Genome_Tax_ID").mean()["GC"]
+print(df)
+
+list = [[1,2,3,5,5]]*3
+print(list)
+fdjksjfsd
+
+g = sp.symbols("g", float=True)
+freq_funcs = ef.build_functions(codon_map)
+freq_list = []
+for gc in df["GC"]:
+    freqs = list(ef.calculate_frequencies(freq_funcs, gc)["amino"].values())
+    freq_list.append(freqs)
+
+df[aa_test] = freq_list
+print(df)
 
 '''
 print(median_df[amino_acids])

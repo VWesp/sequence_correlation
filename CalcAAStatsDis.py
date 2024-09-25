@@ -61,22 +61,21 @@ def calcCodeStats(path_code, path_dis, output, progress_dict):
     # Map amino acids to their one letter code
     codon_map = {AA_TO_ONE_LETTER[aa]:codons
                  for aa,codons in yaml_code.items()}
+    codon_map = {aa:codon_map[aa] for aa in amino_acids}
 
     # Calculate the frequency percentage for each amino acid based on the
     # codon number
-    total_codon_num = np.sum([len(codon_map[aa]) for aa in amino_acids+["*"]])
+    total_codon_num = np.sum([len(codon_map[aa]) for aa in amino_acids])
     codon_num_adj = {aa:len(codon_map[aa])/total_codon_num
                      for aa in amino_acids}
 
     # Load frequency functions for each amino acid based on the codons and
     # GC content
     g = sp.symbols("g", float=True)
-    freq_funcs = ef.build_functions(codon_map)["amino"]
+    freq_funcs = ef.build_functions(codon_map)
 
     cor_types = {"cod": aas_cod, "gc": aas_gc, "ener_cod": aas_ener_cod,
                  "ener_gc": aas_ener_gc}
-
-    total_prog = 2 + 4*len(amino_acids) + len(cor_types)
 
     # Load amino acid distribution file
     dis_df = pd.read_csv(path_dis, sep="\t", index_col=0, dtype=str)
@@ -90,7 +89,6 @@ def calcCodeStats(path_code, path_dis, output, progress_dict):
     for aa in amino_acids:
         dis_df[aa] = dis_df[aa].apply(lambda row: sum(int(codon.split(":")[1])
                                                   for codon in row.split(";")))
-        progress_dict[genetic_name] += 1 / total_prog * 100
 
     # Sum the observed amino acids for each protein
     dis_df["AA_Sum"] = dis_df[amino_acids].sum(axis=1)
@@ -102,8 +100,11 @@ def calcCodeStats(path_code, path_dis, output, progress_dict):
     # Calculate relative abundance of each amino acid for each protein
     dis_df[amino_acids] = dis_df[amino_acids].div(dis_df["Length"], axis=0)
 
-    # Dataframe to group proteins based on the median values of their proteomes
-    prot_dis_df = dis_df.groupby("Genome_Tax_ID").median()
+    # Dataframe with the mean values of the input dataframe
+    prot_dis_df = dis_df.groupby("Genome_Tax_ID").mean()
+
+    total_prog = (2 + 2*len(amino_acids) + len(prot_dis_df)
+                    + len(cor_types)*len(prot_dis_df))
 
     # Calculate the relative amino acid abundance based on the codon number
     for aa in amino_acids:
@@ -111,13 +112,14 @@ def calcCodeStats(path_code, path_dis, output, progress_dict):
         progress_dict[genetic_name] += 1 / total_prog * 100
 
     # Calculate the frequency of each amino acid based on the codon number and
-    # GC content of each proteome
-    for aa in amino_acids:
-        prot_dis_df[f"{aa}_gc"] = prot_dis_df.apply(lambda row:
-                                       float(freq_funcs[aa].subs(g, row["GC"])),
-                                     axis=1
-                                    )
+    # mean GC content of each proteome
+    freqs_list = []
+    for index,gc in prot_dis_df["GC"].items():
+        freqs = list(ef.calculate_frequencies(freq_funcs, gc)["amino"].values())
+        freqs_list.append(freqs)
         progress_dict[genetic_name] += 1 / total_prog * 100
+
+    prot_dis_df[aas_gc] = freqs_list
 
     # Calculate the frequency of each amino acid based on the energetic cost of
     # each amino acidgiven the relative amino acid abundance based on the codon
@@ -127,32 +129,35 @@ def calcCodeStats(path_code, path_dis, output, progress_dict):
 
     # Calculate the frequency of each amino acid based on the energetic cost of
     # each amino acid given the relative amino acid abundance based on the codon
-    # number and GC content of each proteome
+    # number and mean GC content of each proteome
     prot_dis_df[aas_ener_gc] = calcCostFreq(prot_dis_df[aas_gc])
     progress_dict[genetic_name] += 1 / total_prog * 100
 
     # Calculate all Pearson and Spearman correlation coefficients for factor
     for cor_type,cols in cor_types.items():
-        # Pearson correlation
         pear_cols = [f"pearson_{cor_type}", f"p_pearson_{cor_type}"]
-        prot_dis_df[pear_cols] = prot_dis_df.apply(lambda row: pd.Series(
-                                                  sci.pearsonr(row[amino_acids],
-                                                               row[cols])),
-                                    axis=1
-                                   )
-        progress_dict[genetic_name] += 0.5 / total_prog * 100
-
-        # Spearman correlation
+        pearson_results = []
         spear_cols = [f"spearman_{cor_type}", f"p_spearman_{cor_type}"]
-        prot_dis_df[spear_cols] = prot_dis_df.apply(lambda row: pd.Series(
-                                                 sci.spearmanr(row[amino_acids],
-                                                               row[cols])),
-                                    axis=1
-                                   )
-        progress_dict[genetic_name] += 0.5 / total_prog * 100
+        spearman_results = []
+        # Loop over each row of the dataframe
+        for i,row in prot_dis_df.iterrows():
+            # Pearson correlation
+            pearson_cor,pearson_p = sci.pearsonr(row[amino_acids], row[cols])
+            pearson_results.append((pearson_cor, pearson_p))
+            progress_dict[genetic_name] += 0.5 / total_prog * 100
+
+            # Spearman correlation
+            spearman_cor,spearman_p = sci.spearmanr(row[amino_acids],
+                                                    row[cols])
+            spearman_results.append((spearman_cor, spearman_p))
+            progress_dict[genetic_name] += 0.5 / total_prog * 100
+
+        # Assign results to new columns
+        prot_dis_df[pear_cols[0]], prot_dis_df[pear_cols[1]] = zip(*pearson_results)
+        prot_dis_df[spear_cols[0]], prot_dis_df[spear_cols[1]] = zip(*spearman_results)
 
     prot_dis_df.to_csv(os.path.join(code_output, "proteome_cor_data.csv"),
-                       sep="\t")
+                           sep="\t")
 
     # Calculate the correlations for each amino acid
     correlations = []
@@ -169,7 +174,7 @@ def calcCodeStats(path_code, path_dis, output, progress_dict):
         })
 
         # Calculate Pearson and Spearman correlation coefficients given the
-        # length of each proteome
+        # mean length of each proteome
         pear_len,p_pear_len = sci.pearsonr(prot_dis_df[aa],
                                            prot_dis_df["Length"])
         spear_len,p_spear_len = sci.spearmanr(prot_dis_df[aa],
@@ -185,7 +190,7 @@ def calcCodeStats(path_code, path_dis, output, progress_dict):
         })
 
         # Calculate Pearson and Spearman correlation coefficients given the
-        # GC content of each proteome
+        # mean GC content of each proteome
         pear_gc,p_pear_gc = sci.pearsonr(prot_dis_df[aa], prot_dis_df["GC"])
         spear_gc,p_spear_gc = sci.spearmanr(prot_dis_df[aa], prot_dis_df["GC"])
         correlations.append({
@@ -199,7 +204,7 @@ def calcCodeStats(path_code, path_dis, output, progress_dict):
         })
 
         # Calculate Pearson and Spearman correlation coefficients given the
-        # the codon number and median GC content of each proteome
+        # the codon number and mean GC content of each proteome
         pear_codon_gc,p_pear_codon_gc = sci.pearsonr(prot_dis_df[aa],
                                                      prot_dis_df[f"{aa}_gc"])
         spear_codon_gc,p_spear_codon_gc = sci.spearmanr(prot_dis_df[aa],
@@ -216,7 +221,8 @@ def calcCodeStats(path_code, path_dis, output, progress_dict):
 
         # Calculate Pearson and Spearman correlation coefficients given the
         # energetic cost of each amino acid based on the relative amino acid
-        # abundance based on the codon number and GC content of each proteome
+        # abundance based on the codon number and meanGC content of each
+        # proteome
         pear_ener_gc,p_pear_ener_gc = sci.pearsonr(prot_dis_df[aa],
                                                    prot_dis_df[f"{aa}_ener_gc"])
         spear_ener_gc,p_spear_ener_gc = sci.spearmanr(prot_dis_df[aa],
@@ -271,7 +277,7 @@ def progress_report(progress_dict, processes):
 
 
 if __name__ == "__main__":
-    path_dis,code_path,output,proc = sys.argv[1:5]
+    path_dis,code_path,output,procs = sys.argv[1:5]
     os.makedirs(output, exist_ok=True)
 
     # List of all genetic codes in the folder
@@ -287,27 +293,24 @@ if __name__ == "__main__":
 
     progress_dict = manager.dict({name:0 for name in prog_processes})
 
-    # Create the processes
-    processes = [
-        mp.Process(target=calcCodeStats, args=(path_code, path_dis, output,
-                                                                 progress_dict))
-                                               for path_code in code_paths
-    ]
+    # Create a pool with a limited number of concurrent workers
+    pool = mp.Pool(int(procs))
 
     # Start a process to report progress
     progress_reporter = mp.Process(target=progress_report, args=(progress_dict,
                                                                 prog_processes))
 
-    # Start all worker processes
-    for p in processes:
-        p.start()
-
     # Start the progress reporter
     progress_reporter.start()
 
-    # Wait for all worker processes to complete
-    for p in processes:
-        p.join()
+    # Use the pool to process the tasks concurrently
+    for path_code in code_paths:
+        pool.apply_async(calcCodeStats, args=(path_code, path_dis, output,
+                                              progress_dict))
+
+    # Close the pool and wait for all tasks to finish
+    pool.close()
+    pool.join()
 
     # Wait for the progress reporter to finish
     progress_reporter.join()
