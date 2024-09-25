@@ -1,0 +1,89 @@
+Methionine:
+  - ATA
+  - ATG
+Threonine:
+  - ACA
+  - ACC
+  - ACG
+  - ACT
+Asparagine:
+  - AAC
+  - AAT
+Lysine:
+  - AAA
+  - AAG
+Serine:
+  - AGA: 1/3
+  - AGG: 1/3
+  - AGC
+  - AGT
+  - TCA
+  - TCC
+  - TCG
+  - TCT
+Arginine:
+  - AGA: 1/3
+  - AGG: 1/3
+  - CGA
+  - CGC
+  - CGG
+  - CGT
+Valine:
+  - GTA
+  - GTC
+  - GTG
+  - GTT
+Alanine:
+  - GCA
+  - GCC
+  - GCG
+  - GCT
+Aspartic_acid:
+  - GAC
+  - GAT
+Glutamic_acid:
+  - GAA
+  - GAG
+Glycine:
+  - AGA: 1/3
+  - AGG: 1/3
+  - GGA
+  - GGC
+  - GGG
+  - GGT
+Phenylalanine:
+  - TTC
+  - TTT
+Leucine:
+  - CTA
+  - CTC
+  - CTG
+  - CTT
+  - TTA
+  - TTG
+Tyrosine:
+  - TAC
+  - TAT
+Cysteine:
+  - TGC
+  - TGT
+Tryptophane:
+  - TGA
+  - TGG
+Proline:
+  - CCA
+  - CCC
+  - CCG
+  - CCT
+Histidine:
+  - CAC
+  - CAT
+Glutamine:
+  - CAA
+  - CAG
+Isoleucine:
+  - ATC
+  - ATT
+Stop:
+  - TAA
+  - TAG
