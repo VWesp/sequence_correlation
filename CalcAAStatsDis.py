@@ -101,9 +101,10 @@ def calcCodeStats(path_code, path_dis, output, progress_dict):
     dis_df[amino_acids] = dis_df[amino_acids].div(dis_df["Length"], axis=0)
 
     # Dataframe with the mean values of the input dataframe
-    prot_dis_df = dis_df.groupby("Genome_Tax_ID").mean()
+    mean_dis_df = dis_df.groupby("Genome_Tax_ID").mean()
+    prot_dis_df = dis_df.copy()
 
-    total_prog = (2 + 2*len(amino_acids) + len(prot_dis_df)
+    total_prog = (2 + 2*len(amino_acids) + len(mean_dis_df)
                     + len(cor_types)*len(prot_dis_df))
 
     # Calculate the relative amino acid abundance based on the codon number
@@ -113,23 +114,21 @@ def calcCodeStats(path_code, path_dis, output, progress_dict):
 
     # Calculate the frequency of each amino acid based on the codon number and
     # mean GC content of each proteome
-    freqs_list = []
-    for index,gc in prot_dis_df["GC"].items():
+    for index,gc in mean_dis_df["GC"].items():
+        mask = prot_dis_df["Genome_Tax_ID"] == index
         freqs = list(ef.calculate_frequencies(freq_funcs, gc)["amino"].values())
-        freqs_list.append(freqs)
+        prot_dis_df.loc[mask, aas_gc] = freqs
         progress_dict[genetic_name] += 1 / total_prog * 100
 
-    prot_dis_df[aas_gc] = freqs_list
-
     # Calculate the frequency of each amino acid based on the energetic cost of
-    # each amino acidgiven the relative amino acid abundance based on the codon
+    # each amino acid given the relative amino acid abundance based on the codon
     # number
     prot_dis_df[aas_ener_cod] = calcCostFreq(prot_dis_df[aas_cod])
     progress_dict[genetic_name] += 1 / total_prog * 100
 
     # Calculate the frequency of each amino acid based on the energetic cost of
-    # each amino acid given the relative amino acid abundance based on the codon
-    # number and mean GC content of each proteome
+    # each amino acid given the mean relative amino acid abundance based on the
+    # codon number and GC content of each protein
     prot_dis_df[aas_ener_gc] = calcCostFreq(prot_dis_df[aas_gc])
     progress_dict[genetic_name] += 1 / total_prog * 100
 
@@ -156,7 +155,7 @@ def calcCodeStats(path_code, path_dis, output, progress_dict):
         prot_dis_df[pear_cols[0]], prot_dis_df[pear_cols[1]] = zip(*pearson_results)
         prot_dis_df[spear_cols[0]], prot_dis_df[spear_cols[1]] = zip(*spearman_results)
 
-    prot_dis_df.to_csv(os.path.join(code_output, "proteome_cor_data.csv"),
+    prot_dis_df.to_csv(os.path.join(code_output, "protein_cor_data.csv"),
                            sep="\t")
 
     # Calculate the correlations for each amino acid
@@ -174,7 +173,7 @@ def calcCodeStats(path_code, path_dis, output, progress_dict):
         })
 
         # Calculate Pearson and Spearman correlation coefficients given the
-        # mean length of each proteome
+        # length of each protein
         pear_len,p_pear_len = sci.pearsonr(prot_dis_df[aa],
                                            prot_dis_df["Length"])
         spear_len,p_spear_len = sci.spearmanr(prot_dis_df[aa],
@@ -190,7 +189,7 @@ def calcCodeStats(path_code, path_dis, output, progress_dict):
         })
 
         # Calculate Pearson and Spearman correlation coefficients given the
-        # mean GC content of each proteome
+        # GC content of each protein
         pear_gc,p_pear_gc = sci.pearsonr(prot_dis_df[aa], prot_dis_df["GC"])
         spear_gc,p_spear_gc = sci.spearmanr(prot_dis_df[aa], prot_dis_df["GC"])
         correlations.append({
@@ -220,8 +219,8 @@ def calcCodeStats(path_code, path_dis, output, progress_dict):
         })
 
         # Calculate Pearson and Spearman correlation coefficients given the
-        # energetic cost of each amino acid based on the relative amino acid
-        # abundance based on the codon number and meanGC content of each
+        # energetic cost of each amino acid based on the mean relative amino
+        # acid abundance based on the codon number and GC content of each
         # proteome
         pear_ener_gc,p_pear_ener_gc = sci.pearsonr(prot_dis_df[aa],
                                                    prot_dis_df[f"{aa}_ener_gc"])
