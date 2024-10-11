@@ -61,15 +61,6 @@ def combine_data(paths, amino_acids):
     return comb_df
 
 
-def log(data):
-    if(type(data) is float):
-        data = data if data > 0 else 1
-    else:
-        data[data==0] = 1
-
-    return np.log(data)
-
-
 if __name__ == "__main__":
     prots,codes,output = sys.argv[1:4]
 
