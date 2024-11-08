@@ -1,19 +1,12 @@
 import os
 import sys
 import yaml
-import shutil
 import numpy as np
 import sympy as sp
 import pandas as pd
-import seaborn as sns
-import collections as col
 import scipy.stats as sci
-import multiprocessing as mp
-from functools import partial
 import sklearn.metrics as skl
 import equation_functions as ef
-from Bio.Data import CodonTable
-import matplotlib.pyplot as plt
 
 
 # One letter code for the amino acids of the genetic codes
@@ -153,7 +146,7 @@ if __name__ == "__main__":
             entropy = -sum([freqs[i] * np.log2(freqs[i]) if freqs[i] > 0 else 0
                             for i in range(len(freqs))])
             df_cor.loc[row.name, "shannon_entropy"] = entropy
-        
+
         df_cor.index.name = "Proteome_ID"
         df_cor.to_csv(os.path.join(code_output, "cor_data.csv"), sep="\t")
 
