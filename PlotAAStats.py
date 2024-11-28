@@ -12,6 +12,13 @@ import matplotlib.patches as patch
 from matplotlib.lines import Line2D
 
 
+def optimal_bin(data):
+    data = data.to_numpy()
+    iqr = np.quantile(data, 0.75) - np.quantile(data, 0.25)
+    h = 2 * iqr / len(data)**(1/3)
+    return int((data.max() - data.min()) / h + 1)
+
+
 if __name__ == "__main__":
     path,name = sys.argv[1:3]
 
@@ -146,8 +153,11 @@ if __name__ == "__main__":
         fig, axes = plt.subplots(len(gen_cod_folders), 2, figsize=(10, 10))
         index = 0
         for code,data in cors[cor_type]["Codon"].items():
-            sns.violinplot(x=data, ax=axes[index,0], zorder=2,
-                           color=cmap(index/len(gen_cod_folders)))
+            color = cmap(index/len(gen_cod_folders))
+            if(code == "Standard"):
+                color = "grey"
+
+            sns.violinplot(x=data, ax=axes[index,0], zorder=2, color=color)
             axes[index,0].hlines(0, -1, np.min(data), color="black",
                                  linestyle="--", alpha=0.5, zorder=0)
             axes[index,0].hlines(0, np.max(data), 1, color="black",
@@ -185,8 +195,11 @@ if __name__ == "__main__":
 
         index = 0
         for code,data in cors[cor_type]["GC"].items():
-            sns.violinplot(x=data, ax=axes[index,1], zorder=2,
-                           color=cmap(index/len(gen_cod_folders)))
+            color = cmap(index/len(gen_cod_folders))
+            if(code == "Standard"):
+                color = "grey"
+
+            sns.violinplot(x=data, ax=axes[index,1], zorder=2, color=color)
             axes[index,1].hlines(0, -1, np.min(data), color="black",
                                  linestyle="--", alpha=0.5, zorder=0)
             axes[index,1].hlines(0, np.max(data), 1, color="black",
@@ -238,8 +251,11 @@ if __name__ == "__main__":
     max_val_gc = max([max(data) for _,data in cors["log-MSE"]["GC"].items()])
     max_value = max(max_val_cod*1.15, max_val_gc*1.15)
     for code,data in cors["log-MSE"]["Codon"].items():
-        sns.violinplot(x=data, ax=axes[index,0], zorder=2,
-                       color=cmap(index/len(gen_cod_folders)))
+        color = cmap(index/len(gen_cod_folders))
+        if(code == "Standard"):
+            color = "grey"
+
+        sns.violinplot(x=data, ax=axes[index,0], zorder=2, color=color)
         axes[index,0].hlines(0, 0, np.min(data), color="black",
                              linestyle="--", alpha=0.5, zorder=0)
         axes[index,0].hlines(0, np.max(data), max_value, color="black",
@@ -267,8 +283,11 @@ if __name__ == "__main__":
 
     index = 0
     for code,data in cors["log-MSE"]["GC"].items():
-        sns.violinplot(x=data, ax=axes[index,1], zorder=2,
-                       color=cmap(index/len(gen_cod_folders)))
+        color = cmap(index/len(gen_cod_folders))
+        if(code == "Standard"):
+            color = "grey"
+
+        sns.violinplot(x=data, ax=axes[index,1], zorder=2, color=color)
         axes[index,1].hlines(0, 0, np.min(data), color="black",
                              linestyle="--", alpha=0.5, zorder=0)
         axes[index,1].hlines(0, np.max(data), max_value, color="black",
@@ -309,7 +328,7 @@ if __name__ == "__main__":
     max_value = max([max(data) for _,data in entrops.items()]) * 1.05
     for code,data in entrops.items():
         color = cmap((index-1)/len(gen_cod_folders))
-        if(index == 0):
+        if(index == 0 or code == "Standard"):
             color = "grey"
 
         sns.violinplot(x=data, ax=axes[index], zorder=2, color=color)
@@ -326,7 +345,7 @@ if __name__ == "__main__":
             axes[index].set_xticks([])
 
         if(index == 0):
-            axes[index].set_title("Shannon entropy based on codon number and GC content")
+            axes[index].set_title(f"{name} - Shannon entropy based on codon number and GC content")
 
         index += 1
 
@@ -340,5 +359,33 @@ if __name__ == "__main__":
 
     for ext in ["svg", "pdf"]:
         plt.savefig(f"{path}/shannon_plot.{ext}", bbox_inches="tight")
+
+    plt.close()
+
+    ###############################################################
+    data = prot_df["Length"]
+    bins = optimal_bin(data)
+    sns.histplot(data, bins=bins, alpha=0.4, color="maroon", kde=True,
+                 line_kws={"linewidth": 2, "linestyle": "--"})
+    plt.title(f"{name} - Density of median proteome length")
+    plt.xlabel("Protein length")
+    plt.ylabel("Count")
+
+    for ext in ["svg", "pdf"]:
+        plt.savefig(f"{path}/length_plot.{ext}", bbox_inches="tight")
+
+    plt.close()
+
+    ###############################################################
+    data = prot_df["GC"]
+    bins = optimal_bin(data)
+    sns.histplot(data, bins=bins, alpha=0.4, color="maroon", kde=True,
+                 line_kws={"linewidth": 2, "linestyle": "--"})
+    plt.title(f"{name} - Density of median proteome GC content")
+    plt.xlabel("GC content")
+    plt.ylabel("Count")
+
+    for ext in ["svg", "pdf"]:
+        plt.savefig(f"{path}/gc_plot.{ext}", bbox_inches="tight")
 
     plt.close()
