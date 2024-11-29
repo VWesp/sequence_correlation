@@ -10,6 +10,7 @@ from Bio.Data import CodonTable
 import matplotlib.pyplot as plt
 import matplotlib.patches as patch
 from matplotlib.lines import Line2D
+from matplotlib.transforms import ScaledTranslation
 
 
 def optimal_bin(data):
@@ -115,8 +116,7 @@ if __name__ == "__main__":
                             f"    - p-value: {pcc_p:.5e}\n"
                             f"\n  - Mean Spearman:\n"
                             f"    - Coefficient: {r2:.5f}\n"
-                            f"    - p-value: {r2_p:.5e}\n"
-                            f"\n  - Mean log-MSE: {mse:.5f}",
+                            f"    - p-value: {r2_p:.5e}",
                             transform=axes[0,0].transAxes, fontsize=11,
                             verticalalignment="top", linespacing=1.5,
                             bbox=dict(boxstyle="round", facecolor="white",
@@ -152,7 +152,16 @@ if __name__ == "__main__":
     for cor_type in ["Pearson", "Spearman"]:
         fig, axes = plt.subplots(len(gen_cod_folders), 2, figsize=(10, 10))
         index = 0
+        code_abbr = []
         for code,data in cors[cor_type]["Codon"].items():
+            code_name = os.path.basename(gen_cod_folders[index]).replace("_", " ")
+            if(code_name == "trematode mitochondrial"):
+                code_name = "trm"
+            elif(code_name != "standard"):
+                code_name = "".join([abbr[0].lower() for abbr in code_name.split(" ")])
+
+            code_abbr.append(code_name)
+
             color = cmap(index/len(gen_cod_folders))
             if(code == "Standard"):
                 color = "grey"
@@ -235,6 +244,18 @@ if __name__ == "__main__":
         )
         fig.lines.append(right_line)
 
+        dist = 0.0311
+        for i,label in enumerate(code_abbr):
+            pos = 0.1
+            if(len(label) == 3):
+                pos = 0.092
+            elif(len(label) == 5):
+                pos = 0.0755
+            elif(len(label) == 8):
+                pos = 0.05
+
+            fig.text(pos, 0.865-dist*i, label, fontdict={"family": "monospace"})
+
         fig.suptitle(f"{name} - {cor_type} correlation coefficients between all genetic codes",
                      fontsize=14, y=0.93)
 
@@ -250,7 +271,16 @@ if __name__ == "__main__":
     max_val_cod = max([max(data) for _,data in cors["log-MSE"]["Codon"].items()])
     max_val_gc = max([max(data) for _,data in cors["log-MSE"]["GC"].items()])
     max_value = max(max_val_cod*1.15, max_val_gc*1.15)
+    code_abbr = []
     for code,data in cors["log-MSE"]["Codon"].items():
+        code_name = os.path.basename(gen_cod_folders[index]).replace("_", " ")
+        if(code_name == "trematode mitochondrial"):
+            code_name = "trm"
+        elif(code_name != "standard"):
+            code_name = "".join([abbr[0].lower() for abbr in code_name.split(" ")])
+
+        code_abbr.append(code_name)
+
         color = cmap(index/len(gen_cod_folders))
         if(code == "Standard"):
             color = "grey"
@@ -313,6 +343,18 @@ if __name__ == "__main__":
     )
     fig.patches.append(right_rect)
 
+    dist = 0.0311
+    for i,label in enumerate(code_abbr):
+        pos = 0.1
+        if(len(label) == 3):
+            pos = 0.092
+        elif(len(label) == 5):
+            pos = 0.0755
+        elif(len(label) == 8):
+            pos = 0.05
+
+        fig.text(pos, 0.865-dist*i, label, fontdict={"family": "monospace"})
+
     fig.suptitle(f"{name} - log-MSE values between all genetic codes",
                  fontsize=14, y=0.93)
 
@@ -326,7 +368,20 @@ if __name__ == "__main__":
     index = 0
     min_value = min([min(data) for _,data in entrops.items()]) * 0.95
     max_value = max([max(data) for _,data in entrops.items()]) * 1.05
+    code_abbr = []
     for code,data in entrops.items():
+        code_name = None
+        if(index == 0):
+            code_name = "data"
+        else:
+            code_name = os.path.basename(gen_cod_folders[index-1]).replace("_", " ")
+            if(code_name == "trematode mitochondrial"):
+                code_name = "trm"
+            elif(code_name != "standard"):
+                code_name = "".join([abbr[0].lower() for abbr in code_name.split(" ")])
+
+        code_abbr.append(code_name)
+
         color = cmap((index-1)/len(gen_cod_folders))
         if(index == 0 or code == "Standard"):
             color = "grey"
@@ -356,6 +411,20 @@ if __name__ == "__main__":
         transform=fig.transFigure, clip_on=False
     )
     fig.patches.append(rect)
+
+    dist = 0.0298
+    for i,label in enumerate(code_abbr):
+        pos = 0.1
+        if(len(label) == 3):
+            pos = 0.092
+        elif(len(label) == 4):
+            pos = 0.0835
+        elif(len(label) == 5):
+            pos = 0.0755
+        elif(len(label) == 8):
+            pos = 0.05
+
+        fig.text(pos, 0.865-dist*i, label, fontdict={"family": "monospace"})
 
     for ext in ["svg", "pdf"]:
         plt.savefig(f"{path}/shannon_plot.{ext}", bbox_inches="tight")
