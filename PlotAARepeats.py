@@ -18,36 +18,27 @@ if __name__ == "__main__":
     with open(path, "r", encoding="utf-8") as reader:
         data = json.load(reader)
 
-    for type in ["sum", "mean"]:
-        ordered_data = col.defaultdict(lambda: col.defaultdict(list))
-        for _,aa_data in data.items():
-            for aa in amino_acids:
-                if(aa in aa_data):
-                    for rep_len,num in aa_data[aa].items():
-                        ordered_data[aa][int(rep_len)].append(num["sum"])
+    ordered_data = col.defaultdict(lambda: col.defaultdict(int))
+    for _,aa_data in data.items():
+        for aa in amino_acids:
+            if(aa in aa_data):
+                for rep_len,num in aa_data[aa].items():
+                    ordered_data[aa][int(rep_len)] += num
 
-        for aa,rep_data in ordered_data.items():
-            for rep_len,nums in rep_data.items():
-                if(type == "mean"):
-                    ordered_data[aa][rep_len] = np.log10(np.mean(nums)+1)
-                else:
-                    ordered_data[aa][rep_len] = np.log10(np.sum(nums)+1)
+    rep_df = pd.DataFrame(ordered_data).fillna(0).sort_index()
+    rep_df = rep_df.drop([1])
 
+    fig = plt.figure(figsize=(12, 10))
+    sns.heatmap(np.log10(rep_df+1), cmap="viridis", rasterized=True)
+    plt.xlabel("Amino acid")
+    plt.ylabel("Repeat length")
+    plt.yticks(rotation=0)
+    plt.title(f"{name} - Heatmap of log10-sum proteomic amino acid repeat count")
+    for ext in ["svg", "pdf"]:
+        plt.savefig(f"{os.path.join(output, f"sum_repeats")}.{ext}",
+                    bbox_inches="tight")
 
-        rep_df = pd.DataFrame(ordered_data).fillna(0).sort_index()
-        rep_df = rep_df.drop([1])
-
-        fig = plt.figure(figsize=(12, 10))
-        sns.heatmap(rep_df, cmap="viridis", rasterized=True)
-        plt.xlabel("Amino acid")
-        plt.ylabel("Repeat length")
-        plt.yticks(rotation=0)
-        plt.title(f"{name} - Heatmap of log10-{type} proteomic amino acid repeat count")
-        for ext in ["svg", "pdf"]:
-            plt.savefig(f"{os.path.join(output, f"{type}_repeats")}.{ext}",
-                        bbox_inches="tight")
-
-        plt.close()
+    plt.close()
 
 
     '''fig = plt.figure(figsize=(12, 12))
