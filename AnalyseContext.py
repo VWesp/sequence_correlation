@@ -13,8 +13,10 @@ def get_neighbors(path, output, type, step, prog, size, lock):
 	neighbors = col.defaultdict(lambda: col.defaultdict(int))
 	filter = None
 	if(type=="codon"):
+		id = id.split("_DNA.fasta.gz")[0]
 		filter = [f"{a}{b}{c}" for a in "ACGT" for b in "ACGT" for c in "ACGT"]
 	elif(type=="amino"):
+		id = id.split(".fasta.gz")[0]
 		filter = ["M", "W", "C", "D", "E", "F", "H", "K", "N", "Q", "Y", "I",
 				  "A", "G", "P", "T", "V", "L", "R", "S"]
 
@@ -23,9 +25,9 @@ def get_neighbors(path, output, type, step, prog, size, lock):
 			neighbors[el1][el2] = 0
 
 	with gzip.open(path, "rt") as handle:
-		dna_seqio = SeqIO.to_dict(SeqIO.parse(handle, "fasta"))
-		for dna_id,dna_rec in dna_seqio.items():
-			seq = str(dna_rec.seq)
+		seqio = SeqIO.to_dict(SeqIO.parse(handle, "fasta"))
+		for seq_id,rec in seqio.items():
+			seq = str(rec.seq)
 			elements = None
 			if(type=="codon"):
 				trim_seq = str(seq[:len(seq)-(len(seq)%3)])

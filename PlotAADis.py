@@ -1,8 +1,9 @@
+import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 
 
-prot_df = pd.read_excel("ave_aa_dis_standard_comp.xlsx", header=0, index_col=0)
+prot_df = pd.read_excel(sys.argv[1], header=0, index_col=0)
 kingdoms = ["Archaea", "Bacteria", "Eukaryota", "Viruses"]
 aa_dis ={kingdom: prot_df.loc[kingdom] for kingdom in kingdoms}
 aa_dis_df = pd.DataFrame(aa_dis)

@@ -5,9 +5,9 @@ from functools import partial
 import SpeciesAACodonDistribution as saacd
 
 
-def get_codon_dis(id, prot_dna_dict, output, progress, size, lock):
+def get_codon_dis(id, prot_dna_dict, type, output, progress, size, lock):
     res_output = os.path.join(output, id+".csv")
-    saacd.get_aa_dis(prot_dna_dict[id][0], prot_dna_dict[id][1], res_output)
+    saacd.get_aa_dis(prot_dna_dict[id][0], prot_dna_dict[id][1], type, res_output)
     with lock:
         progress.value += 1
 
@@ -19,7 +19,8 @@ def get_codon_dis(id, prot_dna_dict, output, progress, size, lock):
 if __name__ == "__main__":
     path_to_data = sys.argv[1]
     output = sys.argv[2]
-    processes = int(sys.argv[3])
+    type = sys.argv[3]
+    processes = int(sys.argv[4])
 
     os.makedirs(output, exist_ok=True)
 
@@ -47,7 +48,7 @@ if __name__ == "__main__":
     # start the multicore process for a given number of cores
     with mp.Pool(processes=processes) as pool:
         # run the process for the given parameters
-        pool_map = partial(get_codon_dis, prot_dna_dict=prot_dna_dict,
+        pool_map = partial(get_codon_dis, prot_dna_dict=prot_dna_dict, type=type,
                            output=output, progress=progress, size=len(id_list),
                            lock=lock)
         process = pool.map_async(pool_map, id_list)
