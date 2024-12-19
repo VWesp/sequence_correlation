@@ -8,7 +8,7 @@ import multiprocessing as mp
 from functools import partial
 
 
-def get_neighbors(path, output, type, step, prog, size, lock):
+def get_neighbors(path, output, type, state, step, prog, size, lock):
 	id = os.path.basename(path).split("_DNA.fasta.gz")[0]
 	neighbors = col.defaultdict(lambda: col.defaultdict(int))
 	filter = None
@@ -27,22 +27,24 @@ def get_neighbors(path, output, type, step, prog, size, lock):
 	with gzip.open(path, "rt") as handle:
 		seqio = SeqIO.to_dict(SeqIO.parse(handle, "fasta"))
 		for seq_id,rec in seqio.items():
-			seq = str(rec.seq)
-			elements = None
-			if(type=="codon"):
-				trim_seq = str(seq[:len(seq)-(len(seq)%3)])
-				elements = [trim_seq[i:i+3] for i in range(0, len(trim_seq), 3)]
-			elif(type=="amino"):
-				elements = seq
+			if(state == "tr" or seq_id.split("|")[0] == state):
+				seq = str(rec.seq)
+				elements = None
+				if(type=="codon"):
+					trim_seq = str(seq[:len(seq)-(len(seq)%3)])
+					elements = [trim_seq[i:i+3] for i in range(0, len(trim_seq), 3)]
+				elif(type=="amino"):
+					elements = seq
 
-			for i,el in enumerate(elements):
-				left_neighbor = elements[i-step] if i-step >= 0 else "Start"
-				right_neighbor = elements[i+step] if i+step < len(elements) else "End"
-				neighbors[el][left_neighbor] += 1
-				neighbors[el][right_neighbor] += 1
+				for i,el in enumerate(elements):
+					left_neighbor = elements[i-step] if i-step >= 0 else "Start"
+					right_neighbor = elements[i+step] if i+step < len(elements) else "End"
+					neighbors[el][left_neighbor] += 1
+					neighbors[el][right_neighbor] += 1
 
-	df = pd.DataFrame.from_dict(neighbors)
-	df = df[filter].loc[["Start"]+filter+["End"],:].fillna(0)
+	df = pd.DataFrame.from_dict(neighbors).fillna(0)
+	if("Start" in df.index and "End" in df.index):
+		df = df[filter].loc[["Start"]+filter+["End"],:]
 
 	res_output = os.path.join(os.path.join(output, str(step)), id+".csv")
 	df.to_csv(res_output, sep="\t")
@@ -54,7 +56,7 @@ def get_neighbors(path, output, type, step, prog, size, lock):
 
 
 if __name__=="__main__":
-	path,output,type,procs = sys.argv[1:5]
+	path,output,type,state,procs = sys.argv[1:6]
 
 	file_paths = None
 	if(type=="codon"):
@@ -82,8 +84,8 @@ if __name__=="__main__":
 			  end="")
 		with mp.Pool(processes=int(procs)) as pool:
 			pool_map = partial(get_neighbors, output=output, type=type,
-							   step=step, prog=prog, size=len(file_paths),
-							   lock=lock)
+							   state=state, step=step, prog=prog,
+							   size=len(file_paths), lock=lock)
 			process = pool.map_async(pool_map, file_paths)
 			pool.close()
 			#print(process.get())

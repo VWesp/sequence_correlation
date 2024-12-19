@@ -171,7 +171,7 @@ if __name__=="__main__":
                 for aa in amino_acids:
                     data = context_frames[0].loc[aa]
                     axes[j,i].bar(np.arange(len(amino_acids)), data, color=colors)
-                    axes[j,i].set_ylim(0, np.max(context_frames[0]*1.05))
+                    axes[j,i].set_ylim(0, np.max(data*1.05))
                     axes[j,i].set_xticks(np.arange(len(amino_acids)), amino_acids)
                     axes[j,i].set_title(f"Amino acid: {aa}")
                     if(i != 0):
