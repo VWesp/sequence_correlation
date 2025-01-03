@@ -12,6 +12,21 @@ import matplotlib.patches as patch
 from matplotlib.lines import Line2D
 from matplotlib.transforms import ScaledTranslation
 
+# abbreviations for each genetic code
+CODE_ABBREVIATIONS = {"AFM": "alternative_flatworm_mitochondrial", "AY": "alternative_yeast",
+                      "AM": "ascidian_mitochondrial", "BAPP": "bacterial-archaeal-plant_plastid",
+                      "BN": "blastocrithidia_nuclear", "CDSG": "candidate_division_sr1_and_gracilibacteria",
+                      "CMUT": "cephalodiscidae_mitochondrial_uaa-tyr", "CM": "chlorophycean_mitochondrial",
+                      "CDHN": "ciliate-dasycladacean-hexamita_nuclear", "CN": "condylostoma_nuclear",
+                      "EFM": "echinoderm-flatworm_mitochondrial", "EN": "euplotid_nuclear",
+                      "IM": "invertebrate_mitochondrial", "KN": "karyorelict_nuclear",
+                      "MN": "mesodinium_nuclear", "MPCMMS": "mold-protozoan-coelenterate_mitochondrial_and_mycoplasma_spiroplasma",
+                      "PTN": "pachsyolen_tannophilus_nuclear", "PN": "peritrich_nuclear",
+                      "RM": "rhabdopleuridae_mitochondrial", "SOM": "scenedesmus_obliquus_mitochondrial",
+                      "SGCode": "standard", "TM": "thraustochytrium_mitochondrial",
+                      "TrM": "trematode_mitochondrial", "VM": "vertebrate_mitochondrial",
+                      "YM": "yeast_mitochondrial"}
+CODE_ABBREVIATIONS_INV = {v:k for k,v in CODE_ABBREVIATIONS.items()}
 
 def optimal_bin(data):
     data = data.to_numpy()
@@ -42,8 +57,9 @@ if __name__ == "__main__":
 
     cors = col.defaultdict(lambda: col.defaultdict(lambda: col.defaultdict()))
     for cod_fold in gen_cod_folders:
+        code_basename = os.path.basename(cod_fold)
         # Name of the genetic code
-        code_name = os.path.basename(cod_fold).capitalize().replace("_", " ")
+        code_name = code_basename.capitalize().replace("_", " ")
         print(f"Current code: {code_name}...")
 
         cod_df = pd.read_csv(os.path.join(cod_fold, "norm_code_data.csv"),
@@ -144,7 +160,47 @@ if __name__ == "__main__":
 
         plt.close()
 
-    print()
+        for type in ["Pearson", "Spearman"]:
+            joint_df = pd.DataFrame({"GC": prot_df["GC"],
+                                     "Codon_Cor": cors[type]["Codon"][code_name],
+                                     "GC_Cor": cors[type]["GC"][code_name]})
+            joint_df["Cor_Dif"] = np.abs(joint_df["Codon_Cor"]-joint_df["GC_Cor"])
+            g = sns.JointGrid(data=joint_df, x="GC", y="Codon_Cor")
+            g.plot_joint(sns.scatterplot, alpha=0.5, color="blue",
+                         label="Codon correlation")
+            sns.scatterplot(data=joint_df, x="GC", y="GC_Cor", alpha=0.5,
+                            color="red", ax=g.ax_joint, label="Codon+GC correlation")
+
+            sns.histplot(data=joint_df["GC"], ax=g.ax_marg_x, color="purple",
+                         element="step")
+
+            hist_y1, bins_y1 = np.histogram(joint_df["Codon_Cor"], density=True,
+                                            bins=optimal_bin(joint_df["Codon_Cor"]))
+            g.ax_marg_y.fill_betweenx(bins_y1[:-1], 0, hist_y1, step="pre",
+                                      color="blue", alpha=0.5)
+
+            hist_y2, bins_y2 = np.histogram(joint_df["GC_Cor"], density=True,
+                                            bins=optimal_bin(joint_df["GC_Cor"]))
+            g.ax_marg_y.fill_betweenx(bins_y2[:-1], 0, hist_y2, step="pre",
+                                      color="red", alpha=0.5)
+
+            g.ax_joint.set_xlabel("GC content")
+            g.ax_joint.set_ylabel(f"{type} correlation coefficient")
+            title = tw.fill(f"{name} - {type} correlation coefficients "
+                            f"for genetic code: {code_name}", 100)
+            g.fig.suptitle(title)
+            sns.move_legend(g.ax_joint, "upper left")
+            g.fig.subplots_adjust(top=0.92)
+            g.fig.set_figheight(10)
+            g.fig.set_figwidth(15)
+
+            for ext in ["svg", "pdf"]:
+                plt.savefig(f"{cod_fold}/cor_{type.lower()}_scatter_plot.{ext}",
+                            bbox_inches="tight")
+
+            plt.close()
+
+    print("Plotting remaining stuff...", end="\n\n")
 
     # create the colors
     cmap = plt.get_cmap("gist_rainbow")
@@ -154,13 +210,8 @@ if __name__ == "__main__":
         index = 0
         code_abbr = []
         for code,data in cors[cor_type]["Codon"].items():
-            code_name = os.path.basename(gen_cod_folders[index]).replace("_", " ")
-            if(code_name == "trematode mitochondrial"):
-                code_name = "trm"
-            elif(code_name != "standard"):
-                code_name = "".join([abbr[0].lower() for abbr in code_name.split(" ")])
-
-            code_abbr.append(code_name)
+            code_basename = code.lower().replace(" ", "_")
+            code_abbr.append(CODE_ABBREVIATIONS_INV[code_basename])
 
             color = cmap(index/len(gen_cod_folders))
             if(code == "Standard"):
@@ -249,10 +300,10 @@ if __name__ == "__main__":
             pos = 0.1
             if(len(label) == 3):
                 pos = 0.092
-            elif(len(label) == 5):
-                pos = 0.0755
-            elif(len(label) == 8):
-                pos = 0.05
+            elif(len(label) == 4):
+                pos = 0.084
+            elif(len(label) == 6):
+                pos = 0.0675
 
             fig.text(pos, 0.865-dist*i, label, fontdict={"family": "monospace"})
 
@@ -273,13 +324,8 @@ if __name__ == "__main__":
     max_value = max(max_val_cod*1.15, max_val_gc*1.15)
     code_abbr = []
     for code,data in cors["log-MSE"]["Codon"].items():
-        code_name = os.path.basename(gen_cod_folders[index]).replace("_", " ")
-        if(code_name == "trematode mitochondrial"):
-            code_name = "trm"
-        elif(code_name != "standard"):
-            code_name = "".join([abbr[0].lower() for abbr in code_name.split(" ")])
-
-        code_abbr.append(code_name)
+        code_basename = code.lower().replace(" ", "_")
+        code_abbr.append(CODE_ABBREVIATIONS_INV[code_basename])
 
         color = cmap(index/len(gen_cod_folders))
         if(code == "Standard"):
@@ -348,10 +394,10 @@ if __name__ == "__main__":
         pos = 0.1
         if(len(label) == 3):
             pos = 0.092
-        elif(len(label) == 5):
-            pos = 0.0755
-        elif(len(label) == 8):
-            pos = 0.05
+        elif(len(label) == 4):
+            pos = 0.084
+        elif(len(label) == 6):
+            pos = 0.0675
 
         fig.text(pos, 0.865-dist*i, label, fontdict={"family": "monospace"})
 
@@ -372,15 +418,10 @@ if __name__ == "__main__":
     for code,data in entrops.items():
         code_name = None
         if(index == 0):
-            code_name = "data"
+            code_abbr.append("Data")
         else:
-            code_name = os.path.basename(gen_cod_folders[index-1]).replace("_", " ")
-            if(code_name == "trematode mitochondrial"):
-                code_name = "trm"
-            elif(code_name != "standard"):
-                code_name = "".join([abbr[0].lower() for abbr in code_name.split(" ")])
-
-        code_abbr.append(code_name)
+            code_basename = code.lower().replace(" ", "_")
+            code_abbr.append(CODE_ABBREVIATIONS_INV[code_basename])
 
         color = cmap((index-1)/len(gen_cod_folders))
         if(index == 0 or code == "Standard"):
@@ -418,11 +459,9 @@ if __name__ == "__main__":
         if(len(label) == 3):
             pos = 0.092
         elif(len(label) == 4):
-            pos = 0.0835
-        elif(len(label) == 5):
-            pos = 0.0755
-        elif(len(label) == 8):
-            pos = 0.05
+            pos = 0.084
+        elif(len(label) == 6):
+            pos = 0.0675
 
         fig.text(pos, 0.865-dist*i, label, fontdict={"family": "monospace"})
 
