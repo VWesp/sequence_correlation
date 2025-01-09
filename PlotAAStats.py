@@ -5,7 +5,7 @@ import sympy as sp
 import pandas as pd
 import seaborn as sns
 import textwrap as tw
-import collections as col
+import collections as defcol
 from Bio.Data import CodonTable
 import matplotlib.pyplot as plt
 import matplotlib.patches as patch
@@ -36,180 +36,311 @@ def optimal_bin(data):
 
 
 if __name__ == "__main__":
-    path,name = sys.argv[1:3]
-
-    cmap = plt.get_cmap("viridis")
+    path = sys.argv[1]
 
     # Group amino acids based on their attributes
     aa_groups = {"Aliphatic": ["A", "G", "I", "L", "M", "V"], "Aromatic": ["F",
                  "W", "Y"], "Charged": ["D", "E", "H", "K", "R"],
                  "Uncharged": ["C", "N", "P", "Q", "S", "T"]}
 
-    prot_df = pd.read_csv(os.path.join(path, "proteome_data.csv"), sep="\t",
-                            index_col=0)
-    entrops = {"Proteome": np.array(prot_df["shannon_entropy"])}
-    amino_acids = prot_df.columns[2:22]
-    prot_mean_df = prot_df.mean(axis=0)
-    prot_std_df = prot_df.std(axis=0)
+    kingdoms = ["Archaea", "Bacteria", "Eukaryota", "Viruses"]
+    king_freq_data = defcol.defaultdict(lambda: defcol.defaultdict(lambda:{}))
+    standard_norm_data = None
+    standard_freq_data = {}
+    amino_acids = None
+    for kingdom in kingdoms:
+        cmap = plt.get_cmap("viridis")
+        print(f"Current kingdom: {kingdom}...")
+        king_path = os.path.join(path, kingdom.lower())
+        prot_df = pd.read_csv(os.path.join(king_path, "proteome_data.csv"), sep="\t",
+                                index_col=0)
+        amino_acids = prot_df.columns[3:23]
+        num_prots = prot_df["#Proteins"]
+        weighted_means = prot_df.mul(num_prots, axis=0).sum() / num_prots.sum()
+        weighted_std = np.sqrt(((prot_df-weighted_means)**2).mul(num_prots, axis=0).sum() / num_prots.sum())
+        entrops = {"Proteome": np.array(prot_df["shannon_entropy"])}
 
-    gen_cod_folders = [os.path.join(path, folder) for folder in os.listdir(path)
-                       if os.path.isdir(os.path.join(path, folder))]
+        king_freq_data["means"][kingdom] = {aa:weighted_means[aa] for aa in amino_acids}
+        king_freq_data["std"][kingdom] = {aa:weighted_std[aa] for aa in amino_acids}
 
-    cors = col.defaultdict(lambda: col.defaultdict(lambda: col.defaultdict()))
-    for cod_fold in gen_cod_folders:
-        code_basename = os.path.basename(cod_fold)
-        # Name of the genetic code
-        code_name = code_basename.capitalize().replace("_", " ")
-        print(f"Current code: {code_name}...")
+        gen_cod_folders = [os.path.join(king_path, folder) for folder in os.listdir(king_path)
+                           if os.path.isdir(os.path.join(king_path, folder))]
+        cors = defcol.defaultdict(lambda: defcol.defaultdict(lambda: defcol.defaultdict()))
+        for cod_fold in gen_cod_folders:
+            code_basename = os.path.basename(cod_fold)
+            # Name of the genetic code
+            code_name = code_basename.capitalize().replace("_", " ")
+            print(f"\tCurrent code: {code_name}...")
 
-        cod_df = pd.read_csv(os.path.join(cod_fold, "norm_code_data.csv"),
-                             sep="\t", index_col=0)
-        cod_df = cod_df["frequency"]
+            cod_df = pd.read_csv(os.path.join(cod_fold, "norm_code_data.csv"),
+                                 sep="\t", index_col=0)
+            cod_df = cod_df["frequency"]
 
-        cor_df = pd.read_csv(os.path.join(cod_fold, "cor_data.csv"), sep="\t",
-                             index_col=0)
-        cors["Pearson"]["Codon"][code_name] = np.array(cor_df["codon_pear"])
-        cors["Pearson"]["GC"][code_name] = np.array(cor_df["gc_pear"])
-        cors["Spearman"]["Codon"][code_name] = np.array(cor_df["codon_spear"])
-        cors["Spearman"]["GC"][code_name] = np.array(cor_df["gc_spear"])
-        cors["log-MSE"]["Codon"][code_name] = np.array(cor_df["codon_log_mse"])
-        cors["log-MSE"]["GC"][code_name] = np.array(cor_df["gc_log_mse"])
+            cor_df = pd.read_csv(os.path.join(cod_fold, "cor_data.csv"), sep="\t",
+                                 index_col=0)
+            cors["Pearson"]["Codon"][code_name] = np.array(cor_df["codon_pear"])
+            cors["Pearson"]["GC"][code_name] = np.array(cor_df["gc_pear"])
+            cors["Spearman"]["Codon"][code_name] = np.array(cor_df["codon_spear"])
+            cors["Spearman"]["GC"][code_name] = np.array(cor_df["gc_spear"])
+            cors["log-MSE"]["Codon"][code_name] = np.array(cor_df["codon_log_mse"])
+            cors["log-MSE"]["GC"][code_name] = np.array(cor_df["gc_log_mse"])
 
-        entrops[code_name] = np.array(cor_df["shannon_entropy"])
-        cor_mean_df = cor_df.mean(axis=0)
-        cor_std_df = prot_df.std(axis=0)
+            weighted_cor_means = cor_df.mul(num_prots, axis=0).sum() / num_prots.sum()
+            weighted_cor_std = np.sqrt(((cor_df-weighted_cor_means)**2).mul(num_prots, axis=0).sum() / num_prots.sum())
+            entrops[code_name] = np.array(cor_df["shannon_entropy"])
 
-        fig, axes = plt.subplots(2, 2)
-        i = 0
-        j = 0
-        for aa_type,aa_list in aa_groups.items():
-            x_data = np.arange(len(aa_list))
-            wid = 0.25
-            b_pos = -0.25
-            col = 0.3
-            # Plot observed mean relative abundance and standard deviation of
-            # each amino acid
-            axes[i,j].bar(x_data+b_pos, prot_mean_df[aa_list],
-                          yerr=prot_std_df[aa_list], width=wid, color=cmap(col),
-                          edgecolor="black", linewidth=0.75, label="Observed",
-                          capsize=3, zorder=2)
+            if(code_name == "Standard"):
+                standard_norm_data = cod_df
+                standard_freq_data[kingdom] = weighted_cor_means
 
-            cor_data = {"Codon": [cod_df, None, "codon"],
-                        "Codon+GC": [cor_mean_df, cor_std_df, "gc"]}
-            c_pos = 0.6
-            for cor_type,data in cor_data.items():
-                b_pos += wid
-                col += 0.3
-                yerr = data[1][aa_list] if data[1] is not None else None
-                axes[i,j].bar(x_data+b_pos, data[0][aa_list],
-                              yerr=yerr, width=wid, color=cmap(col),
-                              edgecolor="black", label=cor_type,
-                              linewidth=0.75, capsize=3, zorder=2)
+            fig, axes = plt.subplots(2, 2)
+            i = 0
+            j = 0
+            for aa_type,aa_list in aa_groups.items():
+                x_data = np.arange(len(aa_list))
+                wid = 0.25
+                b_pos = -0.25
+                col = 0.3
+                # Plot observed mean relative abundance and standard deviation of
+                # each amino acid
+                axes[i,j].bar(x_data+b_pos, weighted_means[aa_list], yerr=weighted_std[aa_list],
+                              width=wid, color=cmap(col), edgecolor="black", linewidth=0.75,
+                              label="Observed", capsize=3, zorder=2)
 
-                axes[i,j].grid(visible=True, which="major", color="#999999",
-                               linestyle="dotted", alpha=0.5, zorder=0)
+                cor_data = {"Codon": [cod_df, None, "codon"],
+                            "Codon+GC": [weighted_cor_means, weighted_cor_std, "gc"]}
+                c_pos = 0.6
+                for cor_type,data in cor_data.items():
+                    b_pos += wid
+                    col += 0.3
+                    yerr = data[1][aa_list] if data[1] is not None else None
+                    axes[i,j].bar(x_data+b_pos, data[0][aa_list],
+                                  yerr=yerr, width=wid, color=cmap(col),
+                                  edgecolor="black", label=cor_type,
+                                  linewidth=0.75, capsize=3, zorder=2)
 
-                axes[i,j].set_xticks(np.arange(len(aa_list)), aa_list)
-                axes[i,j].set_xlabel("Amino acid")
-                axes[i,j].set_title(f"{aa_type} amino acids")
-                if(j == 0):
-                    axes[i,j].set_ylabel("Mean amino acid frequency")
-                    if(i == 0):
-                        pear_ar = [f"{data[2]}_pear",
-                                   f"p_{data[2]}_pear"]
-                        pcc,pcc_p = cor_mean_df[pear_ar]
+                    axes[i,j].grid(visible=True, which="major", color="#999999",
+                                   linestyle="dotted", alpha=0.5, zorder=0)
 
-                        spear_ar = [f"{data[2]}_spear",
-                                    f"p_{data[2]}_spear"]
-                        r2, r2_p = cor_mean_df[spear_ar]
+                    axes[i,j].set_xticks(np.arange(len(aa_list)), aa_list)
+                    axes[i,j].set_xlabel("Amino acid")
+                    axes[i,j].set_title(f"{aa_type} amino acids")
+                    if(j == 0):
+                        axes[i,j].set_ylabel("Mean amino acid frequency")
+                        if(i == 0):
+                            pear_ar = [f"{data[2]}_pear",
+                                       f"p_{data[2]}_pear"]
+                            pcc,pcc_p = weighted_cor_means[pear_ar]
+                            pcc_std,pcc_p_std = weighted_cor_std[pear_ar]
 
-                        mse = cor_mean_df[f"{data[2]}_log_mse"]
+                            spear_ar = [f"{data[2]}_spear",
+                                        f"p_{data[2]}_spear"]
+                            r2, r2_p = weighted_cor_means[spear_ar]
+                            r2_std,r2_p_std = weighted_cor_std[spear_ar]
 
-                        label = tw.fill(f"${cor_type}$ correlation:", 30)
-                        axes[i,j].text(1.03, c_pos, f"{label}\n"
-                            f"  - Mean Pearson:\n"
-                            f"    - Coefficient: {pcc:.5f}\n"
-                            f"    - p-value: {pcc_p:.5e}\n"
-                            f"\n  - Mean Spearman:\n"
-                            f"    - Coefficient: {r2:.5f}\n"
-                            f"    - p-value: {r2_p:.5e}",
-                            transform=axes[0,0].transAxes, fontsize=11,
-                            verticalalignment="top", linespacing=1.5,
-                            bbox=dict(boxstyle="round", facecolor="white",
-                                      edgecolor="grey", alpha=0.5))
-                c_pos -= 0.7
+                            mse = weighted_cor_means[f"{data[2]}_log_mse"]
 
-            j = 1 if i == 1 else j
-            i = 0 if i == 1 else i + 1
+                            label = tw.fill(f"${cor_type}$ correlation:", 30)
+                            axes[i,j].text(1.03, c_pos, f"{label}\n"
+                                f"  - Weighted Pearson:\n"
+                                f"    - Mean coef.: {pcc:.5f}\n"
+                                f"    - Std coef.: {pcc_std:.5f}\n"
+                                f"    - p-value: {pcc_p:.5e}\n"
+                                f"\n  - Weighted Spearman:\n"
+                                f"    - Mean coef.: {r2:.5f}\n"
+                                f"    - Std coef.: {r2_std:.5f}\n"
+                                f"    - p-value: {r2_p:.5e}",
+                                transform=axes[0,0].transAxes, fontsize=11,
+                                verticalalignment="top", linespacing=1.5,
+                                bbox=dict(boxstyle="round", facecolor="white",
+                                          edgecolor="grey", alpha=0.5))
+                    c_pos -= 0.7
 
-        y_max = max(max([ax.get_ylim() for ax in axes.reshape(-1)]))
-        for ax in axes.reshape(-1):
-            ax.set_ylim(0, y_max)
+                j = 1 if i == 1 else j
+                i = 0 if i == 1 else i + 1
 
-        axes[0,0].legend(loc="upper center", bbox_to_anchor=(1.19, 1.02),
-                         fancybox=True, fontsize=12)
+            y_max = max(max([ax.get_ylim() for ax in axes.reshape(-1)]))
+            for ax in axes.reshape(-1):
+                ax.set_ylim(0, y_max)
 
-        fig.subplots_adjust(wspace=0.6, hspace=0.3)
-        title = tw.fill(f"{name} - Mean proteome amino acid frequency "
-                        f"for genetic code: {code_name}", 100)
-        fig.suptitle(title, fontsize=15, y=0.95)
-        fig.set_figheight(10)
-        fig.set_figwidth(15)
-        for ext in ["svg", "pdf"]:
-            plt.savefig(f"{cod_fold}/cor_bar_plot.{ext}", bbox_inches="tight")
+            axes[0,0].legend(loc="upper center", bbox_to_anchor=(1.19, 1.02),
+                             fancybox=True, fontsize=12)
 
-        plt.close()
-
-        for type in ["Pearson", "Spearman"]:
-            joint_df = pd.DataFrame({"GC": prot_df["GC"],
-                                     "Codon_Cor": cors[type]["Codon"][code_name],
-                                     "GC_Cor": cors[type]["GC"][code_name]})
-            joint_df["Cor_Dif"] = np.abs(joint_df["Codon_Cor"]-joint_df["GC_Cor"])
-            g = sns.JointGrid(data=joint_df, x="GC", y="Codon_Cor")
-            g.plot_joint(sns.scatterplot, alpha=0.5, color="blue",
-                         label="Codon correlation")
-            sns.scatterplot(data=joint_df, x="GC", y="GC_Cor", alpha=0.5,
-                            color="red", ax=g.ax_joint, label="Codon+GC correlation")
-
-            sns.histplot(data=joint_df["GC"], ax=g.ax_marg_x, color="purple",
-                         element="step")
-
-            hist_y1, bins_y1 = np.histogram(joint_df["Codon_Cor"], density=True,
-                                            bins=optimal_bin(joint_df["Codon_Cor"]))
-            g.ax_marg_y.fill_betweenx(bins_y1[:-1], 0, hist_y1, step="pre",
-                                      color="blue", alpha=0.5)
-
-            hist_y2, bins_y2 = np.histogram(joint_df["GC_Cor"], density=True,
-                                            bins=optimal_bin(joint_df["GC_Cor"]))
-            g.ax_marg_y.fill_betweenx(bins_y2[:-1], 0, hist_y2, step="pre",
-                                      color="red", alpha=0.5)
-
-            g.ax_joint.set_xlabel("GC content")
-            g.ax_joint.set_ylabel(f"{type} correlation coefficient")
-            title = tw.fill(f"{name} - {type} correlation coefficients "
+            fig.subplots_adjust(wspace=0.6, hspace=0.3)
+            title = tw.fill(f"{kingdom} - Weighted mean proteome amino acid frequency "
                             f"for genetic code: {code_name}", 100)
-            g.fig.suptitle(title)
-            sns.move_legend(g.ax_joint, "upper left")
-            g.fig.subplots_adjust(top=0.92)
-            g.fig.set_figheight(10)
-            g.fig.set_figwidth(15)
+            fig.suptitle(title, fontsize=15, y=0.95)
+            fig.set_figheight(10)
+            fig.set_figwidth(15)
+            for ext in ["svg", "pdf"]:
+                plt.savefig(f"{cod_fold}/cor_bar_plot.{ext}", bbox_inches="tight")
+
+            plt.close()
+
+            for type in ["Pearson", "Spearman"]:
+                joint_df = pd.DataFrame({"GC": prot_df["GC"],
+                                         "Codon_Cor": cors[type]["Codon"][code_name],
+                                         "GC_Cor": cors[type]["GC"][code_name]})
+                joint_df["Cor_Dif"] = np.abs(joint_df["Codon_Cor"]-joint_df["GC_Cor"])
+                g = sns.JointGrid(data=joint_df, x="GC", y="Codon_Cor")
+                g.plot_joint(sns.scatterplot, alpha=0.5, color="blue",
+                             label="Codon correlation")
+                sns.scatterplot(data=joint_df, x="GC", y="GC_Cor", alpha=0.5,
+                                color="red", ax=g.ax_joint, label="Codon+GC correlation")
+
+                sns.histplot(data=joint_df["GC"], ax=g.ax_marg_x, color="purple",
+                             element="step")
+
+                hist_y1, bins_y1 = np.histogram(joint_df["Codon_Cor"], density=True,
+                                                bins=optimal_bin(joint_df["Codon_Cor"]))
+                g.ax_marg_y.fill_betweenx(bins_y1[:-1], 0, hist_y1, step="pre",
+                                          color="blue", alpha=0.5)
+
+                hist_y2, bins_y2 = np.histogram(joint_df["GC_Cor"], density=True,
+                                                bins=optimal_bin(joint_df["GC_Cor"]))
+                g.ax_marg_y.fill_betweenx(bins_y2[:-1], 0, hist_y2, step="pre",
+                                          color="red", alpha=0.5)
+
+                g.ax_joint.set_xlabel("GC content")
+                g.ax_joint.set_ylabel(f"{type} correlation coefficient")
+                title = tw.fill(f"{kingdom} - Weighted {type} correlation coefficients "
+                                f"for genetic code: {code_name}", 100)
+                g.fig.suptitle(title)
+                sns.move_legend(g.ax_joint, "lower right")
+                g.fig.subplots_adjust(top=0.92)
+                g.fig.set_figheight(10)
+                g.fig.set_figwidth(15)
+
+                for ext in ["svg", "pdf"]:
+                    plt.savefig(f"{cod_fold}/cor_{type.lower()}_scatter_plot.{ext}",
+                                bbox_inches="tight")
+
+                plt.close()
+
+        print("\tPlotting remaining stuff...", end="\n\n")
+
+        # create the colors
+        cmap = plt.get_cmap("gist_rainbow")
+
+        for cor_type in ["Pearson", "Spearman"]:
+            fig, axes = plt.subplots(len(gen_cod_folders), 2, figsize=(10, 10))
+            index = 0
+            code_abbr = []
+            for code,data in cors[cor_type]["Codon"].items():
+                code_basename = code.lower().replace(" ", "_")
+                code_abbr.append(CODE_ABBREVIATIONS_INV[code_basename])
+
+                color = cmap(index/len(gen_cod_folders))
+                if(code == "Standard"):
+                    color = "grey"
+
+                sns.violinplot(x=data, ax=axes[index,0], zorder=2, color=color)
+                axes[index,0].hlines(0, -1, np.min(data), color="black",
+                                     linestyle="--", alpha=0.5, zorder=0)
+                axes[index,0].hlines(0, np.max(data), 1, color="black",
+                                     linestyle="--", alpha=0.5, zorder=0)
+                axes[index,0].set_xlim(-1, 1)
+                axes[index,0].set_yticks([])
+                for spine in axes[index,0].spines.values():
+                    spine.set_visible(False)
+
+                if(index != len(gen_cod_folders)-1):
+                    axes[index,0].set_xticks([])
+                else:
+                    axes[index,0].set_xticks([-1, -0.5, 0, 0.5, 1])
+
+                if(index == 0):
+                    axes[index,0].set_title("Codon")
+
+                index += 1
+
+            # Add a large border around the left set of plots
+            left_rect = patch.Rectangle(
+                (0.12, 0.11), 0.36, 0.77,
+                linewidth=2, edgecolor="black", facecolor="None",
+                transform=fig.transFigure, clip_on=False
+            )
+            fig.patches.append(left_rect)
+
+            # Add a continuous vertical line across all left-side subplots
+            left_line = Line2D(
+                [0.3013, 0.3013], [0.11, 0.881],
+                color="black", linestyle="--", linewidth=1.5, transform=fig.transFigure,
+                clip_on=False, alpha=0.7, zorder=0
+            )
+            fig.lines.append(left_line)
+
+            index = 0
+            for code,data in cors[cor_type]["GC"].items():
+                color = cmap(index/len(gen_cod_folders))
+                if(code == "Standard"):
+                    color = "grey"
+
+                sns.violinplot(x=data, ax=axes[index,1], zorder=2, color=color)
+                axes[index,1].hlines(0, -1, np.min(data), color="black",
+                                     linestyle="--", alpha=0.5, zorder=0)
+                axes[index,1].hlines(0, np.max(data), 1, color="black",
+                                     linestyle="--", alpha=0.5, zorder=0)
+                axes[index,1].set_xlim(-1, 1)
+                axes[index,1].set_yticks([])
+                for spine in axes[index,1].spines.values():
+                    spine.set_visible(False)
+
+                if(index != len(gen_cod_folders)-1):
+                    axes[index,1].set_xticks([])
+                else:
+                    axes[index,1].set_xticks([-1, -0.5, 0, 0.5, 1])
+
+                if(index == 0):
+                    axes[index,1].set_title("Codon+GC")
+
+                index += 1
+
+            # Add a large border around the right set of plots
+            right_rect = patch.Rectangle(
+                (0.544, 0.11), 0.36, 0.77,
+                linewidth=2, edgecolor="black", facecolor="none",
+                transform=fig.transFigure, clip_on=False
+            )
+            fig.patches.append(right_rect)
+
+            # Add a continuous vertical line across all right-side subplots
+            right_line = Line2D(
+                [0.7236, 0.7236], [0.11, 0.881],
+                color="black", linestyle="--", linewidth=1.5, transform=fig.transFigure,
+                clip_on=False, alpha=0.7, zorder=0
+            )
+            fig.lines.append(right_line)
+
+            dist = 0.0311
+            for i,label in enumerate(code_abbr):
+                pos = 0.1
+                if(len(label) == 3):
+                    pos = 0.092
+                elif(len(label) == 4):
+                    pos = 0.084
+                elif(len(label) == 6):
+                    pos = 0.0675
+
+                fig.text(pos, 0.865-dist*i, label, fontdict={"family": "monospace"})
+
+            fig.suptitle(f"{kingdom} - Weighted {cor_type} correlation coefficients between all genetic codes",
+                         fontsize=14, y=0.93)
 
             for ext in ["svg", "pdf"]:
-                plt.savefig(f"{cod_fold}/cor_{type.lower()}_scatter_plot.{ext}",
+                plt.savefig(f"{king_path}/{cor_type}_cor_plots.{ext}",
                             bbox_inches="tight")
 
             plt.close()
 
-    print("Plotting remaining stuff...", end="\n\n")
-
-    # create the colors
-    cmap = plt.get_cmap("gist_rainbow")
-
-    for cor_type in ["Pearson", "Spearman"]:
+        ###############################################################
         fig, axes = plt.subplots(len(gen_cod_folders), 2, figsize=(10, 10))
         index = 0
+        max_val_cod = max([max(data) for _,data in cors["log-MSE"]["Codon"].items()])
+        max_val_gc = max([max(data) for _,data in cors["log-MSE"]["GC"].items()])
+        max_value = max(max_val_cod*1.15, max_val_gc*1.15)
         code_abbr = []
-        for code,data in cors[cor_type]["Codon"].items():
+        for code,data in cors["log-MSE"]["Codon"].items():
             code_basename = code.lower().replace(" ", "_")
             code_abbr.append(CODE_ABBREVIATIONS_INV[code_basename])
 
@@ -218,19 +349,17 @@ if __name__ == "__main__":
                 color = "grey"
 
             sns.violinplot(x=data, ax=axes[index,0], zorder=2, color=color)
-            axes[index,0].hlines(0, -1, np.min(data), color="black",
+            axes[index,0].hlines(0, 0, np.min(data), color="black",
                                  linestyle="--", alpha=0.5, zorder=0)
-            axes[index,0].hlines(0, np.max(data), 1, color="black",
+            axes[index,0].hlines(0, np.max(data), max_value, color="black",
                                  linestyle="--", alpha=0.5, zorder=0)
-            axes[index,0].set_xlim(-1, 1)
+            axes[index,0].set_xlim(0, max_value)
             axes[index,0].set_yticks([])
             for spine in axes[index,0].spines.values():
                 spine.set_visible(False)
 
             if(index != len(gen_cod_folders)-1):
                 axes[index,0].set_xticks([])
-            else:
-                axes[index,0].set_xticks([-1, -0.5, 0, 0.5, 1])
 
             if(index == 0):
                 axes[index,0].set_title("Codon")
@@ -245,34 +374,24 @@ if __name__ == "__main__":
         )
         fig.patches.append(left_rect)
 
-        # Add a continuous vertical line across all left-side subplots
-        left_line = Line2D(
-            [0.3013, 0.3013], [0.11, 0.881],
-            color="black", linestyle="--", linewidth=1.5, transform=fig.transFigure,
-            clip_on=False, alpha=0.7, zorder=0
-        )
-        fig.lines.append(left_line)
-
         index = 0
-        for code,data in cors[cor_type]["GC"].items():
+        for code,data in cors["log-MSE"]["GC"].items():
             color = cmap(index/len(gen_cod_folders))
             if(code == "Standard"):
                 color = "grey"
 
             sns.violinplot(x=data, ax=axes[index,1], zorder=2, color=color)
-            axes[index,1].hlines(0, -1, np.min(data), color="black",
+            axes[index,1].hlines(0, 0, np.min(data), color="black",
                                  linestyle="--", alpha=0.5, zorder=0)
-            axes[index,1].hlines(0, np.max(data), 1, color="black",
+            axes[index,1].hlines(0, np.max(data), max_value, color="black",
                                  linestyle="--", alpha=0.5, zorder=0)
-            axes[index,1].set_xlim(-1, 1)
+            axes[index,1].set_xlim(0, max_value)
             axes[index,1].set_yticks([])
             for spine in axes[index,1].spines.values():
                 spine.set_visible(False)
 
             if(index != len(gen_cod_folders)-1):
                 axes[index,1].set_xticks([])
-            else:
-                axes[index,1].set_xticks([-1, -0.5, 0, 0.5, 1])
 
             if(index == 0):
                 axes[index,1].set_title("Codon+GC")
@@ -287,14 +406,6 @@ if __name__ == "__main__":
         )
         fig.patches.append(right_rect)
 
-        # Add a continuous vertical line across all right-side subplots
-        right_line = Line2D(
-            [0.7236, 0.7236], [0.11, 0.881],
-            color="black", linestyle="--", linewidth=1.5, transform=fig.transFigure,
-            clip_on=False, alpha=0.7, zorder=0
-        )
-        fig.lines.append(right_line)
-
         dist = 0.0311
         for i,label in enumerate(code_abbr):
             pos = 0.1
@@ -307,193 +418,134 @@ if __name__ == "__main__":
 
             fig.text(pos, 0.865-dist*i, label, fontdict={"family": "monospace"})
 
-        fig.suptitle(f"{name} - {cor_type} correlation coefficients between all genetic codes",
+        fig.suptitle(f"{kingdom} - Weighted log-MSE values between all genetic codes",
                      fontsize=14, y=0.93)
 
         for ext in ["svg", "pdf"]:
-            plt.savefig(f"{path}/{cor_type}_cor_plots.{ext}",
-                        bbox_inches="tight")
+            plt.savefig(f"{king_path}/log_mse_plot.{ext}", bbox_inches="tight")
+
+        plt.close()
+
+        ###############################################################
+        fig, axes = plt.subplots(len(gen_cod_folders)+1, 1, figsize=(10, 10))
+        index = 0
+        min_value = min([min(data) for _,data in entrops.items()]) * 0.98
+        max_value = max([max(data) for _,data in entrops.items()]) * 1.02
+        code_abbr = []
+        for code,data in entrops.items():
+            code_name = None
+            if(index == 0):
+                code_abbr.append("Data")
+            else:
+                code_basename = code.lower().replace(" ", "_")
+                code_abbr.append(CODE_ABBREVIATIONS_INV[code_basename])
+
+            color = cmap((index-1)/len(gen_cod_folders))
+            if(index == 0 or code == "Standard"):
+                color = "grey"
+
+            sns.violinplot(x=data, ax=axes[index], zorder=2, color=color)
+            axes[index].hlines(0, min_value, np.min(data), color="black",
+                                 linestyle="--", alpha=0.5, zorder=0)
+            axes[index].hlines(0, np.max(data), max_value, color="black",
+                                 linestyle="--", alpha=0.5, zorder=0)
+            axes[index].set_xlim(min_value, max_value)
+            axes[index].set_yticks([])
+            for spine in axes[index].spines.values():
+                spine.set_visible(False)
+
+            if(index != len(gen_cod_folders)):
+                axes[index].set_xticks([])
+
+            if(index == 0):
+                axes[index].set_title(f"{kingdom} - Weighted Shannon entropies based on codon number and GC content")
+
+            index += 1
+
+        # Add a large border around the set of plots
+        rect = patch.Rectangle(
+            (0.12, 0.11), 0.78, 0.77,
+            linewidth=2, edgecolor="black", facecolor="None",
+            transform=fig.transFigure, clip_on=False
+        )
+        fig.patches.append(rect)
+
+        dist = 0.0298
+        for i,label in enumerate(code_abbr):
+            pos = 0.1
+            if(len(label) == 3):
+                pos = 0.092
+            elif(len(label) == 4):
+                pos = 0.084
+            elif(len(label) == 6):
+                pos = 0.0675
+
+            fig.text(pos, 0.865-dist*i, label, fontdict={"family": "monospace"})
+
+        for ext in ["svg", "pdf"]:
+            plt.savefig(f"{king_path}/shannon_plot.{ext}", bbox_inches="tight")
+
+        plt.close()
+
+        ###############################################################
+        data = prot_df["Length"]
+        bins = optimal_bin(data)
+        sns.histplot(data, bins=bins, alpha=0.4, color="maroon", kde=True,
+                     line_kws={"linewidth": 2, "linestyle": "--"})
+        plt.title(f"{kingdom} - Density of mean proteome length")
+        plt.xlabel("Protein length")
+        plt.ylabel("Count")
+
+        for ext in ["svg", "pdf"]:
+            plt.savefig(f"{king_path}/length_plot.{ext}", bbox_inches="tight")
+
+        plt.close()
+
+        ###############################################################
+        data = prot_df["GC"]
+        bins = optimal_bin(data)
+        sns.histplot(data, bins=bins, alpha=0.4, color="maroon", kde=True,
+                     line_kws={"linewidth": 2, "linestyle": "--"})
+        plt.title(f"{kingdom} - Density of mean proteome GC content")
+        plt.xlabel("GC content")
+        plt.ylabel("Count")
+
+        for ext in ["svg", "pdf"]:
+            plt.savefig(f"{king_path}/gc_plot.{ext}", bbox_inches="tight")
 
         plt.close()
 
     ###############################################################
-    fig, axes = plt.subplots(len(gen_cod_folders), 2, figsize=(10, 10))
-    index = 0
-    max_val_cod = max([max(data) for _,data in cors["log-MSE"]["Codon"].items()])
-    max_val_gc = max([max(data) for _,data in cors["log-MSE"]["GC"].items()])
-    max_value = max(max_val_cod*1.15, max_val_gc*1.15)
-    code_abbr = []
-    for code,data in cors["log-MSE"]["Codon"].items():
-        code_basename = code.lower().replace(" ", "_")
-        code_abbr.append(CODE_ABBREVIATIONS_INV[code_basename])
-
-        color = cmap(index/len(gen_cod_folders))
-        if(code == "Standard"):
-            color = "grey"
-
-        sns.violinplot(x=data, ax=axes[index,0], zorder=2, color=color)
-        axes[index,0].hlines(0, 0, np.min(data), color="black",
-                             linestyle="--", alpha=0.5, zorder=0)
-        axes[index,0].hlines(0, np.max(data), max_value, color="black",
-                             linestyle="--", alpha=0.5, zorder=0)
-        axes[index,0].set_xlim(0, max_value)
-        axes[index,0].set_yticks([])
-        for spine in axes[index,0].spines.values():
-            spine.set_visible(False)
-
-        if(index != len(gen_cod_folders)-1):
-            axes[index,0].set_xticks([])
-
-        if(index == 0):
-            axes[index,0].set_title("Codon")
-
-        index += 1
-
-    # Add a large border around the left set of plots
-    left_rect = patch.Rectangle(
-        (0.12, 0.11), 0.36, 0.77,
-        linewidth=2, edgecolor="black", facecolor="None",
-        transform=fig.transFigure, clip_on=False
-    )
-    fig.patches.append(left_rect)
-
-    index = 0
-    for code,data in cors["log-MSE"]["GC"].items():
-        color = cmap(index/len(gen_cod_folders))
-        if(code == "Standard"):
-            color = "grey"
-
-        sns.violinplot(x=data, ax=axes[index,1], zorder=2, color=color)
-        axes[index,1].hlines(0, 0, np.min(data), color="black",
-                             linestyle="--", alpha=0.5, zorder=0)
-        axes[index,1].hlines(0, np.max(data), max_value, color="black",
-                             linestyle="--", alpha=0.5, zorder=0)
-        axes[index,1].set_xlim(0, max_value)
-        axes[index,1].set_yticks([])
-        for spine in axes[index,1].spines.values():
-            spine.set_visible(False)
-
-        if(index != len(gen_cod_folders)-1):
-            axes[index,1].set_xticks([])
-
-        if(index == 0):
-            axes[index,1].set_title("Codon+GC")
-
-        index += 1
-
-    # Add a large border around the right set of plots
-    right_rect = patch.Rectangle(
-        (0.544, 0.11), 0.36, 0.77,
-        linewidth=2, edgecolor="black", facecolor="none",
-        transform=fig.transFigure, clip_on=False
-    )
-    fig.patches.append(right_rect)
-
-    dist = 0.0311
-    for i,label in enumerate(code_abbr):
-        pos = 0.1
-        if(len(label) == 3):
-            pos = 0.092
-        elif(len(label) == 4):
-            pos = 0.084
-        elif(len(label) == 6):
-            pos = 0.0675
-
-        fig.text(pos, 0.865-dist*i, label, fontdict={"family": "monospace"})
-
-    fig.suptitle(f"{name} - log-MSE values between all genetic codes",
-                 fontsize=14, y=0.93)
-
+    king_freq_mean_df = pd.DataFrame.from_dict(king_freq_data["means"])
+    king_freq_std_df = pd.DataFrame(king_freq_data["std"])
+    king_freq_mean_df.plot(kind="bar", yerr=king_freq_std_df, capsize=1,
+                        figsize=(14, 7), zorder=2)
+    plt.xlabel("Amino acids")
+    plt.ylabel("Mean distribution")
+    plt.title("Weighted mean proteomic amino acid distribution across kingdoms")
+    plt.legend(title="Kingdom", loc="upper left")
+    plt.xticks(rotation=0)
+    plt.grid(alpha=0.5, zorder=0)
     for ext in ["svg", "pdf"]:
-        plt.savefig(f"{path}/log_mse_plot.{ext}", bbox_inches="tight")
+        plt.savefig(f"{os.path.join(path, "standard_mean_amino_acid_distributions")}.{ext}",
+                    bbox_inches="tight")
 
     plt.close()
 
-    ###############################################################
-    fig, axes = plt.subplots(len(gen_cod_folders)+1, 1, figsize=(10, 10))
-    index = 0
-    min_value = min([min(data) for _,data in entrops.items()]) * 0.95
-    max_value = max([max(data) for _,data in entrops.items()]) * 1.05
-    code_abbr = []
-    for code,data in entrops.items():
-        code_name = None
-        if(index == 0):
-            code_abbr.append("Data")
-        else:
-            code_basename = code.lower().replace(" ", "_")
-            code_abbr.append(CODE_ABBREVIATIONS_INV[code_basename])
+    standard_freq_mean_df = pd.DataFrame.from_dict(standard_freq_data).loc[amino_acids]
 
-        color = cmap((index-1)/len(gen_cod_folders))
-        if(index == 0 or code == "Standard"):
-            color = "grey"
+    all_king_data = pd.DataFrame(columns=amino_acids)
+    all_king_data.loc["Code frequency"] = np.array(standard_norm_data)
+    weighted_indices = []
+    for kingdom in kingdoms:
+        weighted_indices.append(f"{kingdom} observed weighted mean frequency")
+        all_king_data.loc[f"{kingdom} observed weighted mean frequency"] = king_freq_mean_df[kingdom]
+        all_king_data.loc[f"{kingdom} observed weighted std frequency"] = king_freq_std_df[kingdom]
+        all_king_data.loc[f"{kingdom} predicted weighted mean frequency"] = standard_freq_mean_df[kingdom]
+        all_king_data.loc[f"{kingdom} code percentage difference"] = all_king_data.loc[[f"{kingdom} observed weighted mean frequency", "Code frequency"]].pct_change().iloc[1]
+        all_king_data.loc[f"{kingdom} predicted percentage difference"] = all_king_data.loc[[f"{kingdom} observed weighted mean frequency", f"{kingdom} predicted weighted mean frequency"]].pct_change().iloc[1]
 
-        sns.violinplot(x=data, ax=axes[index], zorder=2, color=color)
-        axes[index].hlines(0, min_value, np.min(data), color="black",
-                             linestyle="--", alpha=0.5, zorder=0)
-        axes[index].hlines(0, np.max(data), max_value, color="black",
-                             linestyle="--", alpha=0.5, zorder=0)
-        axes[index].set_xlim(min_value, max_value)
-        axes[index].set_yticks([])
-        for spine in axes[index].spines.values():
-            spine.set_visible(False)
-
-        if(index != len(gen_cod_folders)):
-            axes[index].set_xticks([])
-
-        if(index == 0):
-            axes[index].set_title(f"{name} - Shannon entropy based on codon number and GC content")
-
-        index += 1
-
-    # Add a large border around the set of plots
-    rect = patch.Rectangle(
-        (0.12, 0.11), 0.78, 0.77,
-        linewidth=2, edgecolor="black", facecolor="None",
-        transform=fig.transFigure, clip_on=False
-    )
-    fig.patches.append(rect)
-
-    dist = 0.0298
-    for i,label in enumerate(code_abbr):
-        pos = 0.1
-        if(len(label) == 3):
-            pos = 0.092
-        elif(len(label) == 4):
-            pos = 0.084
-        elif(len(label) == 6):
-            pos = 0.0675
-
-        fig.text(pos, 0.865-dist*i, label, fontdict={"family": "monospace"})
-
-    for ext in ["svg", "pdf"]:
-        plt.savefig(f"{path}/shannon_plot.{ext}", bbox_inches="tight")
-
-    plt.close()
-
-    ###############################################################
-    data = prot_df["Length"]
-    bins = optimal_bin(data)
-    sns.histplot(data, bins=bins, alpha=0.4, color="maroon", kde=True,
-                 line_kws={"linewidth": 2, "linestyle": "--"})
-    plt.title(f"{name} - Density of median proteome length")
-    plt.xlabel("Protein length")
-    plt.ylabel("Count")
-
-    for ext in ["svg", "pdf"]:
-        plt.savefig(f"{path}/length_plot.{ext}", bbox_inches="tight")
-
-    plt.close()
-
-    ###############################################################
-    data = prot_df["GC"]
-    bins = optimal_bin(data)
-    sns.histplot(data, bins=bins, alpha=0.4, color="maroon", kde=True,
-                 line_kws={"linewidth": 2, "linestyle": "--"})
-    plt.title(f"{name} - Density of median proteome GC content")
-    plt.xlabel("GC content")
-    plt.ylabel("Count")
-
-    for ext in ["svg", "pdf"]:
-        plt.savefig(f"{path}/gc_plot.{ext}", bbox_inches="tight")
-
-    plt.close()
+    all_king_data.loc["Mean weighted frequency"] = all_king_data.loc[weighted_indices].mean(axis=0)
+    all_king_data.loc["Minimum weighted frequency"] = all_king_data.loc[weighted_indices].min(axis=0)
+    all_king_data.loc["Maximum weighted frequency"] = all_king_data.loc[weighted_indices].max(axis=0)
+    all_king_data.to_csv(os.path.join(path, "standard_mean_amino_acid_distributions.csv"), sep="\t")

@@ -24,7 +24,8 @@ def combine_data(paths, amino_acids):
     for prot in prot_dir:
         df = pd.read_csv(prot, sep="\t", header=0, index_col=0)
         df = df.drop(["Status"], axis=1)
-        df_med = df.median(axis=0)
+        df_med = df.mean(axis=0)
+        df_med["#Proteins"] = len(df)
         df_med.name = os.path.basename(prot).split("_")[0]
         comb_df = pd.concat([comb_df, df_med.to_frame().T])
 
@@ -50,7 +51,7 @@ def combine_data(paths, amino_acids):
         comb_df = comb_df.drop(["U"], axis=1)
 
     comb_df.index.name = "Proteome_ID"
-    comb_df = comb_df[["GC", "Length"]+amino_acids]
+    comb_df = comb_df[["GC", "Length", "#Proteins"]+amino_acids]
     return comb_df
 
 
