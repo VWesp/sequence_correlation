@@ -5,6 +5,7 @@ import numpy as np
 import sympy as sp
 import pandas as pd
 import scipy.stats as sci
+import collections as defcol
 import sklearn.metrics as skl
 import equation_functions as ef
 
@@ -24,10 +25,10 @@ def combine_data(paths, amino_acids):
     for prot in prot_dir:
         df = pd.read_csv(prot, sep="\t", header=0, index_col=0)
         df = df.drop(["Status"], axis=1)
-        df_med = df.mean(axis=0)
-        df_med["#Proteins"] = len(df)
-        df_med.name = os.path.basename(prot).split("_")[0]
-        comb_df = pd.concat([comb_df, df_med.to_frame().T])
+        df_mean = df.mean(axis=0)
+        df_mean["#Proteins"] = len(df)
+        df_mean.name = os.path.basename(prot).split("_")[0]
+        comb_df = pd.concat([comb_df, df_mean.to_frame().T])
 
     comb_df = comb_df.fillna(0.0)
     if("X" in comb_df.columns):
@@ -56,99 +57,114 @@ def combine_data(paths, amino_acids):
 
 
 if __name__ == "__main__":
-    prots,codes,output = sys.argv[1:4]
+    path,codes,type,output = sys.argv[1:5]
 
-    os.makedirs(output, exist_ok=True)
-
-    prot_dir = [os.path.join(prots, file) for file in os.listdir(prots)]
-    code_dir = [os.path.join(codes, file) for file in os.listdir(codes)]
     # Canonical amino acids
     amino_acids = ["M", "W", "C", "D", "E", "F", "H", "K", "N", "Q", "Y", "I",
                    "A", "G", "P", "T", "V", "L", "R", "S"]
 
-    df_prot = combine_data(prot_dir, amino_acids)
-    df_prot[amino_acids] = df_prot[amino_acids].div(df_prot[amino_acids].sum(axis=1),
-                                                                             axis=0)
-    entropies = []
-    for i,row in df_prot.iterrows():
-        entropy = -sum([row[aa] * np.log2(row[aa]) if row[aa] > 0 else 0
-                        for aa in amino_acids])
-        entropies.append(entropy)
+    kingdoms = ["Archaea", "Bacteria", "Eukaryota", "Viruses"]
+    king_freq_data = defcol.defaultdict(lambda: defcol.defaultdict(lambda:{}))
+    standard_norm_data = None
+    standard_freq_data = {}
 
-    df_prot["shannon_entropy"] = entropies
-    df_prot.to_csv(os.path.join(output, "proteome_data.csv"), sep="\t")
+    for kingdom in kingdoms:
+        print(f"Current kingdom: {kingdom}...")
+        prot_input = os.path.join(os.path.join(path, kingdom.lower()), os.path.join("aa_count_results", type))
+        prot_output = os.path.join(os.path.join(output, type), kingdom.lower())
+        os.makedirs(prot_output, exist_ok=True)
 
-    for code in code_dir:
-        code_name = os.path.basename(code).split(".yaml")[0]
-        print(f"Current code: {code_name}")
-        code_output = os.path.join(output, code_name)
-        os.makedirs(code_output, exist_ok=True)
+        prot_dir = [os.path.join(prot_input, file) for file in os.listdir(prot_input)]
+        code_dir = [os.path.join(codes, file) for file in os.listdir(codes)]
 
-        # Load genetic code file
-        yaml_code = None
-        with open(code, "r") as code_reader:
-            yaml_code = yaml.safe_load(code_reader)
+        prot_df = combine_data(prot_dir, amino_acids)
+        prot_df[amino_acids] = prot_df[amino_acids].div(prot_df[amino_acids].sum(axis=1),
+                                                                                 axis=0)
+        entropies = []
+        for i,row in prot_df.iterrows():
+            entropy = -sum([row[aa] * np.log2(row[aa]) if row[aa] > 0 else 0
+                            for aa in amino_acids])
+            entropies.append(entropy)
 
-        # Map amino acids to their one letter code
-        codon_map = {AA_TO_ONE_LETTER[aa]:codons
-                     for aa,codons in yaml_code.items()}
-        codon_map = {aa:codon_map[aa] for aa in amino_acids}
+        prot_df["shannon_entropy"] = entropies
+        prot_df.to_csv(os.path.join(prot_output, "proteome_data.csv"), sep="\t")
 
-        # Calculate the frequency percentage for each amino acid based on the
-        # codon number
-        total_codon_num = np.sum([len(codon_map[aa]) for aa in amino_acids])
-        codon_num_norm = {aa:len(codon_map[aa])/total_codon_num
-                          for aa in amino_acids}
+        for code in code_dir:
+            code_name = os.path.basename(code).split(".yaml")[0]
+            print(f"Current code: {code_name}")
+            code_output = os.path.join(prot_output, code_name)
+            os.makedirs(code_output, exist_ok=True)
 
-        df_code = pd.DataFrame.from_dict(codon_num_norm, orient="index")
-        df_code.to_csv(os.path.join(code_output, "norm_code_data.csv"),
-                       sep="\t", header=["frequency"])
+            # Load genetic code file
+            yaml_code = None
+            with open(code, "r") as code_reader:
+                yaml_code = yaml.safe_load(code_reader)
 
-        df_cor = pd.DataFrame()
-        #############################################
-        # Load frequency functions for each amino acid based on the codons and
-        # GC content
-        g = sp.symbols("g", float=True)
-        freq_funcs = ef.build_functions(codon_map)
+            # Map amino acids to their one letter code
+            codon_map = {AA_TO_ONE_LETTER[aa]:codons
+                         for aa,codons in yaml_code.items()}
+            codon_map = {aa:codon_map[aa] for aa in amino_acids}
 
-        for i,row in df_prot.iterrows():
-            row_data = np.array(row[amino_acids])
-            df_data = np.array(df_code[0])
-            log_data = np.log2(row_data, where=row_data!=0)
+            # Calculate the frequency percentage for each amino acid based on the
+            # codon number
+            total_codon_num = np.sum([len(codon_map[aa]) for aa in amino_acids])
+            codon_num_norm = {aa:len(codon_map[aa])/total_codon_num
+                              for aa in amino_acids}
 
-            freqs = np.array(list(ef.calculate_frequencies(freq_funcs,
-                                                  row["GC"])["amino"].values()))
-            freqs = freqs / freqs.sum()
-            log_freqs = np.log2(freqs, where=freqs!=0)
-            df_cor.loc[row.name, amino_acids] = freqs
-            ##############
-            cor, p_cor = sci.pearsonr(row_data, df_data)
-            df_cor.loc[row.name, "codon_pear"] = cor
-            df_cor.loc[row.name, "p_codon_pear"] = p_cor
-            ##############
-            cor, p_cor = sci.spearmanr(row_data, df_data)
-            df_cor.loc[row.name, "codon_spear"] = cor
-            df_cor.loc[row.name, "p_codon_spear"] = p_cor
-            ##############
-            mse = skl.mean_squared_error(log_data, np.log2(df_code))
-            df_cor.loc[row.name, "codon_log_mse"] = mse
-            ############################
-            cor, p_cor = sci.pearsonr(row_data, freqs)
-            df_cor.loc[row.name, "gc_pear"] = cor
-            df_cor.loc[row.name, "p_gc_pear"] = p_cor
-            ##############
-            cor, p_cor = sci.spearmanr(row_data, freqs)
-            df_cor.loc[row.name, "gc_spear"] = cor
-            df_cor.loc[row.name, "p_gc_spear"] = p_cor
-            ##############
-            mse = skl.mean_squared_error(log_data, log_freqs)
-            df_cor.loc[row.name, "gc_log_mse"] = mse
-            ############################
-            entropy = -sum([freqs[i] * np.log2(freqs[i]) if freqs[i] > 0 else 0
-                            for i in range(len(freqs))])
-            df_cor.loc[row.name, "shannon_entropy"] = entropy
+            code_df = pd.DataFrame.from_dict(codon_num_norm, orient="index")
+            code_df.to_csv(os.path.join(code_output, "norm_code_data.csv"),
+                           sep="\t", header=["frequency"])
 
-        df_cor.index.name = "Proteome_ID"
-        df_cor.to_csv(os.path.join(code_output, "cor_data.csv"), sep="\t")
+            freq_df = pd.DataFrame()
+            corr_df = pd.DataFrame()
 
-    print()
+            #############################################
+            # Load frequency functions for each amino acid based on the codons and
+            # GC content
+            g = sp.symbols("g", float=True)
+            freq_funcs = ef.build_functions(codon_map)
+
+            for i,row in prot_df.iterrows():
+                row_data = np.array(row[amino_acids])
+                df_data = np.array(code_df[0])
+                log_data = np.log2(row_data, where=row_data!=0)
+
+                freqs = np.array(list(ef.calculate_frequencies(freq_funcs,
+                                                      row["GC"])["amino"].values()))
+                freqs = freqs / freqs.sum()
+                log_freqs = np.log2(freqs, where=freqs!=0)
+                freq_df.loc[row.name, amino_acids] = freqs
+                ##############
+                corr, p_corr = sci.pearsonr(row_data, df_data)
+                corr_df.loc[row.name, "codon_pear"] = corr
+                corr_df.loc[row.name, "p_codon_pear"] = p_corr
+                ##############
+                corr, p_corr = sci.spearmanr(row_data, df_data)
+                corr_df.loc[row.name, "codon_spear"] = corr
+                corr_df.loc[row.name, "p_codon_spear"] = p_corr
+                ##############
+                mse = skl.mean_squared_error(log_data, np.log2(code_df))
+                corr_df.loc[row.name, "codon_log_mse"] = mse
+                ############################
+                corr, p_corr = sci.pearsonr(row_data, freqs)
+                corr_df.loc[row.name, "gc_pear"] = corr
+                corr_df.loc[row.name, "p_gc_pear"] = p_corr
+                ##############
+                corr, p_corr = sci.spearmanr(row_data, freqs)
+                corr_df.loc[row.name, "gc_spear"] = corr
+                corr_df.loc[row.name, "p_gc_spear"] = p_corr
+                ##############
+                mse = skl.mean_squared_error(log_data, log_freqs)
+                corr_df.loc[row.name, "gc_log_mse"] = mse
+                ############################
+                entropy = -sum([freqs[i] * np.log2(freqs[i]) if freqs[i] > 0 else 0
+                                for i in range(len(freqs))])
+                corr_df.loc[row.name, "shannon_entropy"] = entropy
+
+            freq_df.index.name = "Proteome_ID"
+            freq_df.to_csv(os.path.join(code_output, "pred_freq_data.csv"), sep="\t")
+
+            corr_df.index.name = "Proteome_ID"
+            corr_df.to_csv(os.path.join(code_output, "corr_data.csv"), sep="\t")
+
+        print()

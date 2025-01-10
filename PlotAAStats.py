@@ -6,6 +6,7 @@ import pandas as pd
 import seaborn as sns
 import textwrap as tw
 import collections as defcol
+from scipy.stats import norm
 from Bio.Data import CodonTable
 import matplotlib.pyplot as plt
 import matplotlib.patches as patch
@@ -48,6 +49,7 @@ if __name__ == "__main__":
     standard_norm_data = None
     standard_freq_data = {}
     amino_acids = None
+    z_corr = defcol.defaultdict(lambda: defcol.defaultdict(lambda: defcol.defaultdict(lambda: defcol.defaultdict(lambda: defcol.defaultdict()))))
     for kingdom in kingdoms:
         cmap = plt.get_cmap("viridis")
         print(f"Current kingdom: {kingdom}...")
@@ -56,6 +58,7 @@ if __name__ == "__main__":
                                 index_col=0)
         amino_acids = prot_df.columns[3:23]
         num_prots = prot_df["#Proteins"]
+        z_weights = [n-3 for n in num_prots]
         weighted_means = prot_df.mul(num_prots, axis=0).sum() / num_prots.sum()
         weighted_std = np.sqrt(((prot_df-weighted_means)**2).mul(num_prots, axis=0).sum() / num_prots.sum())
         entrops = {"Proteome": np.array(prot_df["shannon_entropy"])}
@@ -65,7 +68,7 @@ if __name__ == "__main__":
 
         gen_cod_folders = [os.path.join(king_path, folder) for folder in os.listdir(king_path)
                            if os.path.isdir(os.path.join(king_path, folder))]
-        cors = defcol.defaultdict(lambda: defcol.defaultdict(lambda: defcol.defaultdict()))
+        corr = defcol.defaultdict(lambda: defcol.defaultdict(lambda: defcol.defaultdict()))
         for cod_fold in gen_cod_folders:
             code_basename = os.path.basename(cod_fold)
             # Name of the genetic code
@@ -76,22 +79,38 @@ if __name__ == "__main__":
                                  sep="\t", index_col=0)
             cod_df = cod_df["frequency"]
 
-            cor_df = pd.read_csv(os.path.join(cod_fold, "cor_data.csv"), sep="\t",
+            corr_df = pd.read_csv(os.path.join(cod_fold, "corr_data.csv"), sep="\t",
                                  index_col=0)
-            cors["Pearson"]["Codon"][code_name] = np.array(cor_df["codon_pear"])
-            cors["Pearson"]["GC"][code_name] = np.array(cor_df["gc_pear"])
-            cors["Spearman"]["Codon"][code_name] = np.array(cor_df["codon_spear"])
-            cors["Spearman"]["GC"][code_name] = np.array(cor_df["gc_spear"])
-            cors["log-MSE"]["Codon"][code_name] = np.array(cor_df["codon_log_mse"])
-            cors["log-MSE"]["GC"][code_name] = np.array(cor_df["gc_log_mse"])
+            corr["Pearson"]["Codon"][code_name] = np.array(corr_df["codon_pear"])
+            corr["Pearson"]["GC"][code_name] = np.array(corr_df["gc_pear"])
+            corr["Spearman"]["Codon"][code_name] = np.array(corr_df["codon_spear"])
+            corr["Spearman"]["GC"][code_name] = np.array(corr_df["gc_spear"])
+            corr["log-MSE"]["Codon"][code_name] = np.array(corr_df["codon_log_mse"])
+            corr["log-MSE"]["GC"][code_name] = np.array(corr_df["gc_log_mse"])
+            entrops[code_name] = np.array(corr_df["shannon_entropy"])
 
-            weighted_cor_means = cor_df.mul(num_prots, axis=0).sum() / num_prots.sum()
-            weighted_cor_std = np.sqrt(((cor_df-weighted_cor_means)**2).mul(num_prots, axis=0).sum() / num_prots.sum())
-            entrops[code_name] = np.array(cor_df["shannon_entropy"])
+            for type in ["Codon", "GC"]:
+                z_values = [0.5*np.log((1+corr)/(1-corr)) for corr in corr["Pearson"][type][code_name]]
+                z_mean = np.average(z_values, weights=z_weights)
+                z_corr[kingdom]["Pearson"][type][code_name]["means"] = (np.exp(2*z_mean)-1)/(np.exp(2*z_mean)+1)
+                z_corr[kingdom]["Pearson"][type][code_name]["std"] = 1 / np.sqrt(np.sum(z_weights))
+                z_stat = z_mean / z_corr[kingdom]["Pearson"][type][code_name]["std"]
+                z_corr[kingdom]["Pearson"][type][code_name]["p"] = 2 * (1 - norm.cdf(abs(z_stat)))
+
+            for type in ["Codon", "GC"]:
+                z_values = [0.5*np.log((1+corr)/(1-corr)) for corr in corr["Spearman"][type][code_name]]
+                z_mean = np.average(z_values, weights=z_weights)
+                z_corr[kingdom]["Spearman"][type][code_name]["means"] = (np.exp(2*z_mean)-1)/(np.exp(2*z_mean)+1)
+                z_corr[kingdom]["Spearman"][type][code_name]["std"] = 1 / np.sqrt(np.sum(z_weights))
+                z_stat = z_mean / z_corr[kingdom]["Spearman"][type][code_name]["std"]
+                z_corr[kingdom]["Spearman"][type][code_name]["p"] = 2 * (1 - norm.cdf(abs(z_stat)))
+
+            pred_freq_df = pd.read_csv(os.path.join(cod_fold, "pred_freq_data.csv"), sep="\t",
+                                       index_col=0)
 
             if(code_name == "Standard"):
                 standard_norm_data = cod_df
-                standard_freq_data[kingdom] = weighted_cor_means
+                standard_freq_data[kingdom] = corr_df
 
             fig, axes = plt.subplots(2, 2)
             i = 0
@@ -107,16 +126,16 @@ if __name__ == "__main__":
                               width=wid, color=cmap(col), edgecolor="black", linewidth=0.75,
                               label="Observed", capsize=3, zorder=2)
 
-                cor_data = {"Codon": [cod_df, None, "codon"],
-                            "Codon+GC": [weighted_cor_means, weighted_cor_std, "gc"]}
+                corr_data = {"Codon": [cod_df, None, "codon"],
+                            "Codon+GC": [pred_freq_df.mean(axis=0), pred_freq_df.std(axis=0), "gc"]}
                 c_pos = 0.6
-                for cor_type,data in cor_data.items():
+                for corr_type,data in corr_data.items():
                     b_pos += wid
                     col += 0.3
                     yerr = data[1][aa_list] if data[1] is not None else None
                     axes[i,j].bar(x_data+b_pos, data[0][aa_list],
                                   yerr=yerr, width=wid, color=cmap(col),
-                                  edgecolor="black", label=cor_type,
+                                  edgecolor="black", label=corr_type,
                                   linewidth=0.75, capsize=3, zorder=2)
 
                     axes[i,j].grid(visible=True, which="major", color="#999999",
@@ -128,28 +147,19 @@ if __name__ == "__main__":
                     if(j == 0):
                         axes[i,j].set_ylabel("Mean amino acid frequency")
                         if(i == 0):
-                            pear_ar = [f"{data[2]}_pear",
-                                       f"p_{data[2]}_pear"]
-                            pcc,pcc_p = weighted_cor_means[pear_ar]
-                            pcc_std,pcc_p_std = weighted_cor_std[pear_ar]
-
-                            spear_ar = [f"{data[2]}_spear",
-                                        f"p_{data[2]}_spear"]
-                            r2, r2_p = weighted_cor_means[spear_ar]
-                            r2_std,r2_p_std = weighted_cor_std[spear_ar]
-
-                            mse = weighted_cor_means[f"{data[2]}_log_mse"]
-
-                            label = tw.fill(f"${cor_type}$ correlation:", 30)
+                            seq_type = "Codon" if corr_type=="Codon" else "GC"
+                            pearsons = z_corr[kingdom]["Pearson"][seq_type][code_name]
+                            spearmans = z_corr[kingdom]["Spearman"][seq_type][code_name]
+                            label = tw.fill(f"${corr_type}$ correlation:", 30)
                             axes[i,j].text(1.03, c_pos, f"{label}\n"
-                                f"  - Weighted Pearson:\n"
-                                f"    - Mean coef.: {pcc:.5f}\n"
-                                f"    - Std coef.: {pcc_std:.5f}\n"
-                                f"    - p-value: {pcc_p:.5e}\n"
-                                f"\n  - Weighted Spearman:\n"
-                                f"    - Mean coef.: {r2:.5f}\n"
-                                f"    - Std coef.: {r2_std:.5f}\n"
-                                f"    - p-value: {r2_p:.5e}",
+                                f"  - Pearson:\n"
+                                f"    - Mean coef.: {pearsons["means"]:.5f}\n"
+                                f"    - Std coef.: {pearsons["std"]:.5f}\n"
+                                f"    - p-value: {pearsons["p"]:.3f}\n"
+                                f"\n  - Spearman:\n"
+                                f"    - Mean coef.: {spearmans["means"]:.5f}\n"
+                                f"    - Std coef.: {spearmans["std"]:.5f}\n"
+                                f"    - p-value: {spearmans["p"]:.3f}",
                                 transform=axes[0,0].transAxes, fontsize=11,
                                 verticalalignment="top", linespacing=1.5,
                                 bbox=dict(boxstyle="round", facecolor="white",
@@ -167,43 +177,43 @@ if __name__ == "__main__":
                              fancybox=True, fontsize=12)
 
             fig.subplots_adjust(wspace=0.6, hspace=0.3)
-            title = tw.fill(f"{kingdom} - Weighted mean proteome amino acid frequency "
+            title = tw.fill(f"{kingdom} - Mean proteome amino acid frequency "
                             f"for genetic code: {code_name}", 100)
             fig.suptitle(title, fontsize=15, y=0.95)
             fig.set_figheight(10)
             fig.set_figwidth(15)
             for ext in ["svg", "pdf"]:
-                plt.savefig(f"{cod_fold}/cor_bar_plot.{ext}", bbox_inches="tight")
+                plt.savefig(f"{cod_fold}/corr_bar_plot.{ext}", bbox_inches="tight")
 
             plt.close()
 
             for type in ["Pearson", "Spearman"]:
                 joint_df = pd.DataFrame({"GC": prot_df["GC"],
-                                         "Codon_Cor": cors[type]["Codon"][code_name],
-                                         "GC_Cor": cors[type]["GC"][code_name]})
-                joint_df["Cor_Dif"] = np.abs(joint_df["Codon_Cor"]-joint_df["GC_Cor"])
-                g = sns.JointGrid(data=joint_df, x="GC", y="Codon_Cor")
+                                         "Codon_corr": corr[type]["Codon"][code_name],
+                                         "GC_corr": corr[type]["GC"][code_name]})
+                joint_df["corr_Dif"] = np.abs(joint_df["Codon_corr"]-joint_df["GC_corr"])
+                g = sns.JointGrid(data=joint_df, x="GC", y="Codon_corr")
                 g.plot_joint(sns.scatterplot, alpha=0.5, color="blue",
                              label="Codon correlation")
-                sns.scatterplot(data=joint_df, x="GC", y="GC_Cor", alpha=0.5,
+                sns.scatterplot(data=joint_df, x="GC", y="GC_corr", alpha=0.5,
                                 color="red", ax=g.ax_joint, label="Codon+GC correlation")
 
                 sns.histplot(data=joint_df["GC"], ax=g.ax_marg_x, color="purple",
                              element="step")
 
-                hist_y1, bins_y1 = np.histogram(joint_df["Codon_Cor"], density=True,
-                                                bins=optimal_bin(joint_df["Codon_Cor"]))
+                hist_y1, bins_y1 = np.histogram(joint_df["Codon_corr"], density=True,
+                                                bins=optimal_bin(joint_df["Codon_corr"]))
                 g.ax_marg_y.fill_betweenx(bins_y1[:-1], 0, hist_y1, step="pre",
                                           color="blue", alpha=0.5)
 
-                hist_y2, bins_y2 = np.histogram(joint_df["GC_Cor"], density=True,
-                                                bins=optimal_bin(joint_df["GC_Cor"]))
+                hist_y2, bins_y2 = np.histogram(joint_df["GC_corr"], density=True,
+                                                bins=optimal_bin(joint_df["GC_corr"]))
                 g.ax_marg_y.fill_betweenx(bins_y2[:-1], 0, hist_y2, step="pre",
                                           color="red", alpha=0.5)
 
                 g.ax_joint.set_xlabel("GC content")
                 g.ax_joint.set_ylabel(f"{type} correlation coefficient")
-                title = tw.fill(f"{kingdom} - Weighted {type} correlation coefficients "
+                title = tw.fill(f"{kingdom} - {type} correlation coefficients "
                                 f"for genetic code: {code_name}", 100)
                 g.fig.suptitle(title)
                 sns.move_legend(g.ax_joint, "lower right")
@@ -212,7 +222,7 @@ if __name__ == "__main__":
                 g.fig.set_figwidth(15)
 
                 for ext in ["svg", "pdf"]:
-                    plt.savefig(f"{cod_fold}/cor_{type.lower()}_scatter_plot.{ext}",
+                    plt.savefig(f"{cod_fold}/corr_{type.lower()}_scatter_plot.{ext}",
                                 bbox_inches="tight")
 
                 plt.close()
@@ -222,11 +232,11 @@ if __name__ == "__main__":
         # create the colors
         cmap = plt.get_cmap("gist_rainbow")
 
-        for cor_type in ["Pearson", "Spearman"]:
+        for corr_type in ["Pearson", "Spearman"]:
             fig, axes = plt.subplots(len(gen_cod_folders), 2, figsize=(10, 10))
             index = 0
             code_abbr = []
-            for code,data in cors[cor_type]["Codon"].items():
+            for code,data in corr[corr_type]["Codon"].items():
                 code_basename = code.lower().replace(" ", "_")
                 code_abbr.append(CODE_ABBREVIATIONS_INV[code_basename])
 
@@ -271,7 +281,7 @@ if __name__ == "__main__":
             fig.lines.append(left_line)
 
             index = 0
-            for code,data in cors[cor_type]["GC"].items():
+            for code,data in corr[corr_type]["GC"].items():
                 color = cmap(index/len(gen_cod_folders))
                 if(code == "Standard"):
                     color = "grey"
@@ -324,11 +334,11 @@ if __name__ == "__main__":
 
                 fig.text(pos, 0.865-dist*i, label, fontdict={"family": "monospace"})
 
-            fig.suptitle(f"{kingdom} - Weighted {cor_type} correlation coefficients between all genetic codes",
+            fig.suptitle(f"{kingdom} - {corr_type} correlation coefficients between all genetic codes",
                          fontsize=14, y=0.93)
 
             for ext in ["svg", "pdf"]:
-                plt.savefig(f"{king_path}/{cor_type}_cor_plots.{ext}",
+                plt.savefig(f"{king_path}/{corr_type}_corr_plots.{ext}",
                             bbox_inches="tight")
 
             plt.close()
@@ -336,11 +346,11 @@ if __name__ == "__main__":
         ###############################################################
         fig, axes = plt.subplots(len(gen_cod_folders), 2, figsize=(10, 10))
         index = 0
-        max_val_cod = max([max(data) for _,data in cors["log-MSE"]["Codon"].items()])
-        max_val_gc = max([max(data) for _,data in cors["log-MSE"]["GC"].items()])
+        max_val_cod = max([max(data) for _,data in corr["log-MSE"]["Codon"].items()])
+        max_val_gc = max([max(data) for _,data in corr["log-MSE"]["GC"].items()])
         max_value = max(max_val_cod*1.15, max_val_gc*1.15)
         code_abbr = []
-        for code,data in cors["log-MSE"]["Codon"].items():
+        for code,data in corr["log-MSE"]["Codon"].items():
             code_basename = code.lower().replace(" ", "_")
             code_abbr.append(CODE_ABBREVIATIONS_INV[code_basename])
 
@@ -375,7 +385,7 @@ if __name__ == "__main__":
         fig.patches.append(left_rect)
 
         index = 0
-        for code,data in cors["log-MSE"]["GC"].items():
+        for code,data in corr["log-MSE"]["GC"].items():
             color = cmap(index/len(gen_cod_folders))
             if(code == "Standard"):
                 color = "grey"
@@ -418,7 +428,7 @@ if __name__ == "__main__":
 
             fig.text(pos, 0.865-dist*i, label, fontdict={"family": "monospace"})
 
-        fig.suptitle(f"{kingdom} - Weighted log-MSE values between all genetic codes",
+        fig.suptitle(f"{kingdom} - log-MSE values between all genetic codes",
                      fontsize=14, y=0.93)
 
         for ext in ["svg", "pdf"]:
@@ -458,7 +468,7 @@ if __name__ == "__main__":
                 axes[index].set_xticks([])
 
             if(index == 0):
-                axes[index].set_title(f"{kingdom} - Weighted Shannon entropies based on codon number and GC content")
+                axes[index].set_title(f"{kingdom} - Shannon entropies based on codon number and GC content")
 
             index += 1
 
@@ -516,13 +526,13 @@ if __name__ == "__main__":
         plt.close()
 
     ###############################################################
-    king_freq_mean_df = pd.DataFrame.from_dict(king_freq_data["means"])
+    king_freq_mean_df = pd.DataFrame(king_freq_data["means"])
     king_freq_std_df = pd.DataFrame(king_freq_data["std"])
     king_freq_mean_df.plot(kind="bar", yerr=king_freq_std_df, capsize=1,
                         figsize=(14, 7), zorder=2)
     plt.xlabel("Amino acids")
     plt.ylabel("Mean distribution")
-    plt.title("Weighted mean proteomic amino acid distribution across kingdoms")
+    plt.title("Mean proteomic amino acid distribution across kingdoms")
     plt.legend(title="Kingdom", loc="upper left")
     plt.xticks(rotation=0)
     plt.grid(alpha=0.5, zorder=0)
@@ -537,15 +547,28 @@ if __name__ == "__main__":
     all_king_data = pd.DataFrame(columns=amino_acids)
     all_king_data.loc["Code frequency"] = np.array(standard_norm_data)
     weighted_indices = []
+    code_diff_indices = []
+    pred_diff_indices = []
     for kingdom in kingdoms:
-        weighted_indices.append(f"{kingdom} observed weighted mean frequency")
-        all_king_data.loc[f"{kingdom} observed weighted mean frequency"] = king_freq_mean_df[kingdom]
-        all_king_data.loc[f"{kingdom} observed weighted std frequency"] = king_freq_std_df[kingdom]
-        all_king_data.loc[f"{kingdom} predicted weighted mean frequency"] = standard_freq_mean_df[kingdom]
-        all_king_data.loc[f"{kingdom} code percentage difference"] = all_king_data.loc[[f"{kingdom} observed weighted mean frequency", "Code frequency"]].pct_change().iloc[1]
-        all_king_data.loc[f"{kingdom} predicted percentage difference"] = all_king_data.loc[[f"{kingdom} observed weighted mean frequency", f"{kingdom} predicted weighted mean frequency"]].pct_change().iloc[1]
+        weighted_indices.append(f"{kingdom} observed mean frequency")
+        code_diff_indices.append(f"{kingdom} code percentage difference")
+        pred_diff_indices.append(f"{kingdom} predicted percentage difference")
+        all_king_data.loc[f"{kingdom} observed mean frequency"] = king_freq_mean_df[kingdom]
+        all_king_data.loc[f"{kingdom} observed std frequency"] = king_freq_std_df[kingdom]
+        all_king_data.loc[f"{kingdom} predicted mean frequency"] = standard_freq_mean_df[kingdom]
+        all_king_data.loc[f"{kingdom} code percentage difference"] = all_king_data.loc[[f"{kingdom} observed mean frequency", "Code frequency"]].pct_change().iloc[1]
+        all_king_data.loc[f"{kingdom} predicted percentage difference"] = all_king_data.loc[[f"{kingdom} observed mean frequency", f"{kingdom} predicted  mean frequency"]].pct_change().iloc[1]
 
-    all_king_data.loc["Mean weighted frequency"] = all_king_data.loc[weighted_indices].mean(axis=0)
-    all_king_data.loc["Minimum weighted frequency"] = all_king_data.loc[weighted_indices].min(axis=0)
-    all_king_data.loc["Maximum weighted frequency"] = all_king_data.loc[weighted_indices].max(axis=0)
+    all_king_data.loc["Mean frequency"] = all_king_data.loc[weighted_indices].mean(axis=0)
+    all_king_data.loc["Std frequency"] = all_king_data.loc[weighted_indices].std(axis=0)
+    all_king_data.loc["Minimum frequency"] = all_king_data.loc[weighted_indices].min(axis=0)
+    all_king_data.loc["Maximum frequency"] = all_king_data.loc[weighted_indices].max(axis=0)
+
+    all_king_data.loc["Mean code percentage difference"] = np.mean(np.absolute(all_king_data.loc[code_diff_indices]))
+    all_king_data.loc["Mean predicted percentage difference"] = np.mean(np.absolute(all_king_data.loc[pred_diff_indices]))
+
+    all_king_data["Mean"] = all_king_data[amino_acids].mean(axis=1)
+    all_king_data["Minimum"] = all_king_data[amino_acids].min(axis=1)
+    all_king_data["Maximum"] = all_king_data[amino_acids].max(axis=1)
+
     all_king_data.to_csv(os.path.join(path, "standard_mean_amino_acid_distributions.csv"), sep="\t")
