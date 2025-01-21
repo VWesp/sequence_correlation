@@ -1,80 +1,77 @@
 import os
 import sys
-import wget
-import numpy as np
-import pandas as pd
+import time
+import traceback
+from ftplib import FTP
 from urllib.error import HTTPError
 
 
-def downloadSingleProteomes(sprot_ids, stats_pd, output):
-    uniprot_url = "https://ftp.uniprot.org/pub/databases/uniprot/knowledgebase/"
-    prot_url = uniprot_url + "reference_proteomes/"
-    eu_kingdom = ["fungi", "human", "invertebrates", "mammals", "plants",
-                  "rodents", "vertebrates"]
-    for index,row in stats_pd[["Proteome_ID", "Tax_ID"]].iterrows():
-        prot_id = row["Proteome_ID"]
-        tax_id = str(row["Tax_ID"])
-        clade = None
-        id_found = False
-        for cl_type,ids in sprot_ids.items():
-            if(int(tax_id) in ids):
-                clade = cl_type
-                id_found = True
-                break
-
-        if(not id_found):
-            print("Not curated: "+tax_id)
-            continue
-
-        kingdom = clade
-        if(clade in eu_kingdom):
-            kingdom = "eukaryota"
-            clade = os.path.join(kingdom, clade)
-
-        clade_output = os.path.join(output, os.path.join(clade, "data"))
-        os.makedirs(clade_output, exist_ok=True)
-
-        success = False
-        tries = 0
-        while(not success):
-            try:
-                org_url = prot_url + kingdom.capitalize() + "/" + prot_id + "/"
-
-                # download protein data
-                prot_file_url = prot_id + "_" + tax_id + ".fasta.gz"
-                prot_output = os.path.join(clade_output, prot_file_url)
-                print(org_url+prot_file_url)
-                wget.download(org_url+prot_file_url, prot_output)
-                print()
-
-                # download DNA data
-                dna_file_url = prot_id + "_" + tax_id + "_DNA.fasta.gz"
-                dna_output = os.path.join(clade_output, dna_file_url)
-                print(org_url+dna_file_url)
-                wget.download(org_url+dna_file_url, dna_output)
-                success = True
-                print()
-            except HTTPError as err:
-                tries += 1
-                print("Failed download tries: "+str(tries))
-                if(tries == 5):
-                    break
-
-
 if __name__ == "__main__":
-    path_to_sprot = sys.argv[1]
-    path_to_stats = sys.argv[2]
-    output = sys.argv[3]
+    output = sys.argv[1]
+    max_tries = int(sys.argv[2])
+    sleep = int(sys.argv[3])
 
-    sprot_ids = {"archaea": None, "bacteria": None, "fungi": None, "human": None,
-                 "invertebrates": None, "mammals": None, "plants": None,
-                 "rodents": None, "vertebrates": None, "viruses": None}
+    uniprot_url = "ftp.uniprot.org"
+    database_url = "/pub/databases/uniprot/knowledgebase/reference_proteomes/"
+    print(f"Connecting to server: {uniprot_url}")
+    ftp = FTP(uniprot_url)
+    ftp.login(user="anonymous", passwd="valentin.wesp@uni-jena.de")
+    kingdoms = ["Archaea", "Bacteria", "Eukaryota", "Viruses"]
+    for kingdom in kingdoms:
+        print(f"\tDownloading files for kingdom: {kingdom}")
+        file_output = os.path.join(os.path.join(output, kingdom), "data")
+        os.makedirs(file_output, exist_ok=True)
+        output_prot_files = set([file.split("_")[0] for file in os.listdir(file_output)])
+        output_dna_files = set([file.split("_")[0]+"_dna" for file in os.listdir(file_output)])
 
-    for clade in sprot_ids:
-        clade_path = os.path.join(path_to_sprot, clade+"_sprot_ids.csv")
-        clade_df = pd.read_csv(clade_path)
-        sprot_ids[clade] = list(clade_df["Tax_ID"])
+        kingdom_url = f"{database_url}{kingdom}/"
+        ftp.cwd(kingdom_url)
+        ids = [item for item in ftp.nlst() if not "." in item]
+        count = 1
+        for id in ids:
+            print(f"\r\t\tDownloading files of proteome: {id} -> Progress: {count}/{len(ids)}", end="")
+            count += 1
+            if(id in output_prot_files and id+"_dna" in output_dna_files):
+                continue
 
-    stats_pd = pd.read_csv(path_to_stats, sep="\t", skiprows=15)
+            tries = 0
+            success = False
+            while(not success):
+                try:
+                    proteome_url = f"{kingdom_url}{id}/"
+                    ftp.cwd(proteome_url)
+                    files = ftp.nlst()
+                    data = [file for file in files if ".fasta.gz" in file]
+                    if(len(data) >= 2):
+                        prot_file = f"{proteome_url}{data[0]}"
+                        prot_output = os.path.join(file_output, data[0])
+                        if(not os.path.exists(prot_output)):
+                            with open(prot_output, "wb") as writer:
+                                ftp.retrbinary(f"RETR {prot_file}", writer.write)
 
-    downloadSingleProteomes(sprot_ids, stats_pd, output)
+                        dna_file = f"{proteome_url}{data[1]}"
+                        dna_output = os.path.join(file_output, data[1])
+                        if(not os.path.exists(dna_output)):
+                            with open(dna_output, "wb") as writer:
+                                ftp.retrbinary(f"RETR {dna_file}", writer.write)
+                    else:
+                        print()
+                        print("\t\t\tFiles are missing. Ignoring proteome.")
+
+                    success = True
+                except Exception:
+                    tries += 1
+                    print()
+                    print(traceback.format_exc())
+                    print(f"\t\t\tDownload failed. Trying again after sleeping {sleep}s. -> Tries: {tries}/{max_tries}")
+                    ftp.close()
+                    if(tries == max_tries):
+                        break
+
+                    time.sleep(sleep)
+
+                    ftp = FTP(uniprot_url)
+                    ftp.login(user="anonymous", passwd="valentin.wesp@uni-jena.de")
+                    ftp.cwd(kingdom_url)
+
+        print()
