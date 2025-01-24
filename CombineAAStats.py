@@ -20,7 +20,7 @@ AA_TO_ONE_LETTER = {"Methionine": "M", "Threonine": "T", "Asparagine": "N",
                     "Glutamic_acid": "E", "Glycine": "G", "Phenylalanine": "F",
                     "Leucine": "L", "Tyrosine": "Y", "Cysteine": "C",
                     "Tryptophane": "W", "Proline": "P", "Histidine": "H",
-                    "Glutamine": "Q", "Isoleucine": "I"}
+                    "Glutamine": "Q", "Isoleucine": "I", "Stop": "*"}
 
 amino_acids = AA_TO_ONE_LETTER.values()
 
