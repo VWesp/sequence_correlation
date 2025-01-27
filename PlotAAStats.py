@@ -36,12 +36,12 @@ def optimal_bin(data):
 
 
 def plot_lengths(prot_data, kingdom, output):
-    lengths = prot_data["Length"]
+    lengths = np.log10(prot_data["Length"])
     bins = optimal_bin(lengths)
     sns.histplot(lengths, bins=bins, alpha=0.4, color="maroon", kde=True,
                  line_kws={"linewidth": 2, "linestyle": "--"})
-    plt.title(f"{kingdom} - Density of mean protein length")
-    plt.xlabel("Protein length")
+    plt.title(f"{kingdom} - Density of mean protein log10-length")
+    plt.xlabel("Protein log10-length")
     plt.ylabel("Density")
     for ext in ["svg", "pdf"]:
         plt.savefig(f"{output}/proteomic_lengths.{ext}", bbox_inches="tight")
@@ -64,12 +64,12 @@ def plot_gcs(prot_data, kingdom, output):
 
 
 def plot_amount(prot_data, kingdom, output):
-    nums = prot_data["#Proteins"]
+    nums = np.log10(prot_data["#Proteins"])
     bins = optimal_bin(nums)
     sns.histplot(nums, bins=bins, alpha=0.4, color="maroon", kde=True,
                  line_kws={"linewidth": 2, "linestyle": "--"})
-    plt.title(f"{kingdom} - Density of protein number")
-    plt.xlabel("Number of proteins")
+    plt.title(f"{kingdom} - Density of protein log10-number")
+    plt.xlabel("log10-Number of proteins")
     plt.ylabel("Density")
     for ext in ["svg", "pdf"]:
         plt.savefig(f"{output}/proteomic_amount.{ext}", bbox_inches="tight")
