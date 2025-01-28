@@ -220,7 +220,11 @@ def plot_scatterplot(corr_df, corr_type, comp_df, comp_type, kingdom, output):
     corr_df = corr_df[corr_df["c_type"]==corr_type].copy()
 
     codon_corrs = corr_df[corr_df["a_type"]=="codon"].copy()
-    codon_corrs.loc[:,comp_type] = comp_df[comp_type]
+    if(comp_type != "GC"):
+        codon_corrs.loc[:,comp_type] = np.log10(comp_df[comp_type])
+    else:
+        codon_corrs.loc[:,comp_type] = comp_df[comp_type]
+
     g = sns.JointGrid(data=codon_corrs, x=comp_type, y="corr")
     ax_codon = sns.scatterplot(data=codon_corrs, x=comp_type, y="corr",
                                alpha=0.5, color="royalblue", ax=g.ax_joint,
@@ -228,7 +232,11 @@ def plot_scatterplot(corr_df, corr_type, comp_df, comp_type, kingdom, output):
                                label="Codon number")
 
     gc_corrs = corr_df[corr_df["a_type"]=="gc"].copy()
-    gc_corrs.loc[:,comp_type] = comp_df[comp_type]
+    if(comp_type != "GC"):
+        gc_corrs.loc[:,comp_type] = np.log10(comp_df[comp_type])
+    else:
+        gc_corrs.loc[:,comp_type] = comp_df[comp_type]
+
     ax_gc = sns.scatterplot(data=gc_corrs, x=comp_type, y="corr", alpha=0.5,
                             color="darkorange", ax=g.ax_joint, linewidth=1,
                             edgecolor="black", label="Codon+GC")
@@ -250,11 +258,11 @@ def plot_scatterplot(corr_df, corr_type, comp_df, comp_type, kingdom, output):
                               color="darkorange", alpha=0.5, linewidth=1,
                               edgecolor="black")
 
-    x_label = "Number of proteins"
+    x_label = "log10-Number of proteins"
     if(comp_type == "GC"):
         x_label = "Proteomic GC content"
     elif(comp_type == "Length"):
-        x_label = "Protein length"
+        x_label = "Protein log10-length"
 
     g.ax_joint.set_xlabel(x_label)
     g.ax_joint.set_ylabel(f"Correlation coefficient")
