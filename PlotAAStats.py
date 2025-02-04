@@ -25,6 +25,10 @@ CODE_ABBREVIATIONS = {"AFM": "alternative_flatworm_mitochondrial", "AY": "altern
                       "SGCode": "standard", "TM": "thraustochytrium_mitochondrial",
                       "TrM": "trematode_mitochondrial", "VM": "vertebrate_mitochondrial",
                       "YM": "yeast_mitochondrial"}
+CODE_ORDER = ["SGCode", "AFM", "AM", "AY", "BAPP", "BN", "CDHN", "CDSG", "CM",
+              "CMUT", "CN", "EFM", "EN", "IM", "KN", "MN", "MPCMMS", "PN", "PTN",
+              "RM", "SOM", "TM", "TrM", "VM", "YM"]
+CODE_ABBREVIATIONS = {v:CODE_ABBREVIATIONS[v] for v in CODE_ORDER}
 CODE_ABBREVIATIONS_INV = {v:k for k,v in CODE_ABBREVIATIONS.items()}
 
 
@@ -161,27 +165,27 @@ def plot_bar(prot_data, code_df, freq_df, corr_code, corr_gc, aa_groups,
 
 
 def mean_corr(corrs, p_values):
+    # Fisher's Z-transformation
     z_values = [0.5*np.log((1+r)/(1-r)) for r in corrs]
     mean_z = np.mean(z_values)
     mean_corr = (np.exp(2*mean_z)-1) / (np.exp(2*mean_z)+1)
-
-    chi_squared = -2 * np.sum([np.log(p+np.nextafter(0, 1)) for p in p_values])
-    dof = 2 * len(p_values)
-    mean_p = sci.chi2.sf(chi_squared, df=dof)
-
-    return [mean_corr, max(np.nextafter(0, 1), mean_p)]
+    return [mean_corr, np.mean(p_values)]
 
 
-def plot_ridge(corr_df, corr_type, kingdom, output):
-    corr_df = corr_df[corr_df["c_type"]==corr_type].copy()
+def plot_ridge(corr_df, kingdom, output):
     min_val = np.min(corr_df["corr"]) * 0.99
     max_val = np.max(corr_df["corr"]) * 1.01
 
-    color_palette = {"CN": "royalblue", "GC": "darkorange"}
-    g = sns.FacetGrid(corr_df, row="code", hue="a_type",
+    corr_df = corr_df.set_index("code", drop=False)
+    corr_df = corr_df.loc[CODE_ORDER]
+    corr_df["comb_types"] = corr_df["c_type"] + "-" + corr_df["a_type"]
+
+    color_palette = {"CN-spear": "maroon", "GC-spear": "darkorange",
+                     "CN-kendall": "royalblue", "GC-kendall": "forestgreen"}
+    g = sns.FacetGrid(corr_df, row="code", hue="comb_types",
                       palette=list(color_palette.values()))
     g.map(sns.kdeplot, "corr", clip_on=False, fill=False, alpha=1, color="black")
-    g.map(sns.kdeplot, "corr", clip_on=False, fill=True, alpha=0.7)
+    g.map(sns.kdeplot, "corr", clip_on=False, fill=True, alpha=0.5, hatch="x")
     g.refline(y=0, linewidth=2, linestyle="-", color="grey", clip_on=False)
 
     def label(x, color, label):
@@ -190,27 +194,27 @@ def plot_ridge(corr_df, corr_type, kingdom, output):
                 ha="left", va="center", transform=ax.transAxes)
 
     g.map(label, "code")
+
     g.set_titles("")
     g.set_xlabels(label="Correlation coefficient", fontsize=14)
     g.set(yticks=[], ylabel="")
     g.despine(bottom=True, left=True)
 
     legend_patches = [
-        patch.Patch(color=color_palette["CN"], label="Codon number"),
-        patch.Patch(color=color_palette["GC"], label="Codon+GC")
+        patch.Patch(color=color_palette["CN-spear"], label="Spearman: Codon number"),
+        patch.Patch(color=color_palette["GC-spear"], label="Spearman: Codon+GC"),
+        patch.Patch(color=color_palette["CN-kendall"], label="Kendall's Tau: Codon number"),
+        patch.Patch(color=color_palette["GC-kendall"], label="Kendall's Tau: Codon+GC")
     ]
-    plt.legend(handles=legend_patches, bbox_to_anchor=(1, 30))
+    plt.legend(handles=legend_patches, bbox_to_anchor=(0.53, 30.5), ncols=2)
 
     g.fig.set_figheight(10)
     g.fig.set_figwidth(15)
 
-    corr_type = corr_df["c_type"].iloc[0]
-    corr_name = corr_df["c_name"].iloc[0]
-    title = tw.fill(f"{kingdom} - {corr_name} correlation coefficient densities "
-                    f"for all genetic codes", 65)
-    plt.suptitle(title, x=0.55, y=1.05, fontsize=18)
+    title = f"{kingdom} - Correlation coefficient densities for all genetic codes"
+    plt.suptitle(title, x=0.55, y=1.08, fontsize=18)
     for ext in ["svg", "pdf"]:
-        plt.savefig(f"{output}/{corr_type}_corr_ridgeplot.{ext}",
+        plt.savefig(f"{output}/corr_ridgeplot.{ext}",
                     bbox_inches="tight")
 
     plt.close()
@@ -306,6 +310,7 @@ if __name__ == "__main__":
 
     kingdoms = ["Archaea", "Bacteria", "Eukaryota", "Viruses"]
     kingdoms_freqs_data = {"mean": {}, "std": {}}
+    kingdom_corrs_data = pd.DataFrame(columns=kingdoms)
     for kingdom in kingdoms:
         print(f"Printing stuff for {kingdom}...")
         king_path = os.path.join(path, kingdom.lower())
@@ -330,10 +335,10 @@ if __name__ == "__main__":
         gen_code_folders = [os.path.join(king_path, folder)
                             for folder in os.listdir(king_path)
                             if os.path.isdir(os.path.join(king_path, folder))]
-        kingdom_corrs_data=pd.DataFrame(columns=["code_spearman", "code_p_spearman",
-                                                 "code_kendall", "code_p_kendall",
-                                                 "gc_spearman", "gc_p_spearman",
-                                                 "gc_kendall", "gc_p_kendall"])
+        corrs_data = pd.DataFrame(columns=["code_spearman", "code_p_spearman",
+                                           "code_kendall", "code_p_kendall",
+                                           "gc_spearman", "gc_p_spearman",
+                                           "gc_kendall", "gc_p_kendall"])
         all_corrs_df = pd.DataFrame()
         all_pct_df = pd.DataFrame()
         for code_folder in gen_code_folders:
@@ -351,25 +356,25 @@ if __name__ == "__main__":
                                        sep="\t", header=0, index_col=0)
             code_spearman = mean_corr(corr_code_df["spearman"],
                                       corr_code_df["p_spearman"])
-            kingdom_corrs_data.loc[code_abbr, "code_spearman"] = code_spearman[0]
-            kingdom_corrs_data.loc[code_abbr, "code_p_spearman"] = code_spearman[1]
+            corrs_data.loc[code_abbr, "code_spearman"] = code_spearman[0]
+            corrs_data.loc[code_abbr, "code_p_spearman"] = code_spearman[1]
 
             code_kendall = mean_corr(corr_code_df["kendall"],
                                      corr_code_df["p_kendall"])
-            kingdom_corrs_data.loc[code_abbr, "code_kendall"] = code_kendall[0]
-            kingdom_corrs_data.loc[code_abbr, "code_p_kendall"] = code_kendall[1]
+            corrs_data.loc[code_abbr, "code_kendall"] = code_kendall[0]
+            corrs_data.loc[code_abbr, "code_p_kendall"] = code_kendall[1]
 
             corr_gc_df = pd.read_csv(os.path.join(code_folder, "corr_gc_data.csv"),
                                      sep="\t", header=0, index_col=0)
             gc_spearman = mean_corr(corr_gc_df["spearman"],
                                     corr_gc_df["p_spearman"])
-            kingdom_corrs_data.loc[code_abbr, "gc_spearman"] = gc_spearman[0]
-            kingdom_corrs_data.loc[code_abbr, "gc_p_spearman"] = gc_spearman[1]
+            corrs_data.loc[code_abbr, "gc_spearman"] = gc_spearman[0]
+            corrs_data.loc[code_abbr, "gc_p_spearman"] = gc_spearman[1]
 
             gc_kendall = mean_corr(corr_gc_df["kendall"],
                                    corr_gc_df["p_kendall"])
-            kingdom_corrs_data.loc[code_abbr, "gc_kendall"] = gc_kendall[0]
-            kingdom_corrs_data.loc[code_abbr, "gc_p_kendall"] = gc_kendall[1]
+            corrs_data.loc[code_abbr, "gc_kendall"] = gc_kendall[0]
+            corrs_data.loc[code_abbr, "gc_p_kendall"] = gc_kendall[1]
 
             plot_bar(kingdoms_freqs_data, code_df, freq_df, [code_spearman,
                      code_kendall], [gc_spearman, gc_kendall], aa_groups,
@@ -385,7 +390,8 @@ if __name__ == "__main__":
                     c_name = "Spearman" if corr_type=="spearman" else "Kendall's Tau"
                     local_corrs = pd.DataFrame({"corr": df[corr_type],
                                   "a_type": a_type, "c_type": corr_type,
-                                  "c_name": c_name, "code": code_abbr})
+                                  "c_name": c_name, "code": code_abbr,
+                                  "kingdom": kingdom})
                     corrs_df = pd.concat([corrs_df, local_corrs])
 
             all_corrs_df = pd.concat([all_corrs_df, corrs_df])
@@ -395,10 +401,9 @@ if __name__ == "__main__":
                     plot_scatterplot(corrs_df, corr_type, prot_df, comp_type,
                                      kingdom, code_folder)
 
-        plot_ridge(all_corrs_df, "spearman", kingdom, king_path)
-        plot_ridge(all_corrs_df, "kendall", kingdom, king_path)
+        plot_ridge(all_corrs_df, kingdom, king_path)
 
-        kingdom_corrs_data.to_csv(os.path.join(king_path, "code_correlation_data.csv"),
+        corrs_data.to_csv(os.path.join(king_path, "code_correlation_data.csv"),
                                   sep="\t")
         all_pct_df.to_csv(os.path.join(king_path, "pct_change_data.csv"),
                           sep="\t")
