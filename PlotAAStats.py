@@ -172,17 +172,21 @@ def mean_corr(corrs, p_values):
     return [mean_corr, np.mean(p_values)]
 
 
-def plot_ridge(corr_df, kingdom, output):
+def plot_ridge(corr_df, output, kingdom=None):
     min_val = np.min(corr_df["corr"]) * 0.99
     max_val = np.max(corr_df["corr"]) * 1.01
 
-    corr_df = corr_df.set_index("code", drop=False)
-    corr_df = corr_df.loc[CODE_ORDER]
+    row = "kingdom"
+    if(not kingdom is None):
+        row = "code"
+        corr_df = corr_df.set_index("code", drop=False)
+        corr_df = corr_df.loc[CODE_ORDER]
+
     corr_df["comb_types"] = corr_df["c_type"] + "-" + corr_df["a_type"]
 
     color_palette = {"CN-spear": "maroon", "GC-spear": "darkorange",
                      "CN-kendall": "royalblue", "GC-kendall": "forestgreen"}
-    g = sns.FacetGrid(corr_df, row="code", hue="comb_types",
+    g = sns.FacetGrid(corr_df, row=row, hue="comb_types",
                       palette=list(color_palette.values()))
     g.map(sns.kdeplot, "corr", clip_on=False, fill=False, alpha=1, color="black")
     g.map(sns.kdeplot, "corr", clip_on=False, fill=True, alpha=0.5, hatch="x")
@@ -193,7 +197,7 @@ def plot_ridge(corr_df, kingdom, output):
         ax.text(0, .2, x.iloc[0], color="black", fontsize=13,
                 ha="left", va="center", transform=ax.transAxes)
 
-    g.map(label, "code")
+    g.map(label, row)
 
     g.set_titles("")
     g.set_xlabels(label="Correlation coefficient", fontsize=14)
@@ -206,12 +210,16 @@ def plot_ridge(corr_df, kingdom, output):
         patch.Patch(color=color_palette["CN-kendall"], label="Kendall's Tau: Codon number"),
         patch.Patch(color=color_palette["GC-kendall"], label="Kendall's Tau: Codon+GC")
     ]
-    plt.legend(handles=legend_patches, bbox_to_anchor=(0.53, 30.5), ncols=2)
+    legend_y = 4.88 if kingdom is None else 30.5
+    plt.legend(handles=legend_patches, bbox_to_anchor=(0.53, legend_y), ncols=2)
 
     g.fig.set_figheight(10)
     g.fig.set_figwidth(15)
 
-    title = f"{kingdom} - Correlation coefficient densities for all genetic codes"
+    title = "Correlation coefficient densities for genetic code: SGCode"
+    if(not kingdom is None):
+        title = f"{kingdom} - Correlation coefficient densities for all genetic codes"
+
     plt.suptitle(title, x=0.55, y=1.08, fontsize=18)
     for ext in ["svg", "pdf"]:
         plt.savefig(f"{output}/corr_ridgeplot.{ext}",
@@ -219,6 +227,51 @@ def plot_ridge(corr_df, kingdom, output):
 
     plt.close()
 
+
+def plot_ridge_kingdoms(corr_df, output):
+    min_val = np.min(corr_df["corr"]) * 0.99
+    max_val = np.max(corr_df["corr"]) * 1.01
+
+    corr_df["comb_types"] = corr_df["c_type"] + "-" + corr_df["a_type"]
+
+    color_palette = {"CN-spear": "maroon", "GC-spear": "darkorange",
+                     "CN-kendall": "royalblue", "GC-kendall": "forestgreen"}
+    g = sns.FacetGrid(corr_df, row="kingdom", hue="comb_types",
+                      palette=list(color_palette.values()))
+    g.map(sns.kdeplot, "corr", clip_on=False, fill=False, alpha=1, color="black")
+    g.map(sns.kdeplot, "corr", clip_on=False, fill=True, alpha=0.5, hatch="x")
+    g.refline(y=0, linewidth=2, linestyle="-", color="grey", clip_on=False)
+
+    def label(x, color, label):
+        ax = plt.gca()
+        ax.text(0, .2, x.iloc[0], color="black", fontsize=13,
+                ha="left", va="center", transform=ax.transAxes)
+
+    g.map(label, "kingdom")
+
+    g.set_titles("")
+    g.set_xlabels(label="Correlation coefficient", fontsize=14)
+    g.set(yticks=[], ylabel="")
+    g.despine(bottom=True, left=True)
+
+    legend_patches = [
+        patch.Patch(color=color_palette["CN-spear"], label="Spearman: Codon number"),
+        patch.Patch(color=color_palette["GC-spear"], label="Spearman: Codon+GC"),
+        patch.Patch(color=color_palette["CN-kendall"], label="Kendall's Tau: Codon number"),
+        patch.Patch(color=color_palette["GC-kendall"], label="Kendall's Tau: Codon+GC")
+    ]
+    plt.legend(handles=legend_patches, bbox_to_anchor=(0.53, 4.88), ncols=2)
+
+    g.fig.set_figheight(10)
+    g.fig.set_figwidth(15)
+
+    title = "Correlation coefficient densities for genetic code: SGCode"
+    plt.suptitle(title, x=0.55, y=1.08, fontsize=18)
+    for ext in ["svg", "pdf"]:
+        plt.savefig(f"{output}/corr_ridgeplot.{ext}",
+                    bbox_inches="tight")
+
+    plt.close()
 
 def plot_scatterplot(corr_df, corr_type, comp_df, comp_type, kingdom, output):
     corr_df = corr_df[corr_df["c_type"]==corr_type].copy()
@@ -269,7 +322,7 @@ def plot_scatterplot(corr_df, corr_type, comp_df, comp_type, kingdom, output):
         x_label = "Protein log10-length"
 
     g.ax_joint.set_xlabel(x_label)
-    g.ax_joint.set_ylabel(f"Correlation coefficient")
+    g.ax_joint.set_ylabel("Correlation coefficient")
     corr_type = corr_df["c_type"].iloc[0]
     corr_name = corr_df["c_name"].iloc[0]
     code = corr_df["code"].iloc[0]
@@ -310,7 +363,7 @@ if __name__ == "__main__":
 
     kingdoms = ["Archaea", "Bacteria", "Eukaryota", "Viruses"]
     kingdoms_freqs_data = {"mean": {}, "std": {}}
-    kingdom_corrs_data = pd.DataFrame(columns=kingdoms)
+    kingdom_corrs_data = pd.DataFrame()
     for kingdom in kingdoms:
         print(f"Printing stuff for {kingdom}...")
         king_path = os.path.join(path, kingdom.lower())
@@ -388,8 +441,8 @@ if __name__ == "__main__":
             for corr_type in ["spearman", "kendall"]:
                 for a_type,df in corr_types.items():
                     c_name = "Spearman" if corr_type=="spearman" else "Kendall's Tau"
-                    local_corrs = pd.DataFrame({"corr": df[corr_type],
-                                  "a_type": a_type, "c_type": corr_type,
+                    local_corrs = pd.DataFrame({ "corr": df[corr_type],
+                                  "a_type": a_type,  "c_type": corr_type,
                                   "c_name": c_name, "code": code_abbr,
                                   "kingdom": kingdom})
                     corrs_df = pd.concat([corrs_df, local_corrs])
@@ -401,12 +454,17 @@ if __name__ == "__main__":
                     plot_scatterplot(corrs_df, corr_type, prot_df, comp_type,
                                      kingdom, code_folder)
 
-        plot_ridge(all_corrs_df, kingdom, king_path)
+        plot_ridge(all_corrs_df, king_path, kingdom)
+        kingdom_corrs_data = pd.concat([kingdom_corrs_data, all_corrs_df])
 
         corrs_data.to_csv(os.path.join(king_path, "code_correlation_data.csv"),
                                   sep="\t")
         all_pct_df.to_csv(os.path.join(king_path, "pct_change_data.csv"),
                           sep="\t")
+
+    kingdom_sgc = kingdom_corrs_data[kingdom_corrs_data["code"]=="SGCode"]
+    kingdom_sgc.to_csv(f"{path}/kingdom_corr_SGCode.csv", sep="\t")
+    plot_ridge(kingdom_sgc, path)
 
     mean_data = pd.DataFrame(kingdoms_freqs_data["mean"])
     std_data = pd.DataFrame(kingdoms_freqs_data["std"])
