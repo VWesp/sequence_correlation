@@ -159,7 +159,7 @@ if __name__ == "__main__":
     amino_acids = ["M", "W", "C", "D", "E", "F", "H", "K", "N", "Q", "Y", "I",
                    "A", "G", "P", "T", "V", "L", "R", "S"]
 
-    kingdoms = ["Archaea", "Bacteria", "Eukaryota", "Viruses"]
+    kingdoms = ["Archaea", "Bacteria", "Eukaryotes", "Viruses"]
     for kingdom in kingdoms:
         prog = manager.Value("i", 0)
         time_prog.value = time.time()

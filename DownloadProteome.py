@@ -16,7 +16,7 @@ if __name__ == "__main__":
     print(f"Connecting to server: {uniprot_url}")
     ftp = FTP(uniprot_url)
     ftp.login(user="anonymous", passwd="valentin.wesp@uni-jena.de")
-    kingdoms = ["Archaea", "Bacteria", "Eukaryota", "Viruses"]
+    kingdoms = ["Archaea", "Bacteria", "Eukaryotes", "Viruses"]
     for kingdom in kingdoms:
         print(f"\tDownloading files for kingdom: {kingdom}")
         file_output = os.path.join(os.path.join(output, kingdom), "data")

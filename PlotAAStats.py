@@ -361,7 +361,7 @@ if __name__ == "__main__":
                  "W", "Y"], "Charged": ["D", "E", "H", "K", "R"],
                  "Uncharged": ["C", "N", "P", "Q", "S", "T"]}
 
-    kingdoms = ["Archaea", "Bacteria", "Eukaryota", "Viruses"]
+    kingdoms = ["Archaea", "Bacteria", "Eukaryotes", "Viruses"]
     kingdoms_freqs_data = {"mean": {}, "std": {}}
     kingdom_corrs_data = pd.DataFrame()
     for kingdom in kingdoms:
