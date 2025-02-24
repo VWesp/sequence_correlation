@@ -312,11 +312,8 @@ if __name__ == "__main__":
 
         plot_pct(data, aa_groups, kingdom, king_path)
 
-        # Calculate weighted mean of all amino acids frequencies
-        kingdom_freq_df.loc[kingdom, aa_mean_cols] = data[aa_mean_cols].mul(data["#Proteins"], axis=0).sum() / data["#Proteins"].sum()
-        # Calculate weighted standard deviation of all amino acids frequencies
-        kingdom_freq_df.loc[kingdom, aa_std_cols] = np.sqrt(data[aa_std_cols].pow(2).mul(data["#Proteins"]-1, axis=0).sum() / (data["#Proteins"].sum()-data.shape[0]))
-
+        kingdom_freq_df.loc[kingdom, aa_mean_cols] = data[aa_mean_cols].mean()
+        kingdom_freq_df.loc[kingdom, aa_std_cols] = data[aa_mean_cols].std().values
         all_data_dct[kingdom] = data
 
         for corr_type in ["Spearman", "Kendall"]:
