@@ -28,7 +28,7 @@ def mean_corr(corrs, p_values):
 
 
 def plot_lengths(data, kingdom, output):
-    lengths = np.log10(data["Length_mean"])
+    lengths = np.log10(data["Length_mean"]+1)
     bins = optimal_bin(lengths)
     sns.histplot(lengths, bins=bins, alpha=0.4, color="maroon", kde=True,
                  line_kws={"linewidth": 2, "linestyle": "--"})
@@ -58,7 +58,7 @@ def plot_gcs(data, kingdom, output):
 
 
 def plot_amount(data, kingdom, output):
-    nums = np.log10(data["#Proteins"])
+    nums = np.log10(data["#Proteins"]+1)
     bins = optimal_bin(nums)
     sns.histplot(nums, bins=bins, alpha=0.4, color="maroon", kde=True,
                  line_kws={"linewidth": 2, "linestyle": "--"})
@@ -206,6 +206,82 @@ def plot_corr_coefficients(data, output):
     plt.close()
 
 
+def plot_plotogram(data_dct, amino_acids, output):
+    aa_mean_cols = [f"{aa}_mean" for aa in amino_acids]
+    aa_pct_code_cols = [f"{aa}_pct_code" for aa in amino_acids]
+    aa_pct_freq_cols = [f"{aa}_pct_freq" for aa in amino_acids]
+    fig,axes = plt.subplots(8, 4)
+    sns_pal = sns.color_palette("viridis", len(amino_acids))
+    for j,(kingdom,data) in enumerate(data_dct.items()):
+        # Plot protein number
+        nums = np.log10(data["#Proteins"]+1)
+        bins = optimal_bin(nums)
+        sns.histplot(nums.values, bins=bins, alpha=0.4, color="maroon", kde=True,
+                     line_kws={"linewidth": 2, "linestyle": "--"}, ax=axes[0,j])
+
+        #Plot protein GC content
+        gcs = data["GC_mean"]
+        bins = optimal_bin(gcs)
+        sns.histplot(gcs.values, bins=bins, alpha=0.4, color="maroon", kde=True,
+                     line_kws={"linewidth": 2, "linestyle": "--"}, ax=axes[1,j])
+
+        # Plot protein length
+        lengths = np.log10(data["Length_mean"]+1)
+        bins = optimal_bin(lengths)
+        sns.histplot(lengths.values, bins=bins, alpha=0.4, color="maroon", kde=True,
+                     line_kws={"linewidth": 2, "linestyle": "--"}, ax=axes[2,j])
+
+        # Plot amino acid frequencies
+        sns.barplot(data[aa_mean_cols], errorbar="sd", palette=sns_pal, linewidth=0.3, edgecolor="black", err_kws={"color": "firebrick"}, ax=axes[3,j])
+        axes[3,j].set_xticks(np.arange(len(amino_acids)), amino_acids, fontsize=8)
+
+        # Plot amino acid percentage change for the codon number
+        sns.boxplot(data[aa_pct_code_cols], notch=True, showfliers=False, palette=sns_pal, boxprops={"linewidth": 0.3}, zorder=2, ax=axes[4,j])
+        axes[4,j].axhline(y=0, zorder=0, color="firebrick", linestyle="--")
+        axes[4,j].set_xticks(np.arange(len(amino_acids)), amino_acids, fontsize=8)
+
+        # Plot amino acid percentage change for codon+GC
+        sns.boxplot(data[aa_pct_freq_cols], notch=True, showfliers=False, palette=sns_pal, boxprops={"linewidth": 0.3}, zorder=2, ax=axes[5,j])
+        axes[5,j].axhline(y=0, zorder=0, color="firebrick", linestyle="--")
+        axes[5,j].set_xticks(np.arange(len(amino_acids)), amino_acids, fontsize=8)
+
+        # Plot Spearman correlation coefficients for the codon number
+        sns.kdeplot(data["Spearman_code"], multiple="stack", color="royalblue", label="Codon number", ax=axes[6,j])
+        # Plot Spearman correlation coefficients for codon+GC
+        sns.kdeplot(data["Spearman_freq"], multiple="stack", color="goldenrod", label="Codon+GC", ax=axes[6,j])
+        axes[6,j].legend(loc="upper left", fontsize=6)
+
+        # Plot Kendall's Tau correlation coefficients for the codon number
+        sns.kdeplot(data["Kendall_code"], multiple="stack", color="royalblue", label="Codon number", ax=axes[7,j])
+        # Plot Kendall's Tau correlation coefficients for codon+GC
+        sns.kdeplot(data["Kendall_freq"], multiple="stack", color="goldenrod", label="Codon+GC", ax=axes[7,j])
+        axes[7,j].legend(loc="upper left", fontsize=6)
+
+        axes[0,j].set_title(kingdom)
+        for i in range(8):
+            axes[i,j].set_xlabel("")
+            axes[i,j].set_yticks([])
+            axes[i,j].set_ylabel("")
+
+        if(j == 0):
+            axes[0,j].set_ylabel("Protein log10-amount", labelpad=55, rotation=0)
+            axes[1,j].set_ylabel("Protein GC content", labelpad=49, rotation=0)
+            axes[2,j].set_ylabel("Protein log10-length", labelpad=51, rotation=0)
+            axes[3,j].set_ylabel("Amino acid abundance", labelpad=58, rotation=0)
+            axes[4,j].set_ylabel("Pct. codon number", labelpad=49, rotation=0)
+            axes[5,j].set_ylabel("Pct. codon+GC", labelpad=40, rotation=0)
+            axes[6,j].set_ylabel("Spearman coefficient", labelpad=53, rotation=0)
+            axes[7,j].set_ylabel("Kendall's Tau coefficient", labelpad=60, rotation=0)
+
+    fig.subplots_adjust(hspace=0.5)
+    fig.set_figheight(10)
+    fig.set_figwidth(15)
+    fig.suptitle("Statistics across kingdoms", y=0.96, fontsize=18)
+    for ext in ["svg", "pdf"]:
+        plt.savefig(os.path.join(input, f"plotogram.{ext}"),
+                    bbox_inches="tight")
+
+    plt.close()
 
 
 # main method
@@ -217,9 +293,6 @@ if __name__ == "__main__":
                    "A", "G", "P", "T", "V", "L", "R", "S"]
     aa_mean_cols = [f"{aa}_mean" for aa in amino_acids]
     aa_std_cols = [f"{aa}_std" for aa in amino_acids]
-    corr_cols = ["Spearman_code", "Spearman_code_p", "Spearman_freq",
-                 "Spearman_freq_p", "Kendall_code", "Kendall_code_p",
-                 "Kendall_freq", "Kendall_freq_p"]
     aa_groups = {"Aliphatic": ["A", "G", "I", "L", "M", "V"], "Aromatic": ["F",
                  "W", "Y"], "Charged": ["D", "E", "H", "K", "R"],
                  "Uncharged": ["C", "N", "P", "Q", "S", "T"]}
@@ -228,6 +301,7 @@ if __name__ == "__main__":
     kingdom_freq_df = pd.DataFrame(columns=aa_mean_cols+aa_std_cols)
     kingdom_corr_df = pd.DataFrame(columns=["Coefficient", "Correlation",
                                             "Comparison", "Kingdom"])
+    all_data_dct = {}
     for kingdom in kingdoms:
         king_path = os.path.join(input, kingdom)
         data = pd.read_csv(os.path.join(king_path, "aa_corr_results.csv"),
@@ -243,8 +317,10 @@ if __name__ == "__main__":
         # Calculate weighted standard deviation of all amino acids frequencies
         kingdom_freq_df.loc[kingdom, aa_std_cols] = np.sqrt(data[aa_std_cols].pow(2).mul(data["#Proteins"]-1, axis=0).sum() / (data["#Proteins"].sum()-data.shape[0]))
 
+        all_data_dct[kingdom] = data
+
         for corr_type in ["Spearman", "Kendall"]:
-            for comp_type in ["code", "freq"]:#
+            for comp_type in ["code", "freq"]:
                 local_corr_df = pd.DataFrame(columns=["Coefficient", "Correlation",
                                                       "Comparison", "Kingdom"])
                 local_corr_df.loc[:, "Coefficient"] = data[f"{corr_type}_{comp_type}"]
@@ -276,3 +352,4 @@ if __name__ == "__main__":
     ############################################################################
 
     plot_corr_coefficients(kingdom_corr_df, input)
+    plot_plotogram(all_data_dct, amino_acids, input)
