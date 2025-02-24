@@ -20,8 +20,7 @@ def get_aa_dis(id, prot_dna_dict, type, output, progress, size, lock):
             dna_seqio = SeqIO.to_dict(SeqIO.parse(dna_handle, "fasta"))
             dna_seqio = {id.split("|")[1]:rec for id,rec in dna_seqio.items()}
             for prot_id,prot_rec in prot_seqio.items():
-                prot_seq_type = prot_id.split("|")[0]
-                prot_id = prot_id.split("|")[1]
+                prot_seq_type,prot_id,prot_name = prot_rec.description.split("|")[:3]
                 if(type == "tr" or prot_seq_type == "sp"):
                     if(prot_id in dna_seqio):
                         dna_rec = dna_seqio[prot_id]
@@ -31,12 +30,13 @@ def get_aa_dis(id, prot_dna_dict, type, output, progress, size, lock):
                         amino_acids = set(prot_seq)
                         all_aa_count[prot_id] = {aa:prot_seq.count(aa)/prot_len
                                                  for aa in amino_acids}
-                        all_aa_count[prot_id]["Length"] = prot_len
-                        all_aa_count[prot_id]["GC"] = util.gc_fraction(dna_seq)
+                        all_aa_count[prot_id]["Name"] = prot_name
                         all_aa_count[prot_id]["Status"] = prot_seq_type
+                        all_aa_count[prot_id]["GC"] = util.gc_fraction(dna_seq)
+                        all_aa_count[prot_id]["Length"] = prot_len
 
     if(len(all_aa_count)):
-        additional_cols = ["Status", "GC", "Length"]
+        additional_cols = ["Name", "Status", "GC", "Length"]
         aa_codon_df = pd.DataFrame.from_dict(all_aa_count, orient="index")
         sorted_columns = sorted([col for col in aa_codon_df.columns
                                  if not col in additional_cols])

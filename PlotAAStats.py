@@ -11,157 +11,12 @@ from Bio.Data import CodonTable
 import matplotlib.pyplot as plt
 import matplotlib.patches as patch
 
-# abbreviations for each genetic code
-CODE_ABBREVIATIONS = {"AFM": "alternative_flatworm_mitochondrial", "AY": "alternative_yeast",
-                      "AM": "ascidian_mitochondrial", "BAPP": "bacterial-archaeal-plant_plastid",
-                      "BN": "blastocrithidia_nuclear", "CDSG": "candidate_division_sr1_and_gracilibacteria",
-                      "CMUT": "cephalodiscidae_mitochondrial_uaa-tyr", "CM": "chlorophycean_mitochondrial",
-                      "CDHN": "ciliate-dasycladacean-hexamita_nuclear", "CN": "condylostoma_nuclear",
-                      "EFM": "echinoderm-flatworm_mitochondrial", "EN": "euplotid_nuclear",
-                      "IM": "invertebrate_mitochondrial", "KN": "karyorelict_nuclear",
-                      "MN": "mesodinium_nuclear", "MPCMMS": "mold-protozoan-coelenterate_mitochondrial_and_mycoplasma_spiroplasma",
-                      "PTN": "pachsyolen_tannophilus_nuclear", "PN": "peritrich_nuclear",
-                      "RM": "rhabdopleuridae_mitochondrial", "SOM": "scenedesmus_obliquus_mitochondrial",
-                      "SGCode": "standard", "TM": "thraustochytrium_mitochondrial",
-                      "TrM": "trematode_mitochondrial", "VM": "vertebrate_mitochondrial",
-                      "YM": "yeast_mitochondrial"}
-CODE_ORDER = ["SGCode", "AFM", "AM", "AY", "BAPP", "BN", "CDHN", "CDSG", "CM",
-              "CMUT", "CN", "EFM", "EN", "IM", "KN", "MN", "MPCMMS", "PN", "PTN",
-              "RM", "SOM", "TM", "TrM", "VM", "YM"]
-CODE_ABBREVIATIONS = {v:CODE_ABBREVIATIONS[v] for v in CODE_ORDER}
-CODE_ABBREVIATIONS_INV = {v:k for k,v in CODE_ABBREVIATIONS.items()}
-
 
 def optimal_bin(data):
     data = data.to_numpy()
     iqr = np.quantile(data, 0.75) - np.quantile(data, 0.25)
     h = 2 * iqr / len(data)**(1/3)
     return int((data.max() - data.min()) / h + 1)
-
-
-def plot_lengths(prot_data, kingdom, output):
-    lengths = np.log10(prot_data["Length"])
-    bins = optimal_bin(lengths)
-    sns.histplot(lengths, bins=bins, alpha=0.4, color="maroon", kde=True,
-                 line_kws={"linewidth": 2, "linestyle": "--"})
-    plt.title(f"{kingdom} - Density of mean protein log10-length")
-    plt.xlabel("Protein log10-length")
-    plt.ylabel("Density")
-    for ext in ["svg", "pdf"]:
-        plt.savefig(f"{output}/proteomic_lengths.{ext}", bbox_inches="tight")
-
-    plt.close()
-
-
-def plot_gcs(prot_data, kingdom, output):
-    gcs = prot_data["GC"]
-    bins = optimal_bin(gcs)
-    sns.histplot(gcs, bins=bins, alpha=0.4, color="maroon", kde=True,
-                 line_kws={"linewidth": 2, "linestyle": "--"})
-    plt.title(f"{kingdom} - Density of mean protein GC content")
-    plt.xlabel("GC content")
-    plt.ylabel("Density")
-    for ext in ["svg", "pdf"]:
-        plt.savefig(f"{output}/proteomic_gcs.{ext}", bbox_inches="tight")
-
-    plt.close()
-
-
-def plot_amount(prot_data, kingdom, output):
-    nums = np.log10(prot_data["#Proteins"])
-    bins = optimal_bin(nums)
-    sns.histplot(nums, bins=bins, alpha=0.4, color="maroon", kde=True,
-                 line_kws={"linewidth": 2, "linestyle": "--"})
-    plt.title(f"{kingdom} - Density of protein log10-number")
-    plt.xlabel("log10-Number of proteins")
-    plt.ylabel("Density")
-    for ext in ["svg", "pdf"]:
-        plt.savefig(f"{output}/proteomic_amount.{ext}", bbox_inches="tight")
-
-    plt.close()
-
-
-def plot_bar(prot_data, code_df, freq_df, corr_code, corr_gc, aa_groups,
-             kingdom, code_abbr, output):
-    prot_mean = prot_data["mean"][kingdom]
-    prot_std = prot_data["std"][kingdom]
-
-    freq_mean = freq_df.mean(axis=0)
-    freq_std = freq_df.std(axis=0)
-
-    cmap = plt.get_cmap("viridis")
-    fig, axes = plt.subplots(2, 2)
-    i = 0
-    j = 0
-    for aa_type,aa_list in aa_groups.items():
-        x_pos = np.arange(len(aa_list)) - 0.25
-        axes[i,j].bar(x_pos, prot_mean[aa_list], yerr=prot_std[aa_list],
-                      width=0.25, color=cmap(0.3), edgecolor="black",
-                      linewidth=0.75, label="Observed", capsize=3, zorder=2)
-
-        x_pos = np.arange(len(aa_list))
-        axes[i,j].bar(x_pos, code_df["frequency"][aa_list], width=0.25,
-                      color=cmap(0.6), edgecolor="black", linewidth=0.75,
-                      label="Codon number", capsize=3, zorder=2)
-
-        x_pos = np.arange(len(aa_list)) + 0.25
-        axes[i,j].bar(x_pos, freq_mean[aa_list], yerr=freq_std[aa_list],
-                      width=0.25, color=cmap(0.9), edgecolor="black",
-                      linewidth=0.75, label="Codon+GC", capsize=3, zorder=2)
-
-        axes[i,j].grid(visible=True, which="major", color="#999999",
-                       linestyle="dotted", alpha=0.5, zorder=0)
-        axes[i,j].set_xticks(np.arange(len(aa_list)), aa_list)
-        axes[i,j].set_xlabel("Amino acid")
-        axes[i,j].set_title(f"{aa_type} amino acids")
-
-        if(j == 0):
-            axes[i,j].set_ylabel("Mean amino acid frequency")
-
-        j = 1 if i == 1 else j
-        i = 0 if i == 1 else i + 1
-
-    y_max = max(max([ax.get_ylim() for ax in axes.reshape(-1)]))
-    for ax in axes.reshape(-1):
-        ax.set_ylim(0, y_max)
-
-    axes[0,0].legend(bbox_to_anchor=(1.45, 1.02), fancybox=True, fontsize=12)
-
-    axes[0,0].text(1.03, 0.6, f"Codon number\n"
-        f"  - Spearman:\n"
-        f"    - Coefficient: {corr_code[0][0]:.5f}\n"
-        f"    - p-value: {corr_code[0][1]:.3e}\n"
-        f"\n  - Kendall's Tau:\n"
-        f"    - Coefficient: {corr_code[1][0]:.5f}\n"
-        f"    - p-value: {corr_code[1][1]:.3e}",
-        transform=axes[0,0].transAxes, fontsize=11,
-        verticalalignment="top", linespacing=1.5,
-        bbox=dict(boxstyle="round", facecolor="white",
-                  edgecolor="grey", alpha=0.5))
-
-    axes[0,0].text(1.03, 0.0, f"Codon+GC\n"
-        f"  - Spearman:\n"
-        f"    - Coefficient: {corr_gc[0][0]:.5f}\n"
-        f"    - p-value: {corr_gc[0][1]:.3e}\n"
-        f"\n  - Kendall's Tau:\n"
-        f"    - Coefficient: {corr_gc[1][0]:.5f}\n"
-        f"    - p-value: {corr_gc[1][1]:.3e}",
-        transform=axes[0,0].transAxes, fontsize=11,
-        verticalalignment="top", linespacing=1.5,
-        bbox=dict(boxstyle="round", facecolor="white",
-                  edgecolor="grey", alpha=0.5))
-
-    fig.subplots_adjust(wspace=0.6, hspace=0.3)
-    title = tw.fill(f"{kingdom} - Mean proteomic amino acid frequencies "
-                    f"for genetic code: {code_abbr}", 100)
-    fig.suptitle(title, fontsize=15, y=0.95)
-
-    fig.set_figheight(10)
-    fig.set_figwidth(15)
-    for ext in ["svg", "pdf"]:
-        plt.savefig(f"{code_folder}/corr_bar_plot.{ext}", bbox_inches="tight")
-
-    plt.close()
 
 
 def mean_corr(corrs, p_values):
@@ -172,318 +27,252 @@ def mean_corr(corrs, p_values):
     return [mean_corr, np.mean(p_values)]
 
 
-def plot_ridge(corr_df, output, kingdom=None):
-    min_val = np.min(corr_df["corr"]) * 0.99
-    max_val = np.max(corr_df["corr"]) * 1.01
-
-    row = "kingdom"
-    if(not kingdom is None):
-        row = "code"
-        corr_df = corr_df.set_index("code", drop=False)
-        corr_df = corr_df.loc[CODE_ORDER]
-
-    corr_df["comb_types"] = corr_df["c_type"] + "-" + corr_df["a_type"]
-
-    color_palette = {"CN-spear": "maroon", "GC-spear": "darkorange",
-                     "CN-kendall": "royalblue", "GC-kendall": "forestgreen"}
-    g = sns.FacetGrid(corr_df, row=row, hue="comb_types",
-                      palette=list(color_palette.values()))
-    g.map(sns.kdeplot, "corr", clip_on=False, fill=False, alpha=1, color="black")
-    g.map(sns.kdeplot, "corr", clip_on=False, fill=True, alpha=0.5, hatch="x")
-    g.refline(y=0, linewidth=2, linestyle="-", color="grey", clip_on=False)
-
-    def label(x, color, label):
-        ax = plt.gca()
-        ax.text(0, .2, x.iloc[0], color="black", fontsize=13,
-                ha="left", va="center", transform=ax.transAxes)
-
-    g.map(label, row)
-
-    g.set_titles("")
-    g.set_xlabels(label="Correlation coefficient", fontsize=14)
-    g.set(yticks=[], ylabel="")
-    g.despine(bottom=True, left=True)
-
-    legend_patches = [
-        patch.Patch(color=color_palette["CN-spear"], label="Spearman: Codon number"),
-        patch.Patch(color=color_palette["GC-spear"], label="Spearman: Codon+GC"),
-        patch.Patch(color=color_palette["CN-kendall"], label="Kendall's Tau: Codon number"),
-        patch.Patch(color=color_palette["GC-kendall"], label="Kendall's Tau: Codon+GC")
-    ]
-    legend_y = 4.88 if kingdom is None else 30.5
-    plt.legend(handles=legend_patches, bbox_to_anchor=(0.53, legend_y), ncols=2)
-
-    g.fig.set_figheight(10)
-    g.fig.set_figwidth(15)
-
-    title = "Correlation coefficient densities for genetic code: SGCode"
-    if(not kingdom is None):
-        title = f"{kingdom} - Correlation coefficient densities for all genetic codes"
-
-    plt.suptitle(title, x=0.55, y=1.08, fontsize=18)
+def plot_lengths(data, kingdom, output):
+    lengths = np.log10(data["Length_mean"])
+    bins = optimal_bin(lengths)
+    sns.histplot(lengths, bins=bins, alpha=0.4, color="maroon", kde=True,
+                 line_kws={"linewidth": 2, "linestyle": "--"})
+    plt.title(f"{kingdom} - Density of mean protein log10-length")
+    plt.xlabel("Protein log10-length")
+    plt.ylabel("Density")
     for ext in ["svg", "pdf"]:
-        plt.savefig(f"{output}/corr_ridgeplot.{ext}",
+        plt.savefig(os.path.join(output, f"protein_lengths.{ext}"),
                     bbox_inches="tight")
 
     plt.close()
 
 
-def plot_ridge_kingdoms(corr_df, output):
-    min_val = np.min(corr_df["corr"]) * 0.99
-    max_val = np.max(corr_df["corr"]) * 1.01
+def plot_gcs(data, kingdom, output):
+    gcs = data["GC_mean"]
+    bins = optimal_bin(gcs)
+    sns.histplot(gcs, bins=bins, alpha=0.4, color="maroon", kde=True,
+                 line_kws={"linewidth": 2, "linestyle": "--"})
+    plt.title(f"{kingdom} - Density of mean protein GC content")
+    plt.xlabel("GC content")
+    plt.ylabel("Density")
+    for ext in ["svg", "pdf"]:
+        plt.savefig(os.path.join(output, f"protein_gcs.{ext}"),
+                    bbox_inches="tight")
 
-    corr_df["comb_types"] = corr_df["c_type"] + "-" + corr_df["a_type"]
+    plt.close()
 
+
+def plot_amount(data, kingdom, output):
+    nums = np.log10(data["#Proteins"])
+    bins = optimal_bin(nums)
+    sns.histplot(nums, bins=bins, alpha=0.4, color="maroon", kde=True,
+                 line_kws={"linewidth": 2, "linestyle": "--"})
+    plt.title(f"{kingdom} - Density of protein log10-number")
+    plt.xlabel("log10-Number of proteins")
+    plt.ylabel("Density")
+    for ext in ["svg", "pdf"]:
+        plt.savefig(os.path.join(output, f"protein_amount.{ext}"),
+                    bbox_inches="tight")
+
+    plt.close()
+
+
+def plot_pct(data, aa_groups, kingdom, output):
+    fig,axes = plt.subplots(2, 2)
+    i = 0
+    j = 0
+    for aa_type,aa_list in aa_groups.items():
+        aa_pct_code_cols = [f"{aa}_pct_code" for aa in aa_list]
+        x_pos = np.arange(len(aa_list)) - 0.17
+        c = "royalblue"
+        code_box = axes[i,j].boxplot(data[aa_pct_code_cols], positions=x_pos,
+                                     widths=0.3, notch=True, patch_artist=True,
+                                     boxprops=dict(facecolor=c, color="black"),
+                                    capprops=dict(color=c), whiskerprops=dict(color=c),
+                                    flierprops=dict(color=c, markeredgecolor=c),
+                                    medianprops=dict(color=c), zorder=2)
+
+        aa_pct_freq_cols = [f"{aa}_pct_freq" for aa in aa_list]
+        x_pos = np.arange(len(aa_list)) + 0.18
+        c = "goldenrod"
+        freq_box = axes[i,j].boxplot(data[aa_pct_freq_cols], positions=x_pos,
+                                     widths=0.3,  notch=True, patch_artist=True,
+                                     boxprops=dict(facecolor=c, color="black"),
+                                     capprops=dict(color=c), whiskerprops=dict(color=c),
+                                     flierprops=dict(color=c, markeredgecolor=c),
+                                     medianprops=dict(color=c), zorder=2)
+
+        axes[i,j].axhline(y=0, zorder=1, color="black")
+        axes[i,j].grid(visible=True, which="major", color="#999999",
+                       linestyle="dotted", alpha=0.5, zorder=0)
+        axes[i,j].set_xticks(np.arange(len(aa_list)), aa_list)
+        axes[i,j].set_xlabel("Amino acid")
+        axes[i,j].set_title(f"{aa_type} amino acids")
+
+        if(j == 0):
+            axes[i,j].set_ylabel("Percentage change in %")
+            if(i == 0):
+                axes[i,j].legend([code_box["boxes"][0], freq_box["boxes"][0]],
+                                 ["Codon number", "Codon+GC"],
+                                 bbox_to_anchor=(1.45, 1.02), fancybox=True,
+                                 fontsize=12)
+
+        j = 1 if i == 1 else j
+        i = 0 if i == 1 else i + 1
+
+    spear_corr,spear_corr_p = mean_corr(data["Spearman_code"],
+                                        data["Spearman_code_p"])
+    kendall_corr,kendall_corr_p = mean_corr(data["Kendall_code"],
+                                            data["Kendall_code_p"])
+    axes[0,0].text(1.03, 0.6, f"Codon number\n"
+        f"  - Spearman:\n"
+        f"    - Coefficient: {spear_corr:.5f}\n"
+        f"    - p-value: {spear_corr_p:.3e}\n"
+        f"\n  - Kendall's Tau:\n"
+        f"    - Coefficient: {kendall_corr:.5f}\n"
+        f"    - p-value: {kendall_corr_p:.3e}",
+        transform=axes[0,0].transAxes, fontsize=11,
+        verticalalignment="top", linespacing=1.5,
+        bbox=dict(boxstyle="round", facecolor="white",
+                  edgecolor="grey", alpha=0.5))
+
+    spear_corr,spear_corr_p = mean_corr(data["Spearman_freq"],
+                                        data["Spearman_freq_p"])
+    kendall_corr,kendall_corr_p = mean_corr(data["Kendall_freq"],
+                                            data["Kendall_freq_p"])
+    axes[0,0].text(1.03, 0.0, f"Codon+GC\n"
+        f"  - Spearman:\n"
+        f"    - Coefficient: {spear_corr:.5f}\n"
+        f"    - p-value: {spear_corr_p:.3e}\n"
+        f"\n  - Kendall's Tau:\n"
+        f"    - Coefficient: {kendall_corr:.5f}\n"
+        f"    - p-value: {kendall_corr_p:.3e}",
+        transform=axes[0,0].transAxes, fontsize=11,
+        verticalalignment="top", linespacing=1.5,
+        bbox=dict(boxstyle="round", facecolor="white",
+                  edgecolor="grey", alpha=0.5))
+
+    fig.subplots_adjust(wspace=0.6, hspace=0.3)
+    title = f"{kingdom} - Percentage change between amino acid frequencies"
+    fig.suptitle(title, fontsize=15, y=0.95)
+    fig.set_figheight(10)
+    fig.set_figwidth(15)
+    for ext in ["svg", "pdf"]:
+        plt.savefig(os.path.join(output, f"pct_change.{ext}"),
+                    bbox_inches="tight")
+
+    plt.close()
+
+
+def plot_corr_coefficients(data, output):
     color_palette = {"CN-spear": "maroon", "GC-spear": "darkorange",
                      "CN-kendall": "royalblue", "GC-kendall": "forestgreen"}
-    g = sns.FacetGrid(corr_df, row="kingdom", hue="comb_types",
+    data["Comb_col"] = data["Correlation"] + "-" + data["Comparison"]
+    g = sns.FacetGrid(data, row="Kingdom", hue="Comb_col",
                       palette=list(color_palette.values()))
-    g.map(sns.kdeplot, "corr", clip_on=False, fill=False, alpha=1, color="black")
-    g.map(sns.kdeplot, "corr", clip_on=False, fill=True, alpha=0.5, hatch="x")
+    g.map(sns.kdeplot, "Coefficient", clip_on=False, fill=False, alpha=1,
+          color="black")
+    g.map(sns.kdeplot, "Coefficient", clip_on=False, fill=True, alpha=0.5,
+          hatch="x")
     g.refline(y=0, linewidth=2, linestyle="-", color="grey", clip_on=False)
 
     def label(x, color, label):
         ax = plt.gca()
-        ax.text(0, .2, x.iloc[0], color="black", fontsize=13,
+        ax.text(0, 0.2, x.iloc[0], color="black", fontsize=13,
                 ha="left", va="center", transform=ax.transAxes)
 
-    g.map(label, "kingdom")
-
+    g.map(label, "Kingdom")
     g.set_titles("")
     g.set_xlabels(label="Correlation coefficient", fontsize=14)
     g.set(yticks=[], ylabel="")
     g.despine(bottom=True, left=True)
 
     legend_patches = [
-        patch.Patch(color=color_palette["CN-spear"], label="Spearman: Codon number"),
-        patch.Patch(color=color_palette["GC-spear"], label="Spearman: Codon+GC"),
-        patch.Patch(color=color_palette["CN-kendall"], label="Kendall's Tau: Codon number"),
-        patch.Patch(color=color_palette["GC-kendall"], label="Kendall's Tau: Codon+GC")
+        patch.Patch(color=color_palette["CN-spear"],
+                    label="Spearman: Codon number"),
+        patch.Patch(color=color_palette["GC-spear"],
+                    label="Spearman: Codon+GC"),
+        patch.Patch(color=color_palette["CN-kendall"],
+                    label="Kendall's Tau: Codon number"),
+        patch.Patch(color=color_palette["GC-kendall"],
+                    label="Kendall's Tau: Codon+GC")
     ]
     plt.legend(handles=legend_patches, bbox_to_anchor=(0.53, 4.88), ncols=2)
 
     g.fig.set_figheight(10)
     g.fig.set_figwidth(15)
 
-    title = "Correlation coefficient densities for genetic code: SGCode"
+    title = "Correlation coefficient densities across kingdoms"
     plt.suptitle(title, x=0.55, y=1.08, fontsize=18)
     for ext in ["svg", "pdf"]:
-        plt.savefig(f"{output}/corr_ridgeplot.{ext}",
-                    bbox_inches="tight")
-
-    plt.close()
-
-def plot_scatterplot(corr_df, corr_type, comp_df, comp_type, kingdom, output):
-    corr_df = corr_df[corr_df["c_type"]==corr_type].copy()
-
-    codon_corrs = corr_df[corr_df["a_type"]=="codon"].copy()
-    if(comp_type != "GC"):
-        codon_corrs.loc[:,comp_type] = np.log10(comp_df[comp_type])
-    else:
-        codon_corrs.loc[:,comp_type] = comp_df[comp_type]
-
-    g = sns.JointGrid(data=codon_corrs, x=comp_type, y="corr")
-    ax_codon = sns.scatterplot(data=codon_corrs, x=comp_type, y="corr",
-                               alpha=0.5, color="royalblue", ax=g.ax_joint,
-                               linewidth=1, edgecolor="black",
-                               label="Codon number")
-
-    gc_corrs = corr_df[corr_df["a_type"]=="gc"].copy()
-    if(comp_type != "GC"):
-        gc_corrs.loc[:,comp_type] = np.log10(comp_df[comp_type])
-    else:
-        gc_corrs.loc[:,comp_type] = comp_df[comp_type]
-
-    ax_gc = sns.scatterplot(data=gc_corrs, x=comp_type, y="corr", alpha=0.5,
-                            color="darkorange", ax=g.ax_joint, linewidth=1,
-                            edgecolor="black", label="Codon+GC")
-
-    sns.regplot(data=codon_corrs, x=comp_type, y="corr", scatter=False,
-                ax=ax_codon)
-    sns.regplot(data=gc_corrs, x=comp_type, y="corr", scatter=False, ax=ax_gc)
-
-    sns.histplot(data=gc_corrs[comp_type], ax=g.ax_marg_x, color="purple",
-                 element="step", linewidth=1, edgecolor="black")
-    hist_y1, bins_y1 = np.histogram(codon_corrs["corr"], density=True,
-                                    bins=optimal_bin(codon_corrs["corr"]))
-    g.ax_marg_y.fill_betweenx(bins_y1[:-1], 0, hist_y1, step="pre",
-                              color="royalblue", alpha=0.5, linewidth=1,
-                              edgecolor="black")
-    hist_y2, bins_y2 = np.histogram(gc_corrs["corr"], density=True,
-                                    bins=optimal_bin(gc_corrs["corr"]))
-    g.ax_marg_y.fill_betweenx(bins_y2[:-1], 0, hist_y2, step="pre",
-                              color="darkorange", alpha=0.5, linewidth=1,
-                              edgecolor="black")
-
-    x_label = "log10-Number of proteins"
-    if(comp_type == "GC"):
-        x_label = "Proteomic GC content"
-    elif(comp_type == "Length"):
-        x_label = "Protein log10-length"
-
-    g.ax_joint.set_xlabel(x_label)
-    g.ax_joint.set_ylabel("Correlation coefficient")
-    corr_type = corr_df["c_type"].iloc[0]
-    corr_name = corr_df["c_name"].iloc[0]
-    code = corr_df["code"].iloc[0]
-    g.fig.suptitle(f"{kingdom} - {corr_name} correlation coefficients "
-                   f"for genetic code: {code}")
-    sns.move_legend(g.ax_joint, "lower right")
-    g.fig.subplots_adjust(top=0.92)
-    g.fig.set_figheight(10)
-    g.fig.set_figwidth(15)
-
-    for ext in ["svg", "pdf"]:
-        plt.savefig(f"{code_folder}/{corr_type}_vs_{comp_type.lower()}_scatterplot.{ext}",
+        plt.savefig(os.path.join(output, f"corr_coefficients.{ext}"),
                     bbox_inches="tight")
 
     plt.close()
 
 
-def pct_change(s1, s2):
-    return ((s1 - s2) / s1) * 100
 
 
-def get_pct_change_data(s1, s2, s3):
-    code_pct = pct_change(s1, s2)
-    code_pct.index = [f"{idx}_code" for idx in code_pct.index]
-    freq_pct = pct_change(s1, s3)
-    freq_pct.index = [f"{idx}_gc" for idx in freq_pct.index]
-    both_pct_df = pd.concat([code_pct, freq_pct]).reindex([i for pair in zip(code_pct.index, freq_pct.index)
-                                                           for i in pair])
-    return both_pct_df
-
-
+# main method
 if __name__ == "__main__":
-    path = sys.argv[1]
+    input = sys.argv[1]
 
+    # Canonical amino acids order
+    amino_acids = ["M", "W", "C", "D", "E", "F", "H", "K", "N", "Q", "Y", "I",
+                   "A", "G", "P", "T", "V", "L", "R", "S"]
+    aa_mean_cols = [f"{aa}_mean" for aa in amino_acids]
+    aa_std_cols = [f"{aa}_std" for aa in amino_acids]
+    corr_cols = ["Spearman_code", "Spearman_code_p", "Spearman_freq",
+                 "Spearman_freq_p", "Kendall_code", "Kendall_code_p",
+                 "Kendall_freq", "Kendall_freq_p"]
     aa_groups = {"Aliphatic": ["A", "G", "I", "L", "M", "V"], "Aromatic": ["F",
                  "W", "Y"], "Charged": ["D", "E", "H", "K", "R"],
                  "Uncharged": ["C", "N", "P", "Q", "S", "T"]}
 
     kingdoms = ["Archaea", "Bacteria", "Eukaryotes", "Viruses"]
-    kingdoms_freqs_data = {"mean": {}, "std": {}}
-    kingdom_corrs_data = pd.DataFrame()
+    kingdom_freq_df = pd.DataFrame(columns=aa_mean_cols+aa_std_cols)
+    kingdom_corr_df = pd.DataFrame(columns=["Coefficient", "Correlation",
+                                            "Comparison", "Kingdom"])
     for kingdom in kingdoms:
-        print(f"Printing stuff for {kingdom}...")
-        king_path = os.path.join(path, kingdom.lower())
-        prot_df = pd.read_csv(os.path.join(king_path, "proteome_mean_data.csv"),
-                              sep="\t", header=0, index_col=0)
-        prot_std_df = pd.read_csv(os.path.join(king_path, "proteome_std_data.csv"),
-                                  sep="\t", header=0, index_col=0)
+        king_path = os.path.join(input, kingdom)
+        data = pd.read_csv(os.path.join(king_path, "aa_corr_results.csv"),
+                           sep="\t", header=0, index_col=0)
+        plot_lengths(data, kingdom, king_path)
+        plot_gcs(data, kingdom, king_path)
+        plot_amount(data, kingdom, king_path)
 
-        prot_mean_data = pd.Series()
-        prot_std_data = pd.Series()
-        for col in prot_df.columns:
-            prot_mean_data[col] = (prot_df[col] * prot_df["#Proteins"]).sum() / prot_df["#Proteins"].sum()
-            prot_std_data[col] = np.sqrt((prot_std_df[col]**2 * (prot_std_df["#Proteins"]-1)).sum() / (prot_std_df["#Proteins"]-1).sum())
+        plot_pct(data, aa_groups, kingdom, king_path)
 
-        kingdoms_freqs_data["mean"][kingdom] = prot_mean_data
-        kingdoms_freqs_data["std"][kingdom] = prot_std_data
+        # Calculate weighted mean of all amino acids frequencies
+        kingdom_freq_df.loc[kingdom, aa_mean_cols] = data[aa_mean_cols].mul(data["#Proteins"], axis=0).sum() / data["#Proteins"].sum()
+        # Calculate weighted standard deviation of all amino acids frequencies
+        kingdom_freq_df.loc[kingdom, aa_std_cols] = np.sqrt(data[aa_std_cols].pow(2).mul(data["#Proteins"]-1, axis=0).sum() / (data["#Proteins"].sum()-data.shape[0]))
 
-        plot_lengths(prot_df, kingdom, king_path)
-        plot_gcs(prot_df, kingdom, king_path)
-        plot_amount(prot_df, kingdom, king_path)
+        for corr_type in ["Spearman", "Kendall"]:
+            for comp_type in ["code", "freq"]:#
+                local_corr_df = pd.DataFrame(columns=["Coefficient", "Correlation",
+                                                      "Comparison", "Kingdom"])
+                local_corr_df.loc[:, "Coefficient"] = data[f"{corr_type}_{comp_type}"]
+                local_corr_df.loc[:, "Correlation"] = [corr_type] * len(data)
+                local_corr_df.loc[:, "Comparison"] = [comp_type] * len(data)
+                local_corr_df.loc[:, "Kingdom"] = [kingdom] * len(data)
+                kingdom_corr_df = pd.concat([kingdom_corr_df if not kingdom_corr_df.empty else None,
+                                             local_corr_df])
 
-        gen_code_folders = [os.path.join(king_path, folder)
-                            for folder in os.listdir(king_path)
-                            if os.path.isdir(os.path.join(king_path, folder))]
-        corrs_data = pd.DataFrame(columns=["code_spearman", "code_p_spearman",
-                                           "code_kendall", "code_p_kendall",
-                                           "gc_spearman", "gc_p_spearman",
-                                           "gc_kendall", "gc_p_kendall"])
-        all_corrs_df = pd.DataFrame()
-        all_pct_df = pd.DataFrame()
-        for code_folder in gen_code_folders:
-            code_basename = os.path.basename(code_folder)
-            code_abbr = CODE_ABBREVIATIONS_INV[code_basename]
-            print(f"\tPrinting stuff for {code_abbr}...")
-
-            code_df = pd.read_csv(os.path.join(code_folder, "norm_code_data.csv"),
-                                 sep="\t", header=0, index_col=0)
-
-            freq_df = pd.read_csv(os.path.join(code_folder, "pred_freq_data.csv"),
-                                  sep="\t", header=0, index_col=0)
-
-            corr_code_df = pd.read_csv(os.path.join(code_folder, "corr_code_data.csv"),
-                                       sep="\t", header=0, index_col=0)
-            code_spearman = mean_corr(corr_code_df["spearman"],
-                                      corr_code_df["p_spearman"])
-            corrs_data.loc[code_abbr, "code_spearman"] = code_spearman[0]
-            corrs_data.loc[code_abbr, "code_p_spearman"] = code_spearman[1]
-
-            code_kendall = mean_corr(corr_code_df["kendall"],
-                                     corr_code_df["p_kendall"])
-            corrs_data.loc[code_abbr, "code_kendall"] = code_kendall[0]
-            corrs_data.loc[code_abbr, "code_p_kendall"] = code_kendall[1]
-
-            corr_gc_df = pd.read_csv(os.path.join(code_folder, "corr_gc_data.csv"),
-                                     sep="\t", header=0, index_col=0)
-            gc_spearman = mean_corr(corr_gc_df["spearman"],
-                                    corr_gc_df["p_spearman"])
-            corrs_data.loc[code_abbr, "gc_spearman"] = gc_spearman[0]
-            corrs_data.loc[code_abbr, "gc_p_spearman"] = gc_spearman[1]
-
-            gc_kendall = mean_corr(corr_gc_df["kendall"],
-                                   corr_gc_df["p_kendall"])
-            corrs_data.loc[code_abbr, "gc_kendall"] = gc_kendall[0]
-            corrs_data.loc[code_abbr, "gc_p_kendall"] = gc_kendall[1]
-
-            plot_bar(kingdoms_freqs_data, code_df, freq_df, [code_spearman,
-                     code_kendall], [gc_spearman, gc_kendall], aa_groups,
-                     kingdom, code_abbr, code_folder)
-
-            all_pct_df[code_abbr] = get_pct_change_data(kingdoms_freqs_data["mean"][kingdom].iloc[3:],
-                                                        code_df["frequency"], freq_df.mean())
-
-            corrs_df = pd.DataFrame()
-            corr_types = {"codon": corr_code_df, "gc": corr_gc_df}
-            for corr_type in ["spearman", "kendall"]:
-                for a_type,df in corr_types.items():
-                    c_name = "Spearman" if corr_type=="spearman" else "Kendall's Tau"
-                    local_corrs = pd.DataFrame({ "corr": df[corr_type],
-                                  "a_type": a_type,  "c_type": corr_type,
-                                  "c_name": c_name, "code": code_abbr,
-                                  "kingdom": kingdom})
-                    corrs_df = pd.concat([corrs_df, local_corrs])
-
-            all_corrs_df = pd.concat([all_corrs_df, corrs_df])
-
-            for corr_type in ["spearman", "kendall"]:
-                for comp_type in ["GC", "Length", "#Proteins"]:
-                    plot_scatterplot(corrs_df, corr_type, prot_df, comp_type,
-                                     kingdom, code_folder)
-
-        plot_ridge(all_corrs_df, king_path, kingdom)
-        kingdom_corrs_data = pd.concat([kingdom_corrs_data, all_corrs_df])
-
-        corrs_data.to_csv(os.path.join(king_path, "code_correlation_data.csv"),
-                                  sep="\t")
-        all_pct_df.to_csv(os.path.join(king_path, "pct_change_data.csv"),
-                          sep="\t")
-
-    kingdom_sgc = kingdom_corrs_data[kingdom_corrs_data["code"]=="SGCode"]
-    kingdom_sgc.to_csv(f"{path}/kingdom_corr_SGCode.csv", sep="\t")
-    plot_ridge(kingdom_sgc, path)
-
-    mean_data = pd.DataFrame(kingdoms_freqs_data["mean"])
-    std_data = pd.DataFrame(kingdoms_freqs_data["std"])
-    mean_data.iloc[3:].plot(kind="bar", yerr=std_data.iloc[3:], capsize=1,
-                            figsize=(14, 7), zorder=2)
+    ############################################################################
+    kingdom_freq_df = kingdom_freq_df.T
+    kingdom_freq_df.to_csv(os.path.join(input, "kingdom_abundances.csv"),
+                           sep="\t")
+    kingdom_freq_df.loc[aa_mean_cols].plot(kind="bar", yerr=kingdom_freq_df.loc[aa_std_cols].values.T,
+                                           capsize=1, figsize=(14, 7), zorder=2)
+    plt.xticks(np.arange(len(amino_acids)), amino_acids)
     plt.ylim(bottom=0)
     plt.xlabel("Amino acid")
-    plt.ylabel("Mean distribution")
-    plt.title("Mean proteomic amino acid distribution across kingdoms")
+    plt.ylabel("Amino acid frequency")
+    plt.title("Mean protein amino acid frequencies across kingdoms")
     plt.legend(title="Kingdom", loc="upper left")
     plt.xticks(rotation=0)
     plt.grid(alpha=0.5, zorder=0)
     for ext in ["svg", "pdf"]:
-        plt.savefig(f"{path}/amino_acid_distribution.{ext}",
+        plt.savefig(os.path.join(input, f"amino_acid_freqs.{ext}"),
                     bbox_inches="tight")
 
     plt.close()
+    ############################################################################
 
-    std_data.index = [f"{idx}_std" for idx in std_data.index]
-    combined_df = pd.concat([mean_data, std_data]).reindex([i for pair in zip(mean_data.index, std_data.index)
-                                                            for i in pair])
-    combined_df.to_csv(f"{path}/kingdom_data.csv", sep="\t")
+    plot_corr_coefficients(kingdom_corr_df, input)
