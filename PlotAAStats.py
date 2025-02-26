@@ -83,9 +83,9 @@ def plot_pct(data, aa_groups, kingdom, output):
         code_box = axes[i,j].boxplot(data[aa_pct_code_cols], positions=x_pos,
                                      widths=0.3, notch=True, patch_artist=True,
                                      boxprops=dict(facecolor=c, color="black"),
-                                    capprops=dict(color=c), whiskerprops=dict(color=c),
-                                    flierprops=dict(color=c, markeredgecolor=c),
-                                    medianprops=dict(color=c), zorder=2)
+                                     capprops=dict(color=c), whiskerprops=dict(color=c),
+                                     flierprops=dict(color=c, markeredgecolor=c),
+                                     medianprops=dict(color=c), zorder=2)
 
         aa_pct_freq_cols = [f"{aa}_pct_freq" for aa in aa_list]
         x_pos = np.arange(len(aa_list)) + 0.18
@@ -97,7 +97,7 @@ def plot_pct(data, aa_groups, kingdom, output):
                                      flierprops=dict(color=c, markeredgecolor=c),
                                      medianprops=dict(color=c), zorder=2)
 
-        axes[i,j].axhline(y=0, zorder=1, color="black")
+        axes[i,j].axhline(y=0, zorder=1, color="firebrick", linestyle="--")
         axes[i,j].grid(visible=True, which="major", color="#999999",
                        linestyle="dotted", alpha=0.5, zorder=0)
         axes[i,j].set_xticks(np.arange(len(aa_list)), aa_list)
@@ -105,7 +105,7 @@ def plot_pct(data, aa_groups, kingdom, output):
         axes[i,j].set_title(f"{aa_type} amino acids")
 
         if(j == 0):
-            axes[i,j].set_ylabel("Percentage change in %")
+            axes[i,j].set_ylabel("Percentage difference in %")
             if(i == 0):
                 axes[i,j].legend([code_box["boxes"][0], freq_box["boxes"][0]],
                                  ["Codon number", "Codon+GC"],
@@ -149,12 +149,12 @@ def plot_pct(data, aa_groups, kingdom, output):
                   edgecolor="grey", alpha=0.5))
 
     fig.subplots_adjust(wspace=0.6, hspace=0.3)
-    title = f"{kingdom} - Percentage change between amino acid frequencies"
+    title = f"{kingdom} - Percentage difference between amino acid distributions"
     fig.suptitle(title, fontsize=15, y=0.95)
     fig.set_figheight(10)
     fig.set_figwidth(15)
     for ext in ["svg", "pdf"]:
-        plt.savefig(os.path.join(output, f"pct_change.{ext}"),
+        plt.savefig(os.path.join(output, f"pct_difference.{ext}"),
                     bbox_inches="tight")
 
     plt.close()
@@ -230,17 +230,17 @@ def plot_plotogram(data_dct, amino_acids, output):
         lengths = np.log10(data["Length_mean"]+1)
         bins = optimal_bin(lengths)
         sns.histplot(lengths.values, bins=bins, alpha=0.4, color="maroon",
-                     kde=True,  line_kws={"linewidth": 2, "linestyle": "--"},
+                     kde=True, line_kws={"linewidth": 2, "linestyle": "--"},
                      ax=axes[2,j])
 
-        # Plot amino acid frequencies
+        # Plot amino acid distributions
         sns.barplot(data[aa_mean_cols], errorbar="sd", palette=sns_pal,
                     linewidth=0.3, edgecolor="black",
                     err_kws={"color":"firebrick"}, ax=axes[3,j])
         axes[3,j].set_xticks(np.arange(len(amino_acids)), amino_acids,
                              fontsize=8)
 
-        # Plot amino acid percentage change for the codon number
+        # Plot amino acid percentage difference for the codon number
         sns.boxplot(data[aa_pct_code_cols], notch=True, showfliers=False,
                     palette=sns_pal, boxprops={"linewidth": 0.3}, zorder=2,
                     ax=axes[4,j])
@@ -248,7 +248,7 @@ def plot_plotogram(data_dct, amino_acids, output):
         axes[4,j].set_xticks(np.arange(len(amino_acids)), amino_acids,
                              fontsize=8)
 
-        # Plot amino acid percentage change for codon+GC
+        # Plot amino acid percentage difference for codon+GC
         sns.boxplot(data[aa_pct_freq_cols], notch=True, showfliers=False,
                     palette=sns_pal, boxprops={"linewidth": 0.3}, zorder=2,
                     ax=axes[5,j])
@@ -300,11 +300,15 @@ def plot_plotogram(data_dct, amino_acids, output):
         for j in range(4):
             axes[i,j].set_ylim(y_min, y_max)
 
-    for i in [0, 1, 2, 6, 7]:
+    for i in [0, 1, 2]:
         x_min = min([axes[i,j].get_xlim()[0] for j in range(4)])
         x_max = max([axes[i,j].get_xlim()[1] for j in range(4)])
         for j in range(4):
             axes[i,j].set_xlim(x_min, x_max)
+
+    for i in [6, 7]:
+        for j in range(4):
+            axes[i,j].set_xlim(0, 1)
 
     fig.subplots_adjust(hspace=0.5)
     fig.set_figheight(10)
@@ -344,28 +348,106 @@ if __name__ == "__main__":
         plot_pct(data, aa_groups, kingdom, king_path)
         all_data_dct[kingdom] = data
 
-    ######################################## Some statistics across all kingdoms
+    ######################################## Protein amounts across all kingdoms
+    fig,axes = plt.subplots(2, 2, sharex=True)
+    i = 0
+    j = 0
     amount_df = pd.DataFrame(columns=kingdoms)
-    length_df = pd.DataFrame(columns=kingdoms)
-    gcs_df = pd.DataFrame(columns=kingdoms)
     for kingdom,data in all_data_dct.items():
+        lengths = np.log10(data["#Proteins"]+1)
+        bins = optimal_bin(lengths)
+        sns.histplot(lengths, bins=bins, alpha=0.4, color="maroon", kde=True,
+                     line_kws={"linewidth": 2, "linestyle": "--"}, ax=axes[i,j])
+        axes[i,j].set_title(f"{kingdom}")
+        axes[i,j].set_xlabel("log10-amount")
+        axes[i,j].set_ylabel("Density")
         amount_df = amount_df.reindex(np.arange(0, max(len(amount_df.index),
                                                        len(data.index))))
-        amount_df[kingdom] = pd.Series(data["#Proteins"].values)
+        amount_df[kingdom] = pd.Series(data["Length_mean"].values)
+        j = 1 if i == 1 else j
+        i = 0 if i == 1 else i + 1
 
+    axes[0,1].set_ylabel("")
+    axes[1,1].set_ylabel("")
+
+    fig.set_figheight(10)
+    fig.set_figwidth(15)
+    fig.suptitle("Density of protein amounts", y=0.96, fontsize=18)
+    for ext in ["svg", "pdf"]:
+        plt.savefig(os.path.join(input, f"protein_amounts.{ext}"),
+                    bbox_inches="tight")
+
+    plt.close()
+    amount_df.to_csv(os.path.join(input, "protein_amounts.csv"), sep="\t",
+                     index=False)
+    ############################################################################
+
+    ######################################## Protein lengths across all kingdoms
+    fig,axes = plt.subplots(2, 2, sharex=True)
+    i = 0
+    j = 0
+    length_df = pd.DataFrame(columns=kingdoms)
+    for kingdom,data in all_data_dct.items():
+        lengths = np.log10(data["Length_mean"]+1)
+        bins = optimal_bin(lengths)
+        sns.histplot(lengths, bins=bins, alpha=0.4, color="maroon", kde=True,
+                     line_kws={"linewidth": 2, "linestyle": "--"}, ax=axes[i,j])
+        axes[i,j].set_title(f"{kingdom}")
+        axes[i,j].set_xlabel("log10-length")
+        axes[i,j].set_ylabel("Density")
         length_df = length_df.reindex(np.arange(0, max(len(length_df.index),
                                                        len(data.index))))
         length_df[kingdom] = pd.Series(data["Length_mean"].values)
+        j = 1 if i == 1 else j
+        i = 0 if i == 1 else i + 1
 
-        gcs_df = gcs_df.reindex(np.arange(0, max(len(gcs_df.index),
-                                                 len(gcs_df.index))))
-        gcs_df[kingdom] = pd.Series(data["GC_mean"].values)
+    axes[0,1].set_ylabel("")
+    axes[1,1].set_ylabel("")
 
-    amount_df.to_csv(os.path.join(input, "protein_amounts.csv"), sep="\t",
-                     index=False)
+    fig.set_figheight(10)
+    fig.set_figwidth(15)
+    fig.suptitle("Density of mean protein lengths", y=0.96, fontsize=18)
+    for ext in ["svg", "pdf"]:
+        plt.savefig(os.path.join(input, f"protein_lengths.{ext}"),
+                    bbox_inches="tight")
+
+    plt.close()
     length_df.to_csv(os.path.join(input, "protein_lengths.csv"), sep="\t",
                      index=False)
-    gcs_df.to_csv(os.path.join(input, "protein_gcs.csv"), sep="\t", index=False)
+    ############################################################################
+
+    #################################### Protein GC contents across all kingdoms
+    fig,axes = plt.subplots(2, 2, sharex=True)
+    i = 0
+    j = 0
+    gcs_df = pd.DataFrame(columns=kingdoms)
+    for kingdom,data in all_data_dct.items():
+        lengths = data["GC_mean"]
+        bins = optimal_bin(lengths)
+        sns.histplot(lengths, bins=bins, alpha=0.4, color="maroon", kde=True,
+                     line_kws={"linewidth": 2, "linestyle": "--"}, ax=axes[i,j])
+        axes[i,j].set_title(f"{kingdom}")
+        axes[i,j].set_xlabel("GC content")
+        axes[i,j].set_ylabel("Density")
+        gcs_df = gcs_df.reindex(np.arange(0, max(len(gcs_df.index),
+                                                 len(data.index))))
+        gcs_df[kingdom] = pd.Series(data["GC_mean"].values)
+        i = 1 if j == 1 else i
+        j = 0 if j == 1 else j + 1
+
+    axes[0,1].set_ylabel("")
+    axes[1,1].set_ylabel("")
+
+    fig.set_figheight(10)
+    fig.set_figwidth(15)
+    fig.suptitle("Density of protein GC contents", y=0.96, fontsize=18)
+    for ext in ["svg", "pdf"]:
+        plt.savefig(os.path.join(input, f"protein_gcs.{ext}"),
+                    bbox_inches="tight")
+
+    plt.close()
+    gcs_df.to_csv(os.path.join(input, "protein_gcs.csv"), sep="\t",
+                     index=False)
     ############################################################################
 
     ############################# Mean amino acid abundances across all kingdoms
@@ -381,28 +463,90 @@ if __name__ == "__main__":
     plt.ylim(bottom=0)
     plt.xlabel("Amino acid")
     plt.ylabel("Amino acid frequency")
-    plt.title("Mean protein amino acid frequencies across kingdoms")
+    plt.title("Mean protein amino acid distributions across kingdoms")
     plt.legend(title="Kingdom", loc="upper left")
     plt.xticks(rotation=0)
     plt.grid(alpha=0.5, zorder=0)
     for ext in ["svg", "pdf"]:
-        plt.savefig(os.path.join(input, f"amino_acid_abundances.{ext}"),
+        plt.savefig(os.path.join(input, f"amino_acid_distributions.{ext}"),
                     bbox_inches="tight")
 
     plt.close()
     ############################################################################
 
     ################################# Percentage differences across all kingdoms
+    fig,axes = plt.subplots(2, 2, sharex=True, sharey=True)
+    i = 0
+    j = 0
+    aa_group_order = [aa for group,aa_list in aa_groups.items()
+                      for aa in aa_list]
     pct_cols = [f"{kingdom}_{comp_type}" for kingdom in kingdoms
                                          for comp_type in ["code", "freq"]]
     pct_df = pd.DataFrame(columns=pct_cols, index=amino_acids+["Mean"])
+    code_box = None
+    freq_box = None
     for kingdom,data in all_data_dct.items():
         for comp_type in ["code", "freq"]:
+            king_comp = f"{kingdom}_{comp_type}"
             for aa in amino_acids:
-                pct_df.loc[aa, f"{kingdom}_{comp_type}"] = np.sqrt(np.mean(data[f"{aa}_pct_{comp_type}"]**2))
+                pct_df.loc[aa, king_comp] = np.sqrt(np.mean(data[f"{aa}_pct_{comp_type}"]**2))
 
-            pct_df.loc["Mean", f"{kingdom}_{comp_type}"] = np.mean(pct_df.loc[amino_acids, f"{kingdom}_{comp_type}"])
+            pct_df.loc["Mean", king_comp] = np.mean(pct_df.loc[amino_acids, king_comp])
 
+        aa_pct_cols = [f"{aa}_pct_code" for aa in aa_group_order]
+        x_pos = np.arange(len(aa_pct_cols)) - 0.2
+        c = "royalblue"
+        code_box = axes[i,j].boxplot(data[aa_pct_cols], positions=x_pos,
+                                     widths=0.3, notch=True, patch_artist=True,
+                                     boxprops=dict(facecolor=c, color="black"),
+                                     capprops=dict(color=c), whiskerprops=dict(color=c),
+                                     flierprops=dict(color=c, markeredgecolor=c),
+                                     medianprops=dict(color=c), showfliers=False,
+                                     zorder=2)
+
+        aa_pct_cols = [f"{aa}_pct_freq" for aa in aa_group_order]
+        x_pos = np.arange(len(aa_pct_cols)) + 0.2
+        c = "goldenrod"
+        freq_box = axes[i,j].boxplot(data[aa_pct_cols], positions=x_pos,
+                                     widths=0.3, notch=True, patch_artist=True,
+                                     boxprops=dict(facecolor=c, color="black"),
+                                     capprops=dict(color=c), whiskerprops=dict(color=c),
+                                     flierprops=dict(color=c, markeredgecolor=c),
+                                     medianprops=dict(color=c), showfliers=False,
+                                     zorder=2)
+
+        group_pos = 0
+        for group,aa_list in aa_groups.items():
+            group_pos += len(aa_list)
+            if(group_pos < 20):
+                axes[i,j].axvline(x=group_pos-0.5, zorder=1, color="firebrick",
+                                  linestyle="--")
+
+        axes[i,j].set_xticks(np.arange(len(aa_group_order)), aa_group_order)
+        axes[i,j].xaxis.set_tick_params(labelbottom=True)
+        axes[i,j].axhline(y=0, zorder=1, color="firebrick", linestyle="--")
+        axes[i,j].grid(visible=True, which="major", color="#999999",
+                       linestyle="dotted", alpha=0.5, zorder=0)
+        axes[i,j].set_title(kingdom)
+        i = 1 if j == 1 else i
+        j = 0 if j == 1 else j + 1
+
+    for i in [0, 1]:
+        axes[1,i].set_xlabel("Amino acid")
+        axes[i,0].set_ylabel("Percentage difference in %")
+
+    axes[0,0].legend([code_box["boxes"][0], freq_box["boxes"][0]],
+                     ["Codon number", "Codon+GC"], bbox_to_anchor=(0.35, 1.25),
+                     fancybox=True, fontsize=12)
+    fig.set_figheight(10)
+    fig.set_figwidth(15)
+    fig.suptitle("Percentage differences between amino acid distributions",
+                 y=0.96, fontsize=18)
+    for ext in ["svg", "pdf"]:
+        plt.savefig(os.path.join(input, f"amino_acid_pcts.{ext}"),
+                    bbox_inches="tight")
+
+    plt.close()
     pct_df.to_csv(os.path.join(input, "amino_acid_pcts.csv"), sep="\t")
     ############################################################################
 
@@ -426,4 +570,5 @@ if __name__ == "__main__":
     plot_corr_coefficients(corr_df, input)
     ############################################################################
 
+    # All statistics together
     plot_plotogram(all_data_dct, amino_acids, input)
