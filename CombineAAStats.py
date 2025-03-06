@@ -144,6 +144,7 @@ if __name__ == "__main__":
                            time_prog=time_prog, lock=lock)
         result = pool.map_async(pool_map, abund_files)
         pool.close()
+        print(pool.get())
         pool.join()
 
         comb_df = pd.DataFrame()
