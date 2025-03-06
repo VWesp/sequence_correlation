@@ -12,7 +12,7 @@ import equation_functions as ef
 
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
-os.environ["OMP_NUM_THREADS"] = "1" 
+os.environ["OMP_NUM_THREADS"] = "1"
 
 
 # One letter code for the amino acids of the genetic codes without Stop
@@ -123,6 +123,8 @@ if __name__ == "__main__":
     time_prog = manager.Value("d", 0)
 
     path_to_data,output,encoding,codes,code_map,permuts,procs = sys.argv[1:8]
+    os.makedirs(output, exist_ok=True)
+
     code_map_df = pd.read_csv(code_map, sep="\t", header=0, index_col=0)
     enc_df = pd.read_csv(encoding, sep="\t", header=0, index_col=0)
 
