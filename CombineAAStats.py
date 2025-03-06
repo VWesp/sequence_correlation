@@ -21,6 +21,8 @@ AA_TO_ONE_LETTER = {"Methionine": "M", "Threonine": "T", "Asparagine": "N",
                     "Glutamine": "Q", "Isoleucine": "I"}
 ONE_LETTER_TO_AA = {v:k for k,v in AA_TO_ONE_LETTER.items()}
 
+pd.set_option("display.precision", 30)
+
 
 def s_corr_permut_test(x, y, permuts):
     real_corr, _ = sci.spearmanr(x, y)
@@ -98,6 +100,7 @@ def process_file(file, amino_acids, enc_df, codes, code_map_df, output, permuts,
                                   nan_policy="raise")
     fold_sr["Kendall_freq"] = corr
     fold_sr["Kendall_freq_p"] = p_corr
+
     fold_sr["Genetic_code"] = code_name
 
     with lock:
@@ -143,11 +146,12 @@ if __name__ == "__main__":
         pool.close()
         pool.join()
 
-    print()
-    comb_df = pd.DataFrame()
-    for res in result.get():
-        comb_df = pd.concat([comb_df, res])
+        comb_df = pd.DataFrame()
+        for res in result.get():
+            comb_df = pd.concat([comb_df, res])
 
-    comb_df.fillna(0.0, inplace=True)
-    comb_df.index.name = "Prot_Tax_ID"
-    comb_df.to_csv(output, sep="\t")
+        comb_df.fillna(0.0, inplace=True)
+        comb_df.index.name = "Prot_Tax_ID"
+        comb_df.to_csv(output, sep="\t")
+
+    print()
