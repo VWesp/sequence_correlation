@@ -123,7 +123,7 @@ if __name__ == "__main__":
     time_prog = manager.Value("d", 0)
 
     path_to_data,output,encoding,codes,code_map,permuts,procs = sys.argv[1:8]
-    os.makedirs(output, exist_ok=True)
+    os.makedirs(os.path.dirname(output), exist_ok=True)
 
     code_map_df = pd.read_csv(code_map, sep="\t", header=0, index_col=0)
     enc_df = pd.read_csv(encoding, sep="\t", header=0, index_col=0)
