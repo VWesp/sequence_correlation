@@ -115,6 +115,7 @@ def process_file(file, amino_acids, enc_df, codes, code_map_df, output, permuts,
 # main method
 if __name__ == "__main__":
     mp.freeze_support()
+    mp.set_start_method("forkserver")
     manager = mp.Manager()
     lock = manager.Lock()
     prog = manager.Value("i", 0)
