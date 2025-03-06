@@ -10,6 +10,10 @@ import multiprocessing as mp
 from functools import partial
 import equation_functions as ef
 
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1" 
+
 
 # One letter code for the amino acids of the genetic codes without Stop
 AA_TO_ONE_LETTER = {"Methionine": "M", "Threonine": "T", "Asparagine": "N",
@@ -20,8 +24,6 @@ AA_TO_ONE_LETTER = {"Methionine": "M", "Threonine": "T", "Asparagine": "N",
                     "Tryptophane": "W", "Proline": "P", "Histidine": "H",
                     "Glutamine": "Q", "Isoleucine": "I"}
 ONE_LETTER_TO_AA = {v:k for k,v in AA_TO_ONE_LETTER.items()}
-
-pd.set_option("display.precision", 30)
 
 
 def s_corr_permut_test(x, y, permuts):
@@ -115,7 +117,6 @@ def process_file(file, amino_acids, enc_df, codes, code_map_df, output, permuts,
 # main method
 if __name__ == "__main__":
     mp.freeze_support()
-    mp.set_start_method("forkserver")
     manager = mp.Manager()
     lock = manager.Lock()
     prog = manager.Value("i", 0)
@@ -145,7 +146,6 @@ if __name__ == "__main__":
                            time_prog=time_prog, lock=lock)
         result = pool.map_async(pool_map, abund_files)
         pool.close()
-        print(result.get())
         pool.join()
 
         comb_df = pd.DataFrame()
