@@ -10,9 +10,9 @@ import multiprocessing as mp
 from functools import partial
 import equation_functions as ef
 
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["NUMEXPR_NUM_THREADS"] = "1"
-os.environ["OMP_NUM_THREADS"] = "1"
+import traceback
+
+#os.environ["MKL_NUM_THREADS"] = "1"
 
 
 # One letter code for the amino acids of the genetic codes without Stop
@@ -27,19 +27,20 @@ ONE_LETTER_TO_AA = {v:k for k,v in AA_TO_ONE_LETTER.items()}
 
 
 def s_corr_permut_test(x, y, permuts):
-    real_corr, _ = sci.spearmanr(x, y)
-    permuted_corrs = np.zeros(permuts)
-    for i in range(permuts):
-        permut_x = np.random.permutation(x)
-        permuted_corrs[i], _ = sci.spearmanr(permut_x, y)
-
+    rank_x = sci.rankdata(x)
+    rank_y = sci.rankdata(y)
+    real_corr, _ = sci.spearmanr(rank_x, rank_y)
+    permuted_corrs = np.array([
+        sci.spearmanr(np.random.permutation(rank_x), rank_y)[0]
+        for _ in range(permuts)
+    ])
     real_p_value = np.mean(np.abs(permuted_corrs) >= np.abs(real_corr))
     return [real_corr, real_p_value]
 
 
 def process_file(file, amino_acids, enc_df, codes, code_map_df, output, permuts,
                  prog, size, time_prog, lock):
-    df = pd.read_csv(file, sep="\t", header=0, index_col=0)
+    df = pd.read_csv(file, sep="\t", header=0, index_col=0, on_bad_lines="skip")
     df.fillna(0.0, inplace=True)
 
     fold_sr = pd.Series()
@@ -107,7 +108,7 @@ def process_file(file, amino_acids, enc_df, codes, code_map_df, output, permuts,
 
     with lock:
         prog.value += 1
-        elapsed_time = time.strftime("%Hh:%Mm:%Ss", time.gmtime(time.time()-time_prog.value))
+        elapsed_time = time.strftime("%dd%Hh:%Mm:%Ss", time.gmtime(time.time()-time_prog.value))
         print(f"\rFiles: {int(prog.value)}/{size} -> {(prog.value/size)*100:.2f}% -> Elapsed time: {elapsed_time}",
               end="")
 
@@ -137,9 +138,8 @@ if __name__ == "__main__":
 
     size = len(abund_files)
     time_prog.value = time.time()
-    elapsed_time = time.strftime("%Hh:%Mm:%Ss", time.gmtime(time.time()-time_prog.value))
-    print(f"Files: {int(prog.value)}/{size} -> {prog.value:.2f}% -> Elapsed time: {elapsed_time}", end="")
-    result = None
+    elapsed_time = time.strftime("%dd%Hh:%Mm:%Ss", time.gmtime(time.time()-time_prog.value))
+    #print(f"Files: {int(prog.value)}/{size} -> {prog.value:.2f}% -> Elapsed time: {elapsed_time}", end="")
     with mp.Pool(processes=int(procs)) as pool:
         # run the process for the given parameters
         pool_map = partial(process_file, amino_acids=amino_acids, enc_df=enc_df,
@@ -154,7 +154,7 @@ if __name__ == "__main__":
         for res in result.get():
             comb_df = pd.concat([comb_df, res])
 
-        comb_df.fillna(0.0, inplace=True)
+        comb_df.astype(str).fillna("0.0", inplace=True)
         comb_df.index.name = "Prot_Tax_ID"
         comb_df.to_csv(output, sep="\t")
 
