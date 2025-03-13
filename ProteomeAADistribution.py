@@ -10,45 +10,39 @@ from functools import partial
 
 
 def get_aa_dis(id, prot_dna_dict, type, output, progress, size, lock):
-    try:
-        res_output = os.path.join(output, id+".csv")
-        prot_path = prot_dna_dict[id][0]
-        dna_path = prot_dna_dict[id][1]
-        all_aa_count = defcol.defaultdict(lambda: defcol.defaultdict())
-        with gzip.open(prot_path, "rt") as prot_handle:
-            prot_seqio = SeqIO.to_dict(SeqIO.parse(prot_handle, "fasta"))
-            with gzip.open(dna_path, "rt") as dna_handle:
-                dna_seqio = SeqIO.to_dict(SeqIO.parse(dna_handle, "fasta"))
-                dna_seqio = {id.split("|")[1]:rec for id,rec in dna_seqio.items()}
-                for prot_id,prot_rec in prot_seqio.items():
-                    prot_seq_type,prot_id,prot_name = prot_rec.description.split("|")[:3]
-                    if(type == "tr" or prot_seq_type == "sp"):
-                        if(prot_id in dna_seqio):
-                            dna_rec = dna_seqio[prot_id]
-                            prot_seq = str(prot_rec.seq)
-                            prot_len = len(prot_rec.seq)
-                            dna_seq = str(dna_rec.seq)
-                            amino_acids = set(prot_seq)
-                            all_aa_count[prot_id] = {aa:prot_seq.count(aa)/prot_len
-                                                     for aa in amino_acids}
-                            all_aa_count[prot_id]["Name"] = prot_name
-                            all_aa_count[prot_id]["Status"] = prot_seq_type
-                            all_aa_count[prot_id]["GC"] = util.gc_fraction(dna_seq)
-                            all_aa_count[prot_id]["Length"] = prot_len
+    res_output = os.path.join(output, id+".csv")
+    prot_path = prot_dna_dict[id][0]
+    dna_path = prot_dna_dict[id][1]
+    all_aa_count = defcol.defaultdict(lambda: defcol.defaultdict())
+    with gzip.open(prot_path, "rt") as prot_handle:
+        prot_seqio = SeqIO.to_dict(SeqIO.parse(prot_handle, "fasta"))
+        with gzip.open(dna_path, "rt") as dna_handle:
+            dna_seqio = SeqIO.to_dict(SeqIO.parse(dna_handle, "fasta"))
+            dna_seqio = {id.split("|")[1]:rec for id,rec in dna_seqio.items()}
+            for prot_id,prot_rec in prot_seqio.items():
+                prot_seq_type,prot_id,prot_name = prot_rec.description.split("|")[:3]
+                if(type == "tr" or prot_seq_type == "sp"):
+                    if(prot_id in dna_seqio):
+                        dna_rec = dna_seqio[prot_id]
+                        prot_seq = str(prot_rec.seq)
+                        prot_len = len(prot_rec.seq)
+                        dna_seq = str(dna_rec.seq)
+                        amino_acids = set(prot_seq)
+                        all_aa_count[prot_id] = {aa:prot_seq.count(aa)/prot_len
+                                                 for aa in amino_acids}
+                        all_aa_count[prot_id]["Name"] = prot_name
+                        all_aa_count[prot_id]["Status"] = prot_seq_type
+                        all_aa_count[prot_id]["GC"] = util.gc_fraction(dna_seq)
+                        all_aa_count[prot_id]["Length"] = prot_len
 
-        if(len(all_aa_count)):
-            additional_cols = ["Name", "Status", "GC", "Length"]
-            aa_codon_df = pd.DataFrame.from_dict(all_aa_count, orient="index")
-            sorted_columns = sorted([col for col in aa_codon_df.columns
-                                     if not col in additional_cols])
-            aa_codon_df = aa_codon_df[additional_cols+sorted_columns]
-            aa_codon_df.index.name = "Prot_ID"
-            aa_codon_df.to_csv(res_output, sep="\t")
-    except:
-        with lock:
-            print()
-            print(id)
-            print()
+    if(len(all_aa_count)):
+        additional_cols = ["Name", "Status", "GC", "Length"]
+        aa_codon_df = pd.DataFrame.from_dict(all_aa_count, orient="index")
+        sorted_columns = sorted([col for col in aa_codon_df.columns
+                                 if not col in additional_cols])
+        aa_codon_df = aa_codon_df[additional_cols+sorted_columns]
+        aa_codon_df.index.name = "Prot_ID"
+        aa_codon_df.to_csv(res_output, sep="\t")
 
     with lock:
         progress.value += 1
