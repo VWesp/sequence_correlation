@@ -1,7 +1,9 @@
+import io
 import os
 import sys
 import yaml
 import time
+import paramiko
 import numpy as np
 import sympy as sp
 import pandas as pd
@@ -10,9 +12,21 @@ import multiprocessing as mp
 from functools import partial
 import equation_functions as ef
 
-import traceback
 
 #os.environ["MKL_NUM_THREADS"] = "1"
+HOST = "10.148.31.9"
+PORT = 22
+USER = "valentin-wesp"
+PASSWORD = "OidaUokEidos?1871"
+paramiko.util.log_to_file("paramiko_log.txt", level="INFO")
+
+
+def create_ssh_client():
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect(HOST, PORT, USER, PASSWORD)
+    sftp = ssh.open_sftp()
+    return [ssh, sftp]
 
 
 # One letter code for the amino acids of the genetic codes without Stop
@@ -40,9 +54,22 @@ def s_corr_permut_test(x, y, permuts):
 
 def process_file(file, amino_acids, enc_df, codes, code_map_df, output, permuts,
                  prog, size, time_prog, lock):
-    df = pd.read_csv(file, sep="\t", header=0, index_col=0, on_bad_lines="skip")
-    df.fillna(0.0, inplace=True)
+    df = None
+    while(True):
+        try:
+            ssh,sftp = create_ssh_client()
+            with sftp.open(file, "r") as df_remote:
+                csv_buffer = df_remote.read().decode("utf-8")
+                df = pd.read_csv(io.StringIO(csv_buffer), sep="\t", header=0,
+                                 index_col=0, on_bad_lines="skip")
 
+            sftp.close()
+            ssh.close()
+            break
+        except paramiko.ssh_exception.SSHException:
+            time.sleep(5)
+
+    df.fillna(0.0, inplace=True)
     fold_sr = pd.Series()
     id = os.path.basename(file).split(".")[0]
     fold_sr.name = id
@@ -105,11 +132,10 @@ def process_file(file, amino_acids, enc_df, codes, code_map_df, output, permuts,
     fold_sr["Kendall_freq_p"] = p_corr
 
     fold_sr["Genetic_code"] = code_name
-
     with lock:
         prog.value += 1
         elapsed_time = time.strftime("%dd%Hh:%Mm:%Ss", time.gmtime(time.time()-time_prog.value))
-        print(f"\rFiles: {int(prog.value)}/{size} -> {(prog.value/size)*100:.2f}% -> Elapsed time: {elapsed_time}",
+        print(f"\rFiles: {prog.value}/{size} -> {prog.value/size*100:.2f}% -> Elapsed time: {elapsed_time}",
               end="")
 
     return fold_sr.to_frame().T
@@ -124,10 +150,21 @@ if __name__ == "__main__":
     time_prog = manager.Value("d", 0)
 
     path_to_data,output,encoding,codes,code_map,permuts,procs = sys.argv[1:8]
+
+    ssh,sftp = create_ssh_client()
+    files = sftp.listdir(path_to_data)
+    enc_df = None
+    with sftp.open(encoding, "r") as enc_remote:
+        csv_buffer = enc_remote.read().decode("utf-8")
+        enc_df = pd.read_csv(io.StringIO(csv_buffer), sep="\t", header=0,
+                             index_col=0)
+
+    sftp.close()
+    ssh.close()
+
     os.makedirs(os.path.dirname(output), exist_ok=True)
 
     code_map_df = pd.read_csv(code_map, sep="\t", header=0, index_col=0)
-    enc_df = pd.read_csv(encoding, sep="\t", header=0, index_col=0)
 
     # Canonical amino acids order
     amino_acids = ["M", "W", "C", "D", "E", "F", "H", "K", "N", "Q", "Y", "I",
@@ -139,7 +176,7 @@ if __name__ == "__main__":
     size = len(abund_files)
     time_prog.value = time.time()
     elapsed_time = time.strftime("%dd%Hh:%Mm:%Ss", time.gmtime(time.time()-time_prog.value))
-    #print(f"Files: {int(prog.value)}/{size} -> {prog.value:.2f}% -> Elapsed time: {elapsed_time}", end="")
+    print(f"Files: {prog.value}/{size} -> {prog.value:.2f}% -> Elapsed time: {elapsed_time}", end="")
     with mp.Pool(processes=int(procs)) as pool:
         # run the process for the given parameters
         pool_map = partial(process_file, amino_acids=amino_acids, enc_df=enc_df,
@@ -159,3 +196,4 @@ if __name__ == "__main__":
         comb_df.to_csv(output, sep="\t")
 
     print()
+    os.remove("paramiko_log.txt")
