@@ -13,7 +13,7 @@ from functools import partial
 import equation_functions as ef
 
 
-#os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
 HOST = "10.148.31.9"
 PORT = 22
 USER = "valentin-wesp"
@@ -134,7 +134,7 @@ def process_file(file, amino_acids, enc_df, codes, code_map_df, output, permuts,
     fold_sr["Genetic_code"] = code_name
     with lock:
         prog.value += 1
-        elapsed_time = time.strftime("%dd%Hh:%Mm:%Ss", time.gmtime(time.time()-time_prog.value))
+        elapsed_time = time.strftime("%dd:%Hh:%Mm:%Ss", time.gmtime(time.time()-time_prog.value))
         print(f"\rFiles: {prog.value}/{size} -> {prog.value/size*100:.2f}% -> Elapsed time: {elapsed_time}",
               end="")
 
@@ -171,11 +171,11 @@ if __name__ == "__main__":
                    "A", "G", "P", "T", "V", "L", "R", "S"]
 
     abund_files = [os.path.join(path_to_data, file)
-                   for file in os.listdir(path_to_data)]
+                   for file in files]
 
     size = len(abund_files)
     time_prog.value = time.time()
-    elapsed_time = time.strftime("%dd%Hh:%Mm:%Ss", time.gmtime(time.time()-time_prog.value))
+    elapsed_time = time.strftime("%dd:%Hh:%Mm:%Ss", time.gmtime(time.time()-time_prog.value))
     print(f"Files: {prog.value}/{size} -> {prog.value:.2f}% -> Elapsed time: {elapsed_time}", end="")
     with mp.Pool(processes=int(procs)) as pool:
         # run the process for the given parameters
