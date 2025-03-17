@@ -1,13 +1,8 @@
 import os
 import sys
 import numpy as np
-import sympy as sp
 import pandas as pd
 import seaborn as sns
-import textwrap as tw
-import scipy.stats as sci
-import collections as defcol
-from Bio.Data import CodonTable
 import matplotlib.pyplot as plt
 import matplotlib.patches as patch
 
