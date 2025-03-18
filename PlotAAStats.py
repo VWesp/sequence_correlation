@@ -3,6 +3,7 @@ import sys
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import scipy.stats as sci
 import matplotlib.pyplot as plt
 import matplotlib.patches as patch
 
@@ -11,7 +12,7 @@ def optimal_bin(data):
     data = data.to_numpy()
     iqr = np.quantile(data, 0.75) - np.quantile(data, 0.25)
     h = 2 * iqr / len(data)**(1/3)
-    return int((data.max() - data.min()) / h + 1)
+    return int((data.max() - data.min()) / h) + 1
 
 
 def mean_corr(corrs, p_values):
@@ -274,19 +275,19 @@ def plot_plotogram(data_dct, amino_acids, output):
             axes[i,j].set_ylabel("")
 
         if(j == 0):
-            axes[0,j].set_ylabel("Protein log10-amount", labelpad=55,
+            axes[0,j].set_ylabel("Protein log10-amount", labelpad=58,
                                  rotation=0)
-            axes[1,j].set_ylabel("Protein GC content", labelpad=49,
+            axes[1,j].set_ylabel("Protein GC content", labelpad=52,
                                  rotation=0)
-            axes[2,j].set_ylabel("Protein log10-length", labelpad=51,
+            axes[2,j].set_ylabel("Protein log10-length", labelpad=54,
                                  rotation=0)
-            axes[3,j].set_ylabel("Amino acid abundance", labelpad=58,
+            axes[3,j].set_ylabel("Amino acid abundance", labelpad=61,
                                  rotation=0)
-            axes[4,j].set_ylabel("Pct. codon number", labelpad=49, rotation=0)
-            axes[5,j].set_ylabel("Pct. codon+GC", labelpad=40, rotation=0)
-            axes[6,j].set_ylabel("Spearman coefficient", labelpad=53,
+            axes[4,j].set_ylabel("Pct. codon number", labelpad=52, rotation=0)
+            axes[5,j].set_ylabel("Pct. codon+GC", labelpad=43, rotation=0)
+            axes[6,j].set_ylabel("Spearman coefficient", labelpad=56,
                                  rotation=0)
-            axes[7,j].set_ylabel("Kendall's Tau coefficient", labelpad=60,
+            axes[7,j].set_ylabel("Kendall's Tau coefficient", labelpad=63,
                                  rotation=0)
 
     for i in [3, 4, 5]:
@@ -445,6 +446,72 @@ if __name__ == "__main__":
                      index=False)
     ############################################################################
 
+    ################################### Positive vs negative charged amino acids
+    fig,axes = plt.subplots(2, 2, sharex=True)
+    i = 0
+    j = 0
+    positve = ["D", "E"]
+    negative = ["H", "K", "R"]
+    charged_df = pd.DataFrame(columns=kingdoms)
+    for kingdom,data in all_data_dct.items():
+        positive_data = data[["H_mean", "K_mean", "R_mean"]].sum(axis=1)
+        positive_df = pd.DataFrame(columns=["GC", "Value"])
+        positive_df.loc[:,"GC"] = list(data["GC_mean"])
+        positive_df.loc[:,"Value"] = list(positive_data)
+        positive_df = positive_df.sort_values(by=["GC"]).astype(float)
+        sns.regplot(data=positive_df, x="GC", y="Value", order=3, scatter=False,
+                    line_kws={"color": "black", "lw": 3}, color="royalblue",
+                    ax=axes[i,j])
+        sns.regplot(data=positive_df, x="GC", y="Value", order=3,
+                    scatter_kws={"alpha": 0.1, "edgecolor": "white"},
+                    line_kws={"lw": 2}, color="royalblue", ax=axes[i,j])
+
+        negative_df = pd.DataFrame(columns=["GC", "Value"])
+        negative_data = data[["D_mean", "E_mean"]].sum(axis=1)
+        negative_df.loc[:,"GC"] = list(data["GC_mean"])
+        negative_df.loc[:,"Value"] = list(negative_data)
+        negative_df = negative_df.sort_values(by=["GC"]).astype(float)
+        sns.regplot(data=negative_df, x="GC", y="Value", order=3, scatter=False,
+                    line_kws={"color": "black", "lw": 3}, color="goldenrod",
+                    ax=axes[i,j])
+        sns.regplot(data=negative_df, x="GC", y="Value", order=3,
+                    scatter_kws={"alpha": 0.1, "edgecolor": "white"},
+                    line_kws={"lw": 2}, color="goldenrod", ax=axes[i,j])
+
+        corr,corr_p = sci.spearmanr(positive_data, negative_data)
+        axes[i,j].set_title(f"{kingdom}, r={corr:.3f}, p={corr_p:.3e}")
+        axes[i,j].set_xlabel("GC content")
+        axes[i,j].set_ylabel("Frequency")
+
+        charged_df.loc["Positive_mean", kingdom] = positive_data.mean()
+        charged_df.loc["Positive_std", kingdom] = positive_data.std()
+        charged_df.loc["Negative_mean", kingdom] = negative_data.mean()
+        charged_df.loc["Negative_std", kingdom] = negative_data.std()
+        charged_df.loc["Spearman", kingdom] = corr
+        charged_df.loc["Spearman_p", kingdom] = corr_p
+        i = 1 if j == 1 else i
+        j = 0 if j == 1 else j + 1
+
+    legend_patches = [
+        patch.Patch(color="royalblue", label="Positive charged AA"),
+        patch.Patch(color="goldenrod", label="Negative charged AA")
+    ]
+    axes[0,0].legend(handles=legend_patches, bbox_to_anchor=(1.2, -0.03))
+    axes[0,1].set_ylabel("")
+    axes[1,1].set_ylabel("")
+
+    fig.subplots_adjust(wspace=0.1, hspace=0.23)
+    fig.set_figheight(10)
+    fig.set_figwidth(15)
+    fig.suptitle("Frequencies of charged amino acids", y=0.96, fontsize=18)
+    for ext in ["svg", "pdf"]:
+        plt.savefig(os.path.join(input, f"charged_aas.{ext}"),
+                    bbox_inches="tight")
+
+    plt.close()
+    charged_df.to_csv(os.path.join(input, "charged_aas.csv"), sep="\t")
+    ############################################################################
+
     ############################# Mean amino acid abundances across all kingdoms
     freq_df = pd.DataFrame(columns=kingdoms, index=aa_mean_cols+aa_std_cols)
     for kingdom,data in all_data_dct.items():
@@ -477,7 +544,7 @@ if __name__ == "__main__":
                       for aa in aa_list]
     pct_cols = [f"{kingdom}_{comp_type}" for kingdom in kingdoms
                                          for comp_type in ["code", "freq"]]
-    pct_df = pd.DataFrame(columns=pct_cols, index=amino_acids+["Mean"])
+    pct_df = pd.DataFrame(columns=pct_cols, index=amino_acids+["Mean", "Median"])
     code_box = None
     freq_box = None
     for kingdom,data in all_data_dct.items():
@@ -487,6 +554,7 @@ if __name__ == "__main__":
                 pct_df.loc[aa, king_comp] = np.sqrt(np.mean(data[f"{aa}_pct_{comp_type}"]**2))
 
             pct_df.loc["Mean", king_comp] = np.mean(pct_df.loc[amino_acids, king_comp])
+            pct_df.loc["Median", king_comp] = np.median(pct_df.loc[amino_acids, king_comp])
 
         aa_pct_cols = [f"{aa}_pct_code" for aa in aa_group_order]
         x_pos = np.arange(len(aa_pct_cols)) - 0.2
@@ -553,7 +621,7 @@ if __name__ == "__main__":
             for comp_type in ["code", "freq"]:
                 local_corr_df = pd.DataFrame(columns=["Coefficient", "Correlation",
                                                       "Comparison", "Kingdom"])
-                local_corr_df.loc[:, "Coefficient"] = data[f"{corr_type}_{comp_type}"]
+                local_corr_df.loc[:, "Coefficient"] = list(data[f"{corr_type}_{comp_type}"])
                 local_corr_df.loc[:, "Correlation"] = [corr_type] * len(data)
                 local_corr_df.loc[:, "Comparison"] = [comp_type] * len(data)
                 local_corr_df.loc[:, "Kingdom"] = [kingdom] * len(data)
