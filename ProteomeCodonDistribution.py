@@ -50,12 +50,15 @@ def get_aa_codon(id, prot_dna_dict, type, output, progress, size, lock):
                                     prot_seq = str(prot_rec.seq)
                                     prot_len = len(prot_rec.seq)
                                     dna_seq = str(dna_rec.seq)
+                                    with lock:
+                                        print(len(dna_seq), len(dna_seq)/3, prot_len)
+
                                     if(len(dna_seq)/3 == prot_len-1):
                                         gc_list.append(util.gc_fraction(dna_seq))
                                         for i in range(prot_len):
                                             aa = prot_seq[i]
                                             codon = dna_seq[i*3:i*3+3]
-                                            aa_codon_dct[codon][aa] += 1
+                                            aa_codon_dct[aa][codon] += 1
 
         if(len(aa_codon_dct)):
             aa_codon_df = pd.DataFrame.from_dict(aa_codon_dct, orient="index")
