@@ -61,10 +61,10 @@ def get_aa_codon(id, prot_dna_dict, type, output, progress, size, lock):
             aa_codon_df = pd.DataFrame.from_dict(aa_codon_dct, orient="index")
             sorted_columns = sorted([col for col in aa_codon_df.columns])
             aa_codon_df = aa_codon_df[sorted_columns]
-            aa_codon_df.index.name = "Amino acid"
+            aa_codon_df.index.name = np.mean(gc_list)
             csv_buffer = io.StringIO()
             aa_codon_df.to_csv(csv_buffer, sep="\t")
-            res_output = os.path.join(output, f"{id}_{np.mean(gc_list)}"+".csv")
+            res_output = os.path.join(output, id+".csv")
             with sftp.open(res_output, "w") as csv_handle:
                 csv_handle.write(csv_buffer.getvalue())
 
