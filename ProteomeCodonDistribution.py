@@ -62,6 +62,7 @@ def get_aa_codon(id, prot_dna_dict, type, output, progress, size, lock):
             sorted_columns = sorted([col for col in aa_codon_df.columns])
             aa_codon_df = aa_codon_df[sorted_columns]
             aa_codon_df.index.name = np.mean(gc_list)
+            aa_codon_df.fillna(0, inplace=True)
             csv_buffer = io.StringIO()
             aa_codon_df.to_csv(csv_buffer, sep="\t")
             res_output = os.path.join(output, id+".csv")
