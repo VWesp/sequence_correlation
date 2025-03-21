@@ -4,6 +4,7 @@ import sys
 import gzip
 import time
 import paramiko
+import numpy as np
 import pandas as pd
 from Bio import SeqIO
 import Bio.SeqUtils as util
