@@ -32,7 +32,7 @@ def get_aa_codon(id, prot_dna_dict, type, output, progress, size, lock):
         ssh,sftp = create_ssh_client()
         prot_path = prot_dna_dict[id][0]
         dna_path = prot_dna_dict[id][1]
-        aa_codon_dct = coll.defaultdict(lambda: coll.defaultdict(0))
+        aa_codon_dct = coll.defaultdict(lambda: coll.defaultdict(int))
         gc_list = []
         with sftp.open(prot_path, "r") as prot_remote:
             with gzip.open(prot_remote, "rt") as prot_handle:
