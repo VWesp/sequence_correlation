@@ -53,7 +53,7 @@ def get_aa_codon(id, prot_dna_dict, type, output, progress, size, lock):
                                     with lock:
                                         print(len(dna_seq), len(dna_seq)/3, prot_len)
 
-                                    if(len(dna_seq)/3 == prot_len-1):
+                                    if(int(len(dna_seq)/3)-1 == prot_len):
                                         gc_list.append(util.gc_fraction(dna_seq))
                                         for i in range(prot_len):
                                             aa = prot_seq[i]
