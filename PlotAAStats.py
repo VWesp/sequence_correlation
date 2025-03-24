@@ -465,7 +465,7 @@ if __name__ == "__main__":
         positive_df = positive_df.sort_values(by=["GC"]).astype(float)
         sns.lineplot(data=positive_df, x="GC", y="Value", errorbar=None,
                      color="black", linewidth=2, ax=axes[i,j])
-        sns.lineplot(data=positive_df, x="GC", y="Value", errorbar="sd",
+        sns.lineplot(data=positive_df, x="GC", y="Value", errorbar="pi",
                      color="royalblue", linewidth=1, ax=axes[i,j])
 
         negative_df = pd.DataFrame(columns=["GC", "Value"])
@@ -475,7 +475,7 @@ if __name__ == "__main__":
         negative_df = negative_df.sort_values(by=["GC"]).astype(float)
         sns.lineplot(data=negative_df, x="GC", y="Value", errorbar=None,
                      color="black", linewidth=2, ax=axes[i,j])
-        sns.lineplot(data=negative_df, x="GC", y="Value", errorbar="sd",
+        sns.lineplot(data=negative_df, x="GC", y="Value", errorbar="pi",
                      color="goldenrod", linewidth=1, ax=axes[i,j])
 
         corr,corr_p = sci.spearmanr(positive_data, negative_data)
@@ -494,8 +494,8 @@ if __name__ == "__main__":
         j = 0 if j == 1 else j + 1
 
     legend_patches = [
-        patch.Patch(color="royalblue", label="Positive charged AA"),
-        patch.Patch(color="goldenrod", label="Negative charged AA")
+        patch.Patch(color="royalblue", label="Positively charged AA"),
+        patch.Patch(color="goldenrod", label="Negatively charged AA")
     ]
     axes[0,0].legend(handles=legend_patches, bbox_to_anchor=(1.2, -0.03))
     axes[0,1].set_ylabel("")
@@ -537,7 +537,7 @@ if __name__ == "__main__":
     plt.close()
     ############################################################################
 
-    ################################# Percentage differences across all kingdoms
+    #################### Percentage differences across all kingdoms as box plots
     fig,axes = plt.subplots(2, 2, sharex=True, sharey=True)
     i = 0
     j = 0
@@ -608,11 +608,64 @@ if __name__ == "__main__":
     fig.suptitle("Percentage differences between amino acid distributions",
                  y=0.96, fontsize=18)
     for ext in ["svg", "pdf"]:
-        plt.savefig(os.path.join(input, f"amino_acid_pcts.{ext}"),
+        plt.savefig(os.path.join(input, f"amino_acid_pcts_boxplot.{ext}"),
                     bbox_inches="tight")
 
     plt.close()
     pct_df.to_csv(os.path.join(input, "amino_acid_pcts.csv"), sep="\t")
+    ############################################################################
+
+    ################### Percentage differences across all kingdoms as line plots
+    fig,axes = plt.subplots(2, 2, sharex=True, sharey=True)
+    i = 0
+    j = 0
+    aa_group_order = [aa for group,aa_list in aa_groups.items()
+                      for aa in aa_list]
+    for kingdom,data in all_data_dct.items():
+        aa_pct_cols = [f"{aa}_pct_code" for aa in aa_group_order]
+        pct_code_data = data[aa_pct_cols].melt(var_name="x", value_name="y")
+        pct_code_data["z"] = ["Codon number"] * len(pct_code_data)
+        pct_code_data["x"] = pct_code_data["x"].str.split("_").str[0]
+        aa_pct_cols = [f"{aa}_pct_freq" for aa in aa_group_order]
+        pct_freq_data = data[aa_pct_cols].melt(var_name="x", value_name="y")
+        pct_freq_data["z"] = ["Codon+GC"] * len(pct_freq_data)
+        pct_freq_data["x"] = pct_freq_data["x"].str.split("_").str[0]
+        pct_data = pd.concat([pct_code_data, pct_freq_data])
+
+        g = sns.lineplot(data=pct_data, x="x", y="y", hue="z", style="z",
+                         errorbar="pi", markers=True, dashes=False, alpha=0.8,
+                         palette=["royalblue", "goldenrod"], ax=axes[i,j])
+        g.legend_.set_title(None)
+
+        group_pos = 0
+        for group,aa_list in aa_groups.items():
+            group_pos += len(aa_list)
+            if(group_pos < 20):
+                axes[i,j].axvline(x=group_pos-0.5, zorder=1, color="firebrick",
+                                  linestyle="--")
+
+        axes[i,j].xaxis.set_tick_params(labelbottom=True)
+        axes[i,j].axhline(y=0, zorder=1, color="firebrick", linestyle="--")
+        axes[i,j].grid(visible=True, which="major", color="#999999",
+                       linestyle="dotted", alpha=0.5, zorder=0)
+        axes[i,j].set_title(kingdom)
+        i = 1 if j == 1 else i
+        j = 0 if j == 1 else j + 1
+
+    for i in [0, 1]:
+        axes[1,i].set_xlabel("Amino acid")
+        axes[i,0].set_ylabel("Percentage difference in %")
+
+    fig.set_figheight(10)
+    fig.set_figwidth(15)
+    fig.subplots_adjust(wspace=0.1)
+    fig.suptitle("Percentage differences between amino acid distributions",
+                 y=0.96, fontsize=18)
+    for ext in ["svg", "pdf"]:
+        plt.savefig(os.path.join(input, f"amino_acid_pcts_lineplot.{ext}"),
+                    bbox_inches="tight")
+
+    plt.close()
     ############################################################################
 
     ############################### Correlation coefficients across all kingdoms
@@ -630,7 +683,7 @@ if __name__ == "__main__":
                 corr_df = pd.concat([corr_df if not corr_df.empty else None,
                                      local_corr_df])
 
-    corr_df.to_csv(os.path.join(input, "kingdom_corr_coefficients.csv"),
+    corr_df.to_csv(os.path.join(input, "corr_coefficients.csv"),
                                 sep="\t")
     plot_corr_coefficients(corr_df, input)
     ############################################################################
