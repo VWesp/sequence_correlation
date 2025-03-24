@@ -368,6 +368,7 @@ if __name__ == "__main__":
 
     fig.set_figheight(10)
     fig.set_figwidth(15)
+    fig.subplots_adjust(hspace=0.15, wspace=0.1)
     fig.suptitle("Density of protein amounts", y=0.96, fontsize=18)
     for ext in ["svg", "pdf"]:
         plt.savefig(os.path.join(input, f"protein_amounts.{ext}"),
@@ -394,14 +395,15 @@ if __name__ == "__main__":
         length_df = length_df.reindex(np.arange(0, max(len(length_df.index),
                                                        len(data.index))))
         length_df[kingdom] = pd.Series(data["Length_mean"].values)
-        j = 1 if i == 1 else j
-        i = 0 if i == 1 else i + 1
+        i = 1 if j == 1 else i
+        j = 0 if j == 1 else j + 1
 
     axes[0,1].set_ylabel("")
     axes[1,1].set_ylabel("")
 
     fig.set_figheight(10)
     fig.set_figwidth(15)
+    fig.subplots_adjust(hspace=0.15, wspace=0.1)
     fig.suptitle("Density of mean protein lengths", y=0.96, fontsize=18)
     for ext in ["svg", "pdf"]:
         plt.savefig(os.path.join(input, f"protein_lengths.{ext}"),
@@ -436,6 +438,7 @@ if __name__ == "__main__":
 
     fig.set_figheight(10)
     fig.set_figwidth(15)
+    fig.subplots_adjust(hspace=0.15, wspace=0.1)
     fig.suptitle("Density of protein GC contents", y=0.96, fontsize=18)
     for ext in ["svg", "pdf"]:
         plt.savefig(os.path.join(input, f"protein_gcs.{ext}"),
@@ -447,41 +450,39 @@ if __name__ == "__main__":
     ############################################################################
 
     ################################### Positive vs negative charged amino acids
-    fig,axes = plt.subplots(2, 2, sharex=True)
+    fig,axes = plt.subplots(2, 2, sharex=True, sharey=True)
     i = 0
     j = 0
     positve = ["D", "E"]
     negative = ["H", "K", "R"]
     charged_df = pd.DataFrame(columns=kingdoms)
     for kingdom,data in all_data_dct.items():
+        gcs = np.asarray((data["GC_mean"]*100).apply(np.floor)/100)
         positive_data = data[["H_mean", "K_mean", "R_mean"]].sum(axis=1)
         positive_df = pd.DataFrame(columns=["GC", "Value"])
-        positive_df.loc[:,"GC"] = list(data["GC_mean"])
+        positive_df.loc[:,"GC"] = gcs
         positive_df.loc[:,"Value"] = list(positive_data)
         positive_df = positive_df.sort_values(by=["GC"]).astype(float)
-        sns.regplot(data=positive_df, x="GC", y="Value", order=3, scatter=False,
-                    line_kws={"color": "black", "lw": 3}, color="royalblue",
-                    ax=axes[i,j])
-        sns.regplot(data=positive_df, x="GC", y="Value", order=3,
-                    scatter_kws={"alpha": 0.1, "edgecolor": "white"},
-                    line_kws={"lw": 2}, color="royalblue", ax=axes[i,j])
+        sns.lineplot(data=positive_df, x="GC", y="Value", errorbar=None,
+                     color="black", linewidth=2, ax=axes[i,j])
+        sns.lineplot(data=positive_df, x="GC", y="Value", errorbar="sd",
+                     color="royalblue", linewidth=1, ax=axes[i,j])
 
         negative_df = pd.DataFrame(columns=["GC", "Value"])
         negative_data = data[["D_mean", "E_mean"]].sum(axis=1)
-        negative_df.loc[:,"GC"] = list(data["GC_mean"])
+        negative_df.loc[:,"GC"] = gcs
         negative_df.loc[:,"Value"] = list(negative_data)
         negative_df = negative_df.sort_values(by=["GC"]).astype(float)
-        sns.regplot(data=negative_df, x="GC", y="Value", order=3, scatter=False,
-                    line_kws={"color": "black", "lw": 3}, color="goldenrod",
-                    ax=axes[i,j])
-        sns.regplot(data=negative_df, x="GC", y="Value", order=3,
-                    scatter_kws={"alpha": 0.1, "edgecolor": "white"},
-                    line_kws={"lw": 2}, color="goldenrod", ax=axes[i,j])
+        sns.lineplot(data=negative_df, x="GC", y="Value", errorbar=None,
+                     color="black", linewidth=2, ax=axes[i,j])
+        sns.lineplot(data=negative_df, x="GC", y="Value", errorbar="sd",
+                     color="goldenrod", linewidth=1, ax=axes[i,j])
 
         corr,corr_p = sci.spearmanr(positive_data, negative_data)
-        axes[i,j].set_title(f"{kingdom}, r={corr:.3f}, p={corr_p:.3e}")
+        axes[i,j].set_title(f"{kingdom}, $r_S$={corr:.3f}, p={corr_p:.3e}")
         axes[i,j].set_xlabel("GC content")
         axes[i,j].set_ylabel("Frequency")
+        sns.despine()
 
         charged_df.loc["Positive_mean", kingdom] = positive_data.mean()
         charged_df.loc["Positive_std", kingdom] = positive_data.std()
@@ -603,6 +604,7 @@ if __name__ == "__main__":
                      fancybox=True, fontsize=12)
     fig.set_figheight(10)
     fig.set_figwidth(15)
+    fig.subplots_adjust(wspace=0.1)
     fig.suptitle("Percentage differences between amino acid distributions",
                  y=0.96, fontsize=18)
     for ext in ["svg", "pdf"]:
