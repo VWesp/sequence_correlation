@@ -189,7 +189,8 @@ def plot_corr_coefficients(data, output):
         patch.Patch(color=color_palette["GC-kendall"],
                     label="Kendall's Tau: Codon+GC")
     ]
-    plt.legend(handles=legend_patches, bbox_to_anchor=(0.53, 4.88), ncols=2)
+    plt.legend(handles=legend_patches, bbox_to_anchor=(0.6, 4.88),
+               fancybox=True, fontsize=12, ncols=2)
 
     g.fig.set_figheight(10)
     g.fig.set_figwidth(15)
@@ -464,9 +465,9 @@ if __name__ == "__main__":
         positive_df.loc[:,"Value"] = list(positive_data)
         positive_df = positive_df.sort_values(by=["GC"]).astype(float)
         sns.lineplot(data=positive_df, x="GC", y="Value", errorbar=None,
-                     color="black", linewidth=2, ax=axes[i,j])
+                     markers=True, dashes=False, color="black", linewidth=2, ax=axes[i,j])
         sns.lineplot(data=positive_df, x="GC", y="Value", errorbar="pi",
-                     color="royalblue", linewidth=1, ax=axes[i,j])
+                     markers=True, dashes=False, color="royalblue", linewidth=1, ax=axes[i,j])
 
         negative_df = pd.DataFrame(columns=["GC", "Value"])
         negative_data = data[["D_mean", "E_mean"]].sum(axis=1)
@@ -497,11 +498,12 @@ if __name__ == "__main__":
         patch.Patch(color="royalblue", label="Positively charged AA"),
         patch.Patch(color="goldenrod", label="Negatively charged AA")
     ]
-    axes[0,0].legend(handles=legend_patches, bbox_to_anchor=(1.2, -0.03))
+    axes[0,0].legend(handles=legend_patches, bbox_to_anchor=(1.2, -0.05),
+                     fancybox=True, fontsize=12)
     axes[0,1].set_ylabel("")
     axes[1,1].set_ylabel("")
 
-    fig.subplots_adjust(wspace=0.1, hspace=0.23)
+    fig.subplots_adjust(wspace=0.1, hspace=0.35)
     fig.set_figheight(10)
     fig.set_figwidth(15)
     fig.suptitle("Frequencies of charged amino acids", y=0.96, fontsize=18)
@@ -527,7 +529,7 @@ if __name__ == "__main__":
     plt.xlabel("Amino acid")
     plt.ylabel("Amino acid frequency")
     plt.title("Mean protein amino acid distributions across kingdoms")
-    plt.legend(title="Kingdom", loc="upper left")
+    plt.legend(title="Kingdom", loc="upper left", fancybox=True, fontsize=12)
     plt.xticks(rotation=0)
     plt.grid(alpha=0.5, zorder=0)
     for ext in ["svg", "pdf"]:
@@ -634,8 +636,8 @@ if __name__ == "__main__":
 
         g = sns.lineplot(data=pct_data, x="x", y="y", hue="z", style="z",
                          errorbar="pi", markers=True, dashes=False, alpha=0.8,
-                         palette=["royalblue", "goldenrod"], ax=axes[i,j])
-        g.legend_.set_title(None)
+                         palette=["royalblue", "goldenrod"], legend=None,
+                         ax=axes[i,j])
 
         group_pos = 0
         for group,aa_list in aa_groups.items():
@@ -656,6 +658,12 @@ if __name__ == "__main__":
         axes[1,i].set_xlabel("Amino acid")
         axes[i,0].set_ylabel("Percentage difference in %")
 
+    legend_patches = [
+        patch.Patch(color="royalblue", label="Codon number"),
+        patch.Patch(color="goldenrod", label="Codon+GC")
+    ]
+    axes[0,0].legend(handles=legend_patches, bbox_to_anchor=(0.35, 1.25),
+                     fancybox=True, fontsize=12)
     fig.set_figheight(10)
     fig.set_figwidth(15)
     fig.subplots_adjust(wspace=0.1)
@@ -668,7 +676,7 @@ if __name__ == "__main__":
     plt.close()
     ############################################################################
 
-    ############################### Correlation coefficients across all kingdoms
+    ############## Correlation coefficients across all kingdoms as density plots
     corr_df = pd.DataFrame(columns=["Coefficient", "Correlation", "Comparison",
                                     "Kingdom"])
     for kingdom,data in all_data_dct.items():
@@ -686,6 +694,32 @@ if __name__ == "__main__":
     corr_df.to_csv(os.path.join(input, "corr_coefficients.csv"),
                                 sep="\t")
     plot_corr_coefficients(corr_df, input)
+    ############################################################################
+
+    ############### Correlation coefficients across all kingdoms as violin plots
+    g = sns.catplot(data=corr_df, x="Correlation", y="Coefficient",
+                    hue="Comparison", kind="violin", col="Kingdom",
+                    palette=["royalblue", "goldenrod"], bw_adjust=0.5, cut=0,
+                    split=True, legend=None)
+    g.set_axis_labels("", "")
+    g.set_titles("{col_name}")
+    legend_patches = [
+        patch.Patch(color="royalblue", label="Codon number"),
+        patch.Patch(color="goldenrod", label="Codon+GC")
+    ]
+    g.fig.legend(handles=legend_patches, bbox_to_anchor=(0.3, 1.01), fancybox=True,
+                 fontsize=12)
+    g.fig.supxlabel("Correlation type", y=0.05)
+    g.fig.supylabel("Correlation coefficient", x=-0.01)
+    g.fig.set_figheight(10)
+    g.fig.set_figwidth(15)
+    g.fig.suptitle("Correlation coefficient densities across kingdoms", y=1,
+                   fontsize=16)
+    for ext in ["svg", "pdf"]:
+        plt.savefig(os.path.join(input, f"corr_coefficients_catplot.{ext}"),
+                    bbox_inches="tight")
+
+    plt.close()
     ############################################################################
 
     # All statistics together
