@@ -3,9 +3,11 @@ import sys
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import textwrap as tw
 import scipy.stats as sci
 import matplotlib.pyplot as plt
 import matplotlib.patches as patch
+import matplotlib.patheffects as path_effects
 
 
 def optimal_bin(data):
@@ -204,113 +206,200 @@ def plot_corr_coefficients(data, output):
     plt.close()
 
 
-def plot_plotogram(data_dct, amino_acids, output):
+def plot_plotogram(data_dct, aa_groups, output):
+    amino_acids = [aa for group,aa_list in aa_groups.items()
+                   for aa in aa_list]
     aa_mean_cols = [f"{aa}_mean" for aa in amino_acids]
     aa_pct_code_cols = [f"{aa}_pct_code" for aa in amino_acids]
     aa_pct_freq_cols = [f"{aa}_pct_freq" for aa in amino_acids]
-    fig,axes = plt.subplots(8, 4)
+    aa_group_order = [aa for group,aa_list in aa_groups.items()
+                      for aa in aa_list]
+    fig,axes = plt.subplots(5, 4)
     sns_pal = sns.color_palette("viridis", len(amino_acids))
     for j,(kingdom,data) in enumerate(data_dct.items()):
-        # Plot protein number
+        '''# Plot protein number
         nums = np.log10(data["#Proteins"]+1)
         bins = optimal_bin(nums)
-        sns.histplot(nums.values, bins=bins, alpha=0.4, color="maroon", kde=True,
+        sns.histplot(nums.values, bins=bins, alpha=0.4, color="maroon",
                      line_kws={"linewidth": 2, "linestyle": "--"}, ax=axes[0,j])
+        axes[0,j].set_xlabel("log10(amount)")'''
 
         #Plot protein GC content
         gcs = data["GC_mean"]
         bins = optimal_bin(gcs)
-        sns.histplot(gcs.values, bins=bins, alpha=0.4, color="maroon", kde=True,
-                     line_kws={"linewidth": 2, "linestyle": "--"}, ax=axes[1,j])
+        sns.histplot(gcs.values, bins=bins, alpha=0.4, color="maroon",
+                     line_kws={"linewidth": 2, "linestyle": "--"}, zorder=3,
+                     ax=axes[0,j])
+        axes[0,j].set_xlabel("GC content")
 
-        # Plot protein length
+        '''# Plot protein length
         lengths = np.log10(data["Length_mean"]+1)
         bins = optimal_bin(lengths)
-        sns.histplot(lengths.values, bins=bins, alpha=0.4, color="maroon",
-                     kde=True, line_kws={"linewidth": 2, "linestyle": "--"},
-                     ax=axes[2,j])
+        sns.histplot(lengths, alpha=0.4, color="maroon",
+                     line_kws={"linewidth": 2, "linestyle": "--"}, ax=axes[2,j])
+        axes[2,j].set_xlabel("log10(length)")'''
 
         # Plot amino acid distributions
-        sns.barplot(data[aa_mean_cols], errorbar="sd", palette=sns_pal,
-                    linewidth=0.3, edgecolor="black",
-                    err_kws={"color":"firebrick"}, ax=axes[3,j])
-        axes[3,j].set_xticks(np.arange(len(amino_acids)), amino_acids,
+        dis_data = data[aa_mean_cols].melt(var_name="x", value_name="y")
+        sns.boxplot(data=dis_data, x="x", y="y", hue="x", showfliers=False,
+                    palette=sns_pal, zorder=2, ax=axes[1,j])
+        axes[1,j].set_xticks(np.arange(len(amino_acids)), amino_acids,
                              fontsize=8)
+        axes[1,j].set_xlabel("Amino acid")
+        group_pos = 0
+        last_pos = 0
+        for index,(group,aa_list) in enumerate(aa_groups.items()):
+            group_pos += len(aa_list)
+            if(group_pos < 20):
+                axes[1,j].axvline(x=group_pos-0.5, zorder=1, color="firebrick",
+                                  linestyle="--", linewidth=1)
 
-        # Plot amino acid percentage difference for the codon number
-        sns.boxplot(data[aa_pct_code_cols], notch=True, showfliers=False,
-                    palette=sns_pal, boxprops={"linewidth": 0.3}, zorder=2,
-                    ax=axes[4,j])
-        axes[4,j].axhline(y=0, zorder=0, color="firebrick", linestyle="--")
-        axes[4,j].set_xticks(np.arange(len(amino_acids)), amino_acids,
+            text_pos = (group_pos+last_pos) / 20 / 2
+            text = axes[1,j].text(text_pos-0.02, 0.95, index+1, color="firebrick",
+                                  fontweight="bold", transform=axes[1,j].transAxes)
+            text.set_path_effects([
+                path_effects.Stroke(linewidth=1, foreground="white"),
+                path_effects.Normal()
+            ])
+            last_pos = group_pos
+
+        # Plot amino acid percentage differences
+        pct_code_data = data[aa_pct_code_cols].melt(var_name="x", value_name="y")
+        pct_code_data["z"] = ["Codon number"] * len(pct_code_data)
+        pct_code_data["x"] = pct_code_data["x"].str.split("_").str[0]
+        pct_freq_data = data[aa_pct_freq_cols].melt(var_name="x", value_name="y")
+        pct_freq_data["z"] = ["Codon+GC"] * len(pct_freq_data)
+        pct_freq_data["x"] = pct_freq_data["x"].str.split("_").str[0]
+        pct_data = pd.concat([pct_code_data, pct_freq_data])
+        sns.lineplot(data=pct_data, x="x", y="y", hue="z", style="z",
+                     errorbar="pi", markers=True, dashes=False, alpha=0.8,
+                     palette=["royalblue", "goldenrod"], legend=None,
+                     zorder=2, ax=axes[2,j])
+        axes[2,j].axhline(y=0, zorder=1, color="firebrick", linestyle="--")
+        axes[2,j].set_xticks(np.arange(len(amino_acids)), amino_acids,
                              fontsize=8)
+        axes[2,j].set_xlabel("Amino acid")
+        group_pos = 0
+        last_pos = 0
+        for index,(group,aa_list) in enumerate(aa_groups.items()):
+            group_pos += len(aa_list)
+            if(group_pos < 20):
+                axes[2,j].axvline(x=group_pos-0.5, zorder=1, color="firebrick",
+                                  linestyle="--", linewidth=1)
 
-        # Plot amino acid percentage difference for codon+GC
-        sns.boxplot(data[aa_pct_freq_cols], notch=True, showfliers=False,
-                    palette=sns_pal, boxprops={"linewidth": 0.3}, zorder=2,
-                    ax=axes[5,j])
-        axes[5,j].axhline(y=0, zorder=0, color="firebrick", linestyle="--")
-        axes[5,j].set_xticks(np.arange(len(amino_acids)), amino_acids,
-                             fontsize=8)
+            text_pos = (group_pos+last_pos) / 20 / 2
+            text = axes[2,j].text(text_pos-0.02, 0.95, index+1, color="firebrick",
+                                  fontweight="bold", transform=axes[2,j].transAxes)
+            text.set_path_effects([
+                path_effects.Stroke(linewidth=1, foreground="white"),
+                path_effects.Normal()
+            ])
+            last_pos = group_pos
 
-        # Plot Spearman correlation coefficients for the codon number
-        sns.kdeplot(data["Spearman_code"], multiple="stack", color="royalblue",
-                    label="Codon number", ax=axes[6,j])
-        # Plot Spearman correlation coefficients for codon+GC
-        sns.kdeplot(data["Spearman_freq"], multiple="stack", color="goldenrod",
-                    label="Codon+GC", ax=axes[6,j])
-        axes[6,j].legend(loc="upper left", fontsize=6)
+        # Plot Spearman correlation coefficients
+        spear_corr = data[["Spearman_code", "Spearman_freq"]].melt(var_name="x",
+                                                                   value_name="y")
+        sns.violinplot(data=spear_corr, x="y", y="x", hue="x", split=True,
+                       orient="h", palette=["royalblue", "goldenrod"],
+                       legend=None, zorder=2, ax=axes[3,j])
+        axes[3,j].set_xlabel("Correlation coefficient ($r_S$)")
 
-        # Plot Kendall's Tau correlation coefficients for the codon number
-        sns.kdeplot(data["Kendall_code"], multiple="stack", color="royalblue",
-                    label="Codon number", ax=axes[7,j])
-        # Plot Kendall's Tau correlation coefficients for codon+GC
-        sns.kdeplot(data["Kendall_freq"], multiple="stack", color="goldenrod",
-                    label="Codon+GC", ax=axes[7,j])
-        axes[7,j].legend(loc="upper left", fontsize=6)
+        # Plot Kendall's Tau correlation coefficients
+        kendall_corr = data[["Kendall_code", "Kendall_freq"]].melt(var_name="x",
+                                                                   value_name="y")
+        sns.violinplot(data=kendall_corr, x="y", y="x", hue="x", split=True,
+                       orient="h", palette=["royalblue", "goldenrod"],
+                       legend=None, zorder=2, ax=axes[4,j])
+        axes[4,j].set_xlabel(u"Correlation coefficient (\u03C4)")
 
-        axes[0,j].set_title(kingdom)
-        for i in range(8):
-            axes[i,j].set_xlabel("")
-            axes[i,j].set_yticks([])
+        axes[0,j].set_title(kingdom, fontsize=16)
+        for i in range(5): #range(7):
+            axes[i,j].tick_params(axis="y", labelleft=False)
             axes[i,j].set_ylabel("")
 
-        if(j == 0):
-            axes[0,j].set_ylabel("Protein log10-amount", labelpad=58,
-                                 rotation=0)
-            axes[1,j].set_ylabel("Protein GC content", labelpad=52,
-                                 rotation=0)
-            axes[2,j].set_ylabel("Protein log10-length", labelpad=54,
-                                 rotation=0)
-            axes[3,j].set_ylabel("Amino acid abundance", labelpad=61,
-                                 rotation=0)
-            axes[4,j].set_ylabel("Pct. codon number", labelpad=52, rotation=0)
-            axes[5,j].set_ylabel("Pct. codon+GC", labelpad=43, rotation=0)
-            axes[6,j].set_ylabel("Spearman coefficient", labelpad=56,
-                                 rotation=0)
-            axes[7,j].set_ylabel("Kendall's Tau coefficient", labelpad=63,
-                                 rotation=0)
+    # Set the y-label for each row
+    #axes[0,0].set_ylabel("Density")
+    axes[0,0].set_ylabel("Density")
+    #axes[2,0].set_ylabel("Density")
+    axes[1,0].set_ylabel("Abundance")
+    axes[2,0].set_ylabel("Difference")
+    axes[3,0].set_ylabel("Density")
+    axes[4,0].set_ylabel("Density")
 
-    for i in [3, 4, 5]:
+    # Set the title for each row
+    title_len = 30
+    palette = [
+        patch.Patch(color="royalblue", label="Codon number"),
+        patch.Patch(color="goldenrod", label="Codon+GC")
+    ]
+    '''title = "Protein amounts per species"
+    axes[0,3].text(1.05, 0.75, "\n".join(tw.wrap(title, title_len)),
+                   transform=axes[0,3].transAxes)'''
+    title = "Mean GC contents (%) of protein-coding genes per species"
+    axes[0,3].text(1.05, 0.6, "\n".join(tw.wrap(title, title_len)),
+                   fontweight="bold", transform=axes[0,3].transAxes)
+    '''title = "Mean protein lengths (AA) per species"
+    axes[2,3].text(1.05, 0.75, "\n".join(tw.wrap(title, title_len)),
+                   transform=axes[2,3].transAxes)'''
+    title = "Mean amino acid abundances (%) per species"
+    axes[1,3].text(1.05, 0.75, "\n".join(tw.wrap(title, title_len)),
+                   fontweight="bold", transform=axes[1,3].transAxes)
+    title = "Percentage differences (%) between empirical and expected abundances per species"
+    axes[2,3].text(1.05, 0.6, "\n".join(tw.wrap(title, title_len)),
+                   fontweight="bold", transform=axes[2,3].transAxes)
+    title = "Spearman correlation coefficients per species"
+    axes[3,3].text(1.05, 0.75, "\n".join(tw.wrap(title, title_len)),
+                   fontweight="bold", transform=axes[3,3].transAxes)
+    title = "Kendall's Tau correlation coefficients per species"
+    axes[4,3].text(1.05, 0.75, "\n".join(tw.wrap(title, title_len)),
+                   fontweight="bold", transform=axes[4,3].transAxes)
+
+    # Set the legends for some rows
+    num_text = "1 - Aliphatic\n2 - Aromatic\n3 - Charged\n4 - Uncharged"
+    axes[1,3].text(1.08, 0.0, num_text, fontweight="bold", color="firebrick",
+                   bbox=dict(facecolor="white", edgecolor="grey", alpha=0.3,
+                             boxstyle="round"), linespacing=2, fontsize=8,
+                   transform=axes[1,3].transAxes)
+    axes[2,3].legend(handles=palette, bbox_to_anchor=(1.45, 0.55),
+                     fancybox=True, fontsize=8)
+    axes[2,3].text(1.08, -0.12, num_text, fontweight="bold", color="firebrick",
+                   bbox=dict(facecolor="white", edgecolor="grey", alpha=0.3,
+                             boxstyle="round"), linespacing=2, fontsize=8,
+                   transform=axes[2,3].transAxes)
+    axes[3,3].legend(handles=palette, bbox_to_anchor=(1.05, 0.55),
+                     fancybox=True, fontsize=8)
+    axes[4,3].legend(handles=palette, bbox_to_anchor=(1.05, 0.55),
+                     fancybox=True, fontsize=8)
+
+    # Set the plots of the first and last two rows to share the same x-axis
+    # across kingdoms
+    for i in [0, 3, 4]: #[0, 1, 2]:
+        x_min = min([axes[i,j].get_xlim()[0] for j in range(4)])
+        x_max = max([axes[i,j].get_xlim()[1] for j in range(4)])
+        for j in range(4):
+            if(i == 0):
+                axes[i,j].set_xlim(x_min, x_max)
+            else:
+                axes[i,j].set_xlim(x_min, 1)
+
+    # Set the plots of the next two rows to share the same y-axis across
+    # kingdoms
+    for i in [1, 2]: #[3, 4]:
         y_min = min([axes[i,j].get_ylim()[0] for j in range(4)])
         y_max = max([axes[i,j].get_ylim()[1] for j in range(4)])
         for j in range(4):
             axes[i,j].set_ylim(y_min, y_max)
 
-    for i in [0, 1, 2]:
-        x_min = min([axes[i,j].get_xlim()[0] for j in range(4)])
-        x_max = max([axes[i,j].get_xlim()[1] for j in range(4)])
+    # Set a grid behind all plots
+    for i in range(5): #range(7):
         for j in range(4):
-            axes[i,j].set_xlim(x_min, x_max)
-
-    for i in [6, 7]:
-        for j in range(4):
-            axes[i,j].set_xlim(0, 1)
+            axes[i,j].grid(visible=True, which="major", color="#999999",
+                           linestyle="dotted", alpha=0.5, zorder=0)
+            axes[i,j].set_axisbelow(True)
 
     fig.subplots_adjust(hspace=0.5)
     fig.set_figheight(10)
     fig.set_figwidth(15)
-    fig.suptitle("Statistics across kingdoms", y=0.96, fontsize=18)
     for ext in ["svg", "pdf"]:
         plt.savefig(os.path.join(input, f"plotogram.{ext}"),
                     bbox_inches="tight")
@@ -623,12 +712,12 @@ if __name__ == "__main__":
     j = 0
     aa_group_order = [aa for group,aa_list in aa_groups.items()
                       for aa in aa_list]
+    aa_pct_cols = [f"{aa}_pct_code" for aa in aa_group_order]
+    aa_pct_cols = [f"{aa}_pct_freq" for aa in aa_group_order]
     for kingdom,data in all_data_dct.items():
-        aa_pct_cols = [f"{aa}_pct_code" for aa in aa_group_order]
         pct_code_data = data[aa_pct_cols].melt(var_name="x", value_name="y")
         pct_code_data["z"] = ["Codon number"] * len(pct_code_data)
         pct_code_data["x"] = pct_code_data["x"].str.split("_").str[0]
-        aa_pct_cols = [f"{aa}_pct_freq" for aa in aa_group_order]
         pct_freq_data = data[aa_pct_cols].melt(var_name="x", value_name="y")
         pct_freq_data["z"] = ["Codon+GC"] * len(pct_freq_data)
         pct_freq_data["x"] = pct_freq_data["x"].str.split("_").str[0]
@@ -723,4 +812,4 @@ if __name__ == "__main__":
     ############################################################################
 
     # All statistics together
-    plot_plotogram(all_data_dct, amino_acids, input)
+    plot_plotogram(all_data_dct, aa_groups, input)
