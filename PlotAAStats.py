@@ -643,11 +643,22 @@ if __name__ == "__main__":
                                      zorder=2)
 
         group_pos = 0
-        for group,aa_list in aa_groups.items():
+        last_pos = 0
+        for index,(group,aa_list) in enumerate(aa_groups.items()):
             group_pos += len(aa_list)
             if(group_pos < 20):
                 axes[i,j].axvline(x=group_pos-0.5, zorder=1, color="firebrick",
-                                  linestyle="--")
+                                  linestyle="--", linewidth=1)
+
+            text_pos = (group_pos+last_pos) / 20 / 2
+            text = axes[i,j].text(text_pos, 0.965, index+1, color="firebrick",
+                                  fontweight="bold", fontsize=12,
+                                  transform=axes[i,j].transAxes)
+            text.set_path_effects([
+                path_effects.Stroke(linewidth=1, foreground="white"),
+                path_effects.Normal()
+            ])
+            last_pos = group_pos
 
         axes[i,j].set_xticks(np.arange(len(aa_group_order)), aa_group_order)
         axes[i,j].xaxis.set_tick_params(labelbottom=True)
@@ -665,6 +676,11 @@ if __name__ == "__main__":
     axes[0,0].legend([code_box["boxes"][0], freq_box["boxes"][0]],
                      ["Codon number", "Codon+GC"], bbox_to_anchor=(0.35, 1.25),
                      fancybox=True, fontsize=12)
+    num_text = "1 - Aliphatic    3 - Charged\n2 - Aromatic    4 - Uncharged"
+    axes[0,0].text(1.7, 1.1, num_text, fontweight="bold", color="firebrick",
+                   bbox=dict(facecolor="white", edgecolor="grey", alpha=0.3,
+                             boxstyle="round"), linespacing=2, fontsize=12,
+                   transform=axes[0,0].transAxes)
     fig.set_figheight(10)
     fig.set_figwidth(15)
     fig.subplots_adjust(wspace=0.1)
@@ -684,13 +700,13 @@ if __name__ == "__main__":
     j = 0
     aa_group_order = [aa for group,aa_list in aa_groups.items()
                       for aa in aa_list]
-    aa_pct_cols = [f"{aa}_pct_code" for aa in aa_group_order]
-    aa_pct_cols = [f"{aa}_pct_freq" for aa in aa_group_order]
+    aa_pct_code_cols = [f"{aa}_pct_code" for aa in aa_group_order]
+    aa_pct_freq_cols = [f"{aa}_pct_freq" for aa in aa_group_order]
     for kingdom,data in all_data_dct.items():
-        pct_code_data = data[aa_pct_cols].melt(var_name="x", value_name="y")
+        pct_code_data = data[aa_pct_code_cols].melt(var_name="x", value_name="y")
         pct_code_data["z"] = ["Codon number"] * len(pct_code_data)
         pct_code_data["x"] = pct_code_data["x"].str.split("_").str[0]
-        pct_freq_data = data[aa_pct_cols].melt(var_name="x", value_name="y")
+        pct_freq_data = data[aa_pct_freq_cols].melt(var_name="x", value_name="y")
         pct_freq_data["z"] = ["Codon+GC"] * len(pct_freq_data)
         pct_freq_data["x"] = pct_freq_data["x"].str.split("_").str[0]
         pct_data = pd.concat([pct_code_data, pct_freq_data])
@@ -701,11 +717,22 @@ if __name__ == "__main__":
                          ax=axes[i,j])
 
         group_pos = 0
-        for group,aa_list in aa_groups.items():
+        last_pos = 0
+        for index,(group,aa_list) in enumerate(aa_groups.items()):
             group_pos += len(aa_list)
             if(group_pos < 20):
                 axes[i,j].axvline(x=group_pos-0.5, zorder=1, color="firebrick",
-                                  linestyle="--")
+                                  linestyle="--", linewidth=1)
+
+            text_pos = (group_pos+last_pos) / 20 / 2
+            text = axes[i,j].text(text_pos, 0.965, index+1, color="firebrick",
+                                  fontweight="bold", fontsize=12,
+                                  transform=axes[i,j].transAxes)
+            text.set_path_effects([
+                path_effects.Stroke(linewidth=1, foreground="white"),
+                path_effects.Normal()
+            ])
+            last_pos = group_pos
 
         axes[i,j].xaxis.set_tick_params(labelbottom=True)
         axes[i,j].axhline(y=0, zorder=1, color="firebrick", linestyle="--")
@@ -725,6 +752,11 @@ if __name__ == "__main__":
     ]
     axes[0,0].legend(handles=legend_patches, bbox_to_anchor=(0.35, 1.25),
                      fancybox=True, fontsize=12)
+    num_text = "1 - Aliphatic    3 - Charged\n2 - Aromatic    4 - Uncharged"
+    axes[0,0].text(1.7, 1.1, num_text, fontweight="bold", color="firebrick",
+                   bbox=dict(facecolor="white", edgecolor="grey", alpha=0.3,
+                             boxstyle="round"), linespacing=2, fontsize=12,
+                   transform=axes[0,0].transAxes)
     fig.set_figheight(10)
     fig.set_figwidth(15)
     fig.subplots_adjust(wspace=0.1)
