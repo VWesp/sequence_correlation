@@ -3,7 +3,6 @@ import sys
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import textwrap as tw
 import scipy.stats as sci
 import matplotlib.pyplot as plt
 import matplotlib.patches as patch
@@ -217,27 +216,13 @@ def plot_plotogram(data_dct, aa_groups, output):
     fig,axes = plt.subplots(5, 4)
     sns_pal = sns.color_palette("viridis", len(amino_acids))
     for j,(kingdom,data) in enumerate(data_dct.items()):
-        '''# Plot protein number
-        nums = np.log10(data["#Proteins"]+1)
-        bins = optimal_bin(nums)
-        sns.histplot(nums.values, bins=bins, alpha=0.4, color="maroon",
-                     line_kws={"linewidth": 2, "linestyle": "--"}, ax=axes[0,j])
-        axes[0,j].set_xlabel("log10(amount)")'''
-
         #Plot protein GC content
         gcs = data["GC_mean"]
         bins = optimal_bin(gcs)
         sns.histplot(gcs.values, bins=bins, alpha=0.4, color="maroon",
                      line_kws={"linewidth": 2, "linestyle": "--"}, zorder=3,
                      ax=axes[0,j])
-        axes[0,j].set_xlabel("GC content")
-
-        '''# Plot protein length
-        lengths = np.log10(data["Length_mean"]+1)
-        bins = optimal_bin(lengths)
-        sns.histplot(lengths, alpha=0.4, color="maroon",
-                     line_kws={"linewidth": 2, "linestyle": "--"}, ax=axes[2,j])
-        axes[2,j].set_xlabel("log10(length)")'''
+        axes[0,j].set_xlabel("GC content", fontweight="bold")
 
         # Plot amino acid distributions
         dis_data = data[aa_mean_cols].melt(var_name="x", value_name="y")
@@ -245,7 +230,7 @@ def plot_plotogram(data_dct, aa_groups, output):
                     palette=sns_pal, zorder=2, ax=axes[1,j])
         axes[1,j].set_xticks(np.arange(len(amino_acids)), amino_acids,
                              fontsize=8)
-        axes[1,j].set_xlabel("Amino acid")
+        axes[1,j].set_xlabel("Amino acid", fontweight="bold")
         group_pos = 0
         last_pos = 0
         for index,(group,aa_list) in enumerate(aa_groups.items()):
@@ -278,7 +263,7 @@ def plot_plotogram(data_dct, aa_groups, output):
         axes[2,j].axhline(y=0, zorder=1, color="firebrick", linestyle="--")
         axes[2,j].set_xticks(np.arange(len(amino_acids)), amino_acids,
                              fontsize=8)
-        axes[2,j].set_xlabel("Amino acid")
+        axes[2,j].set_xlabel("Amino acid", fontweight="bold")
         group_pos = 0
         last_pos = 0
         for index,(group,aa_list) in enumerate(aa_groups.items()):
@@ -302,7 +287,7 @@ def plot_plotogram(data_dct, aa_groups, output):
         sns.violinplot(data=spear_corr, x="y", y="x", hue="x", split=True,
                        orient="h", palette=["royalblue", "goldenrod"],
                        legend=None, zorder=2, ax=axes[3,j])
-        axes[3,j].set_xlabel("Correlation coefficient ($r_S$)")
+        axes[3,j].set_xlabel("Correlation coefficient ($r_S$)", fontweight="bold")
 
         # Plot Kendall's Tau correlation coefficients
         kendall_corr = data[["Kendall_code", "Kendall_freq"]].melt(var_name="x",
@@ -310,70 +295,57 @@ def plot_plotogram(data_dct, aa_groups, output):
         sns.violinplot(data=kendall_corr, x="y", y="x", hue="x", split=True,
                        orient="h", palette=["royalblue", "goldenrod"],
                        legend=None, zorder=2, ax=axes[4,j])
-        axes[4,j].set_xlabel(u"Correlation coefficient (\u03C4)")
+        axes[4,j].set_xlabel(u"Correlation coefficient (\u03C4)", fontweight="bold")
 
-        axes[0,j].set_title(kingdom, fontsize=16)
+        axes[0,j].set_title(kingdom, fontsize=16, fontweight="bold")
         for i in range(5): #range(7):
             axes[i,j].tick_params(axis="y", labelleft=False)
             axes[i,j].set_ylabel("")
 
     # Set the y-label for each row
-    #axes[0,0].set_ylabel("Density")
-    axes[0,0].set_ylabel("Density")
-    #axes[2,0].set_ylabel("Density")
-    axes[1,0].set_ylabel("Abundance")
-    axes[2,0].set_ylabel("Difference")
-    axes[3,0].set_ylabel("Density")
-    axes[4,0].set_ylabel("Density")
+    axes[0,0].set_ylabel("Density", fontweight="bold")
+    axes[1,0].set_ylabel("Abundance", fontweight="bold")
+    axes[3,0].set_ylabel("Density", fontweight="bold")
+    axes[2,0].set_ylabel("Difference", fontweight="bold")
+    axes[4,0].set_ylabel("Density", fontweight="bold")
 
     # Set the title for each row
+    f_size = 13
     title_len = 30
     palette = [
         patch.Patch(color="royalblue", label="Codon number"),
         patch.Patch(color="goldenrod", label="Codon+GC")
     ]
-    '''title = "Protein amounts per species"
-    axes[0,3].text(1.05, 0.75, "\n".join(tw.wrap(title, title_len)),
-                   transform=axes[0,3].transAxes)'''
-    title = "Mean GC contents (%) of protein-coding genes per species"
-    axes[0,3].text(1.05, 0.6, "\n".join(tw.wrap(title, title_len)),
-                   fontweight="bold", transform=axes[0,3].transAxes)
-    '''title = "Mean protein lengths (AA) per species"
-    axes[2,3].text(1.05, 0.75, "\n".join(tw.wrap(title, title_len)),
-                   transform=axes[2,3].transAxes)'''
-    title = "Mean amino acid abundances (%) per species"
-    axes[1,3].text(1.05, 0.75, "\n".join(tw.wrap(title, title_len)),
-                   fontweight="bold", transform=axes[1,3].transAxes)
-    title = "Percentage differences (%) between empirical and expected abundances per species"
-    axes[2,3].text(1.05, 0.6, "\n".join(tw.wrap(title, title_len)),
-                   fontweight="bold", transform=axes[2,3].transAxes)
-    title = "Spearman correlation coefficients per species"
-    axes[3,3].text(1.05, 0.75, "\n".join(tw.wrap(title, title_len)),
-                   fontweight="bold", transform=axes[3,3].transAxes)
-    title = "Kendall's Tau correlation coefficients per species"
-    axes[4,3].text(1.05, 0.75, "\n".join(tw.wrap(title, title_len)),
-                   fontweight="bold", transform=axes[4,3].transAxes)
+    title = "Mean GC contents (%) of\nprotein-coding genes\nper species"
+    axes[0,3].text(1.05, 0.25, title, fontweight="bold", fontsize=f_size,
+                   transform=axes[0,3].transAxes)
+    title = "Mean amino acid\nabundances (%)\nper species"
+    axes[1,3].text(1.05, 0.25, title, fontweight="bold", fontsize=f_size,
+                   transform=axes[1,3].transAxes)
+    title = "Percentage differences (%)\nbetween empirical and\nexpected abundances\nper species"
+    axes[2,3].text(1.05, 0.15, title, fontweight="bold", fontsize=f_size,
+                   transform=axes[2,3].transAxes)
+    title = "Spearman correlation\ncoefficients per species"
+    axes[3,3].text(1.05, 0.4, title, fontweight="bold", fontsize=f_size,
+                   transform=axes[3,3].transAxes)
+    title = "Kendall's Tau correlation\ncoefficients per species"
+    axes[4,3].text(1.05, 0.4, title, fontweight="bold", fontsize=f_size,
+                   transform=axes[4,3].transAxes)
 
     # Set the legends for some rows
-    num_text = "1 - Aliphatic\n2 - Aromatic\n3 - Charged\n4 - Uncharged"
-    axes[1,3].text(1.08, 0.0, num_text, fontweight="bold", color="firebrick",
+    num_text = "1 - Aliphatic    3 - Charged\n2 - Aromatic    4 - Uncharged"
+    axes[1,3].text(1.08, -0.4, num_text, fontweight="bold", color="firebrick",
                    bbox=dict(facecolor="white", edgecolor="grey", alpha=0.3,
-                             boxstyle="round"), linespacing=2, fontsize=8,
+                             boxstyle="round"), linespacing=2, fontsize=10,
                    transform=axes[1,3].transAxes)
-    axes[2,3].legend(handles=palette, bbox_to_anchor=(1.45, 0.55),
-                     fancybox=True, fontsize=8)
-    axes[2,3].text(1.08, -0.12, num_text, fontweight="bold", color="firebrick",
-                   bbox=dict(facecolor="white", edgecolor="grey", alpha=0.3,
-                             boxstyle="round"), linespacing=2, fontsize=8,
-                   transform=axes[2,3].transAxes)
-    axes[3,3].legend(handles=palette, bbox_to_anchor=(1.05, 0.55),
-                     fancybox=True, fontsize=8)
-    axes[4,3].legend(handles=palette, bbox_to_anchor=(1.05, 0.55),
-                     fancybox=True, fontsize=8)
+    axes[2,3].legend(handles=palette, bbox_to_anchor=(1.71, -0.1),
+                     fancybox=True, fontsize=10)
+    axes[3,3].legend(handles=palette, bbox_to_anchor=(1.71, -0.1),
+                     fancybox=True, fontsize=10)
 
     # Set the plots of the first and last two rows to share the same x-axis
     # across kingdoms
-    for i in [0, 3, 4]: #[0, 1, 2]:
+    for i in [0, 3, 4]:
         x_min = min([axes[i,j].get_xlim()[0] for j in range(4)])
         x_max = max([axes[i,j].get_xlim()[1] for j in range(4)])
         for j in range(4):
@@ -384,14 +356,14 @@ def plot_plotogram(data_dct, aa_groups, output):
 
     # Set the plots of the next two rows to share the same y-axis across
     # kingdoms
-    for i in [1, 2]: #[3, 4]:
+    for i in [1, 2]:
         y_min = min([axes[i,j].get_ylim()[0] for j in range(4)])
         y_max = max([axes[i,j].get_ylim()[1] for j in range(4)])
         for j in range(4):
             axes[i,j].set_ylim(y_min, y_max)
 
     # Set a grid behind all plots
-    for i in range(5): #range(7):
+    for i in range(5):
         for j in range(4):
             axes[i,j].grid(visible=True, which="major", color="#999999",
                            linestyle="dotted", alpha=0.5, zorder=0)
