@@ -303,10 +303,10 @@ def plot_plotogram(data_dct, aa_groups, output):
             axes[i,j].set_ylabel("")
 
     # Set the y-label for each row
-    axes[0,0].set_ylabel("Density", fontweight="bold")
+    axes[0,0].set_ylabel("Count", fontweight="bold")
     axes[1,0].set_ylabel("Abundance", fontweight="bold")
-    axes[3,0].set_ylabel("Density", fontweight="bold")
     axes[2,0].set_ylabel("Difference", fontweight="bold")
+    axes[3,0].set_ylabel("Density", fontweight="bold")
     axes[4,0].set_ylabel("Density", fontweight="bold")
 
     # Set the title for each row
@@ -374,7 +374,7 @@ def plot_plotogram(data_dct, aa_groups, output):
     fig.set_figwidth(15)
     for ext in ["svg", "pdf"]:
         plt.savefig(os.path.join(input, f"plotogram.{ext}"),
-                    bbox_inches="tight")
+                    bbox_inches="tight", transparent=True)
 
     plt.close()
 
