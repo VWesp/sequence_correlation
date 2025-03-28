@@ -288,6 +288,7 @@ def plot_plotogram(data_dct, aa_groups, output):
                        orient="h", palette=["royalblue", "goldenrod"],
                        legend=None, zorder=2, ax=axes[3,j])
         axes[3,j].set_xlabel("Correlation coefficient ($r_S$)", fontweight="bold")
+        axes[3,j].tick_params(axis="y", labelleft=False)
 
         # Plot Kendall's Tau correlation coefficients
         kendall_corr = data[["Kendall_code", "Kendall_freq"]].melt(var_name="x",
@@ -296,10 +297,10 @@ def plot_plotogram(data_dct, aa_groups, output):
                        orient="h", palette=["royalblue", "goldenrod"],
                        legend=None, zorder=2, ax=axes[4,j])
         axes[4,j].set_xlabel(u"Correlation coefficient (\u03C4)", fontweight="bold")
+        axes[4,j].tick_params(axis="y", labelleft=False)
 
         axes[0,j].set_title(kingdom, fontsize=16, fontweight="bold")
-        for i in range(5): #range(7):
-            axes[i,j].tick_params(axis="y", labelleft=False)
+        for i in range(5):
             axes[i,j].set_ylabel("")
 
     # Set the y-label for each row
