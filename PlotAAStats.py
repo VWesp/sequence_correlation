@@ -29,9 +29,9 @@ def plot_lengths(data, kingdom, output):
     bins = optimal_bin(lengths)
     sns.histplot(lengths, bins=bins, alpha=0.4, color="maroon", kde=True,
                  line_kws={"linewidth": 2, "linestyle": "--"})
-    plt.title(f"{kingdom} - Density of mean protein log10-length")
-    plt.xlabel("Protein log10-length")
-    plt.ylabel("Density")
+    plt.title(f"{kingdom} - Distribution of mean protein length")
+    plt.xlabel("log10(Length)", fontweight="bold", fontsize=10)
+    plt.ylabel("Count", fontweight="bold", fontsize=10)
     for ext in ["svg", "pdf"]:
         plt.savefig(os.path.join(output, f"protein_lengths.{ext}"),
                     bbox_inches="tight")
@@ -44,9 +44,9 @@ def plot_gcs(data, kingdom, output):
     bins = optimal_bin(gcs)
     sns.histplot(gcs, bins=bins, alpha=0.4, color="maroon", kde=True,
                  line_kws={"linewidth": 2, "linestyle": "--"})
-    plt.title(f"{kingdom} - Density of mean protein GC content")
-    plt.xlabel("GC content")
-    plt.ylabel("Density")
+    plt.title(f"{kingdom} - Distribution of mean protein GC content")
+    plt.xlabel("GC content", fontweight="bold", fontsize=10)
+    plt.ylabel("Count", fontweight="bold", fontsize=10)
     for ext in ["svg", "pdf"]:
         plt.savefig(os.path.join(output, f"protein_gcs.{ext}"),
                     bbox_inches="tight")
@@ -59,9 +59,9 @@ def plot_amount(data, kingdom, output):
     bins = optimal_bin(nums)
     sns.histplot(nums, bins=bins, alpha=0.4, color="maroon", kde=True,
                  line_kws={"linewidth": 2, "linestyle": "--"})
-    plt.title(f"{kingdom} - Density of protein log10-number")
-    plt.xlabel("log10-Number of proteins")
-    plt.ylabel("Density")
+    plt.title(f"{kingdom} - Distribution of protein amount")
+    plt.xlabel("log10(Amount)", fontweight="bold", fontsize=10)
+    plt.ylabel("Count", fontweight="bold", fontsize=10)
     for ext in ["svg", "pdf"]:
         plt.savefig(os.path.join(output, f"protein_amount.{ext}"),
                     bbox_inches="tight")
@@ -171,12 +171,13 @@ def plot_corr_coefficients(data, output):
 
     def label(x, color, label):
         ax = plt.gca()
-        ax.text(0, 0.2, x.iloc[0], color="black", fontsize=13,
-                ha="left", va="center", transform=ax.transAxes)
+        ax.text(0, 0.2, x.iloc[0], color="black", fontsize=14, ha="left",
+                va="center", fontweight="bold", transform=ax.transAxes)
 
     g.map(label, "Kingdom")
     g.set_titles("")
-    g.set_xlabels(label="Correlation coefficient", fontsize=14)
+    g.set_xlabels(label="Correlation coefficient", fontweight="bold",
+                  fontsize=14)
     g.set(yticks=[], ylabel="")
     g.despine(bottom=True, left=True)
 
@@ -190,13 +191,13 @@ def plot_corr_coefficients(data, output):
         patch.Patch(color=color_palette["GC-kendall"],
                     label="Kendall's Tau: Codon+GC")
     ]
-    plt.legend(handles=legend_patches, bbox_to_anchor=(0.6, 4.88),
+    plt.legend(handles=legend_patches, bbox_to_anchor=(0.75, 4.88),
                fancybox=True, fontsize=12, ncols=2)
 
     g.fig.set_figheight(10)
     g.fig.set_figwidth(15)
 
-    title = "Correlation coefficient densities across kingdoms"
+    title = "Correlation coefficient distributions across kingdoms"
     plt.suptitle(title, x=0.55, y=1.08, fontsize=18)
     for ext in ["svg", "pdf"]:
         plt.savefig(os.path.join(output, f"corr_coefficients.{ext}"),
@@ -417,9 +418,9 @@ if __name__ == "__main__":
         bins = optimal_bin(lengths)
         sns.histplot(lengths, bins=bins, alpha=0.4, color="maroon", kde=True,
                      line_kws={"linewidth": 2, "linestyle": "--"}, ax=axes[i,j])
-        axes[i,j].set_title(f"{kingdom}")
-        axes[i,j].set_xlabel("log10-amount")
-        axes[i,j].set_ylabel("Density")
+        axes[i,j].set_title(f"{kingdom}", fontweight="bold", fontsize=14)
+        axes[i,j].set_xlabel("log10(Amount)", fontweight="bold", fontsize=12)
+        axes[i,j].set_ylabel("Count", fontweight="bold", fontsize=12)
         amount_df = amount_df.reindex(np.arange(0, max(len(amount_df.index),
                                                        len(data.index))))
         amount_df[kingdom] = pd.Series(data["Length_mean"].values)
@@ -432,7 +433,7 @@ if __name__ == "__main__":
     fig.set_figheight(10)
     fig.set_figwidth(15)
     fig.subplots_adjust(hspace=0.15, wspace=0.1)
-    fig.suptitle("Density of protein amounts", y=0.96, fontsize=18)
+    fig.suptitle("Distribution of protein amounts", y=0.96, fontsize=18)
     for ext in ["svg", "pdf"]:
         plt.savefig(os.path.join(input, f"protein_amounts.{ext}"),
                     bbox_inches="tight")
@@ -452,9 +453,9 @@ if __name__ == "__main__":
         bins = optimal_bin(lengths)
         sns.histplot(lengths, bins=bins, alpha=0.4, color="maroon", kde=True,
                      line_kws={"linewidth": 2, "linestyle": "--"}, ax=axes[i,j])
-        axes[i,j].set_title(f"{kingdom}")
-        axes[i,j].set_xlabel("log10-length")
-        axes[i,j].set_ylabel("Density")
+        axes[i,j].set_title(f"{kingdom}", fontweight="bold", fontsize=14)
+        axes[i,j].set_xlabel("log10(Length)", fontweight="bold", fontsize=12)
+        axes[i,j].set_ylabel("Count", fontweight="bold", fontsize=12)
         length_df = length_df.reindex(np.arange(0, max(len(length_df.index),
                                                        len(data.index))))
         length_df[kingdom] = pd.Series(data["Length_mean"].values)
@@ -467,7 +468,7 @@ if __name__ == "__main__":
     fig.set_figheight(10)
     fig.set_figwidth(15)
     fig.subplots_adjust(hspace=0.15, wspace=0.1)
-    fig.suptitle("Density of mean protein lengths", y=0.96, fontsize=18)
+    fig.suptitle("Distribution of mean protein lengths", y=0.96, fontsize=18)
     for ext in ["svg", "pdf"]:
         plt.savefig(os.path.join(input, f"protein_lengths.{ext}"),
                     bbox_inches="tight")
@@ -487,9 +488,9 @@ if __name__ == "__main__":
         bins = optimal_bin(lengths)
         sns.histplot(lengths, bins=bins, alpha=0.4, color="maroon", kde=True,
                      line_kws={"linewidth": 2, "linestyle": "--"}, ax=axes[i,j])
-        axes[i,j].set_title(f"{kingdom}")
-        axes[i,j].set_xlabel("GC content")
-        axes[i,j].set_ylabel("Density")
+        axes[i,j].set_title(f"{kingdom}", fontweight="bold", fontsize=14)
+        axes[i,j].set_xlabel("GC content", fontweight="bold", fontsize=12)
+        axes[i,j].set_ylabel("Count", fontweight="bold", fontsize=12)
         gcs_df = gcs_df.reindex(np.arange(0, max(len(gcs_df.index),
                                                  len(data.index))))
         gcs_df[kingdom] = pd.Series(data["GC_mean"].values)
@@ -502,7 +503,8 @@ if __name__ == "__main__":
     fig.set_figheight(10)
     fig.set_figwidth(15)
     fig.subplots_adjust(hspace=0.15, wspace=0.1)
-    fig.suptitle("Density of protein GC contents", y=0.96, fontsize=18)
+    fig.suptitle("Distribution of mean protein GC contents", y=0.96,
+                 fontsize=18)
     for ext in ["svg", "pdf"]:
         plt.savefig(os.path.join(input, f"protein_gcs.{ext}"),
                     bbox_inches="tight")
@@ -527,9 +529,11 @@ if __name__ == "__main__":
         positive_df.loc[:,"Value"] = list(positive_data)
         positive_df = positive_df.sort_values(by=["GC"]).astype(float)
         sns.lineplot(data=positive_df, x="GC", y="Value", errorbar=None,
-                     markers=True, dashes=False, color="black", linewidth=2, ax=axes[i,j])
+                     markers=True, dashes=False, color="black", linewidth=2,
+                     ax=axes[i,j])
         sns.lineplot(data=positive_df, x="GC", y="Value", errorbar="pi",
-                     markers=True, dashes=False, color="royalblue", linewidth=1, ax=axes[i,j])
+                     markers=True, dashes=False, color="royalblue", linewidth=1,
+                     ax=axes[i,j])
 
         negative_df = pd.DataFrame(columns=["GC", "Value"])
         negative_data = data[["D_mean", "E_mean"]].sum(axis=1)
@@ -542,10 +546,10 @@ if __name__ == "__main__":
                      color="goldenrod", linewidth=1, ax=axes[i,j])
 
         corr,corr_p = sci.spearmanr(positive_data, negative_data)
-        axes[i,j].set_title(f"{kingdom}, $r_S$={corr:.3f}, p={corr_p:.3e}")
-        axes[i,j].set_xlabel("GC content")
-        axes[i,j].set_ylabel("Frequency")
-        sns.despine()
+        axes[i,j].set_title(f"{kingdom}, $r_S$={corr:.3f}, p={corr_p:.3e}",
+                            fontweight="bold", fontsize=14)
+        axes[i,j].set_xlabel("GC content", fontweight="bold", fontsize=12)
+        axes[i,j].set_ylabel("Frequency", fontweight="bold", fontsize=12)
 
         charged_df.loc["Positive_mean", kingdom] = positive_data.mean()
         charged_df.loc["Positive_std", kingdom] = positive_data.std()
@@ -560,15 +564,16 @@ if __name__ == "__main__":
         patch.Patch(color="royalblue", label="Positively charged AA"),
         patch.Patch(color="goldenrod", label="Negatively charged AA")
     ]
-    axes[0,0].legend(handles=legend_patches, bbox_to_anchor=(1.2, -0.05),
+    axes[0,0].legend(handles=legend_patches, bbox_to_anchor=(1.3, -0.05),
                      fancybox=True, fontsize=12)
     axes[0,1].set_ylabel("")
     axes[1,1].set_ylabel("")
 
-    fig.subplots_adjust(wspace=0.1, hspace=0.35)
+    fig.subplots_adjust(wspace=0.05, hspace=0.35)
     fig.set_figheight(10)
     fig.set_figwidth(15)
-    fig.suptitle("Frequencies of charged amino acids", y=0.96, fontsize=18)
+    fig.suptitle("Frequencies of charged amino acids per GC content", y=0.96,
+                 fontsize=18)
     for ext in ["svg", "pdf"]:
         plt.savefig(os.path.join(input, f"charged_aas.{ext}"),
                     bbox_inches="tight")
@@ -588,9 +593,10 @@ if __name__ == "__main__":
                                    capsize=1, figsize=(14, 7), zorder=2)
     plt.xticks(np.arange(len(amino_acids)), amino_acids)
     plt.ylim(bottom=0)
-    plt.xlabel("Amino acid")
-    plt.ylabel("Amino acid frequency")
-    plt.title("Mean protein amino acid distributions across kingdoms")
+    plt.xlabel("Amino acid", fontweight="bold", fontsize=12)
+    plt.ylabel("Frequency", fontweight="bold", fontsize=12)
+    plt.title("Distributions of mean amino acid frequencies across kingdoms",
+              y=1.04, fontsize=16)
     plt.legend(title="Kingdom", loc="upper left", fancybox=True, fontsize=12)
     plt.xticks(rotation=0)
     plt.grid(alpha=0.5, zorder=0)
@@ -666,25 +672,26 @@ if __name__ == "__main__":
         axes[i,j].axhline(y=0, zorder=1, color="firebrick", linestyle="--")
         axes[i,j].grid(visible=True, which="major", color="#999999",
                        linestyle="dotted", alpha=0.5, zorder=0)
-        axes[i,j].set_title(kingdom)
+        axes[i,j].set_title(kingdom, fontweight="bold", fontsize=14)
         i = 1 if j == 1 else i
         j = 0 if j == 1 else j + 1
 
     for i in [0, 1]:
-        axes[1,i].set_xlabel("Amino acid")
-        axes[i,0].set_ylabel("Percentage difference in %")
+        axes[1,i].set_xlabel("Amino acid", fontweight="bold", fontsize=12)
+        axes[i,0].set_ylabel("Percentage difference in %", fontweight="bold",
+                             fontsize=12)
 
     axes[0,0].legend([code_box["boxes"][0], freq_box["boxes"][0]],
-                     ["Codon number", "Codon+GC"], bbox_to_anchor=(0.35, 1.25),
+                     ["Codon number", "Codon+GC"], bbox_to_anchor=(1.05, -0.1),
                      fancybox=True, fontsize=12)
     num_text = "1 - Aliphatic    3 - Charged\n2 - Aromatic    4 - Uncharged"
-    axes[0,0].text(1.7, 1.1, num_text, fontweight="bold", color="firebrick",
+    axes[0,0].text(1.05, -0.265, num_text, fontweight="bold", color="firebrick",
                    bbox=dict(facecolor="white", edgecolor="grey", alpha=0.3,
                              boxstyle="round"), linespacing=2, fontsize=12,
                    transform=axes[0,0].transAxes)
     fig.set_figheight(10)
     fig.set_figwidth(15)
-    fig.subplots_adjust(wspace=0.1)
+    fig.subplots_adjust(hspace=0.4, wspace=0.1)
     fig.suptitle("Percentage differences between amino acid distributions",
                  y=0.96, fontsize=18)
     for ext in ["svg", "pdf"]:
@@ -739,28 +746,29 @@ if __name__ == "__main__":
         axes[i,j].axhline(y=0, zorder=1, color="firebrick", linestyle="--")
         axes[i,j].grid(visible=True, which="major", color="#999999",
                        linestyle="dotted", alpha=0.5, zorder=0)
-        axes[i,j].set_title(kingdom)
+        axes[i,j].set_title(kingdom, fontweight="bold", fontsize=14)
         i = 1 if j == 1 else i
         j = 0 if j == 1 else j + 1
 
     for i in [0, 1]:
-        axes[1,i].set_xlabel("Amino acid")
-        axes[i,0].set_ylabel("Percentage difference in %")
+        axes[1,i].set_xlabel("Amino acid", fontweight="bold", fontsize=12)
+        axes[i,0].set_ylabel("Percentage difference in %", fontweight="bold",
+                             fontsize=12)
 
     legend_patches = [
         patch.Patch(color="royalblue", label="Codon number"),
         patch.Patch(color="goldenrod", label="Codon+GC")
     ]
-    axes[0,0].legend(handles=legend_patches, bbox_to_anchor=(0.35, 1.25),
+    axes[0,0].legend(handles=legend_patches, bbox_to_anchor=(1.05, -0.1),
                      fancybox=True, fontsize=12)
     num_text = "1 - Aliphatic    3 - Charged\n2 - Aromatic    4 - Uncharged"
-    axes[0,0].text(1.7, 1.1, num_text, fontweight="bold", color="firebrick",
+    axes[0,0].text(1.05, -0.265, num_text, fontweight="bold", color="firebrick",
                    bbox=dict(facecolor="white", edgecolor="grey", alpha=0.3,
                              boxstyle="round"), linespacing=2, fontsize=12,
                    transform=axes[0,0].transAxes)
     fig.set_figheight(10)
     fig.set_figwidth(15)
-    fig.subplots_adjust(wspace=0.1)
+    fig.subplots_adjust(hspace=0.4, wspace=0.1)
     fig.suptitle("Percentage differences between amino acid distributions",
                  y=0.96, fontsize=18)
     for ext in ["svg", "pdf"]:
@@ -796,19 +804,20 @@ if __name__ == "__main__":
                     palette=["royalblue", "goldenrod"], bw_adjust=0.5, cut=0,
                     split=True, legend=None)
     g.set_axis_labels("", "")
-    g.set_titles("{col_name}")
+    g.set_titles("{col_name}", fontweight="bold", size=14)
     legend_patches = [
         patch.Patch(color="royalblue", label="Codon number"),
         patch.Patch(color="goldenrod", label="Codon+GC")
     ]
-    g.fig.legend(handles=legend_patches, bbox_to_anchor=(0.3, 1.01), fancybox=True,
-                 fontsize=12)
-    g.fig.supxlabel("Correlation type", y=0.05)
-    g.fig.supylabel("Correlation coefficient", x=-0.01)
+    g.fig.legend(handles=legend_patches, bbox_to_anchor=(0.25, 0.9),
+                 fancybox=True, fontsize=12)
+    g.fig.supxlabel("Correlation type", y=0.05, fontweight="bold", fontsize=12)
+    g.fig.supylabel("Correlation coefficient", x=-0.01, fontweight="bold",
+                    fontsize=12)
     g.fig.set_figheight(10)
     g.fig.set_figwidth(15)
-    g.fig.suptitle("Correlation coefficient densities across kingdoms", y=1,
-                   fontsize=16)
+    g.fig.suptitle("Correlation coefficient distributions across kingdoms", y=1,
+                   fontsize=18)
     for ext in ["svg", "pdf"]:
         plt.savefig(os.path.join(input, f"corr_coefficients_catplot.{ext}"),
                     bbox_inches="tight")
