@@ -76,9 +76,11 @@ def process_file(file, amino_acids, enc_df, codes, code_map_df, output, permuts,
     fold_sr["#Proteins"] = len(df)
     for col in ["GC", "Length"]+amino_acids:
         if(col in df.columns):
-            fold_sr[f"{col}_med"] = df[col].median()
+            fold_sr[f"{col}_mean"] = df[col].mean()
+            fold_sr[f"{col}_std"] = df[col].std()
         else:
-            fold_sr[f"{col}_med"] = 0.0
+            fold_sr[f"{col}_mean"] = 0.0
+            fold_sr[f"{col}_std"] = 0.0
 
     tax_id = int(id.split("_")[1])
     code_id = int(enc_df.loc[tax_id, "GeneticID"])
@@ -93,38 +95,38 @@ def process_file(file, amino_acids, enc_df, codes, code_map_df, output, permuts,
     # Load frequency functions for each amino acid based on the codons and
     # GC content
     freq_funcs = ef.build_functions(yaml_code)
-    calc_func = ef.calculate_frequencies(freq_funcs, fold_sr["GC_med"])
+    calc_func = ef.calculate_frequencies(freq_funcs, fold_sr["GC_mean"])
     for aa in amino_acids:
         fold_sr[f"{aa}_freq"] = calc_func["amino"][ONE_LETTER_TO_AA[aa]]
 
-    aa_med_cols = [f"{aa}_med" for aa in amino_acids]
+    aa_mean_cols = [f"{aa}_mean" for aa in amino_acids]
     aa_freq_cols = [f"{aa}_freq" for aa in amino_acids]
     ############################ Percentage change between empirical and code
     ############################ data/frequency data
     for aa in amino_acids:
         code_freq = code_df["Frequency"][aa]
         func_freq = fold_sr[f"{aa}_freq"]
-        fold_sr[f"{aa}_pct_code"] = ((fold_sr[f"{aa}_med"] - code_freq) / code_freq) * 100
-        fold_sr[f"{aa}_pct_freq"] = ((fold_sr[f"{aa}_med"] - func_freq) / func_freq) * 100
+        fold_sr[f"{aa}_pct_code"] = ((fold_sr[f"{aa}_mean"] - code_freq) / code_freq) * 100
+        fold_sr[f"{aa}_pct_freq"] = ((fold_sr[f"{aa}_mean"] - func_freq) / func_freq) * 100
 
     ############################ Spearman code
-    corr, p_corr = s_corr_permut_test(fold_sr[aa_med_cols],
+    corr, p_corr = s_corr_permut_test(fold_sr[aa_mean_cols],
                                       code_df["Frequency"][amino_acids], permuts)
     fold_sr["Spearman_code"] = corr
     fold_sr["Spearman_code_p"] = p_corr
     ############################ Spearman frequency
-    corr, p_corr = s_corr_permut_test(fold_sr[aa_med_cols],
+    corr, p_corr = s_corr_permut_test(fold_sr[aa_mean_cols],
                                       fold_sr[aa_freq_cols], permuts)
     fold_sr["Spearman_freq"] = corr
     fold_sr["Spearman_freq_p"] = p_corr
     ############################ Kendall tau code
-    corr, p_corr = sci.kendalltau(fold_sr[aa_med_cols],
+    corr, p_corr = sci.kendalltau(fold_sr[aa_mean_cols],
                                   code_df["Frequency"][amino_acids],
                                   nan_policy="raise")
     fold_sr["Kendall_code"] = corr
     fold_sr["Kendall_code_p"] = p_corr
     ############################ Kendall tau frequency
-    corr, p_corr = sci.kendalltau(fold_sr[aa_med_cols], fold_sr[aa_freq_cols],
+    corr, p_corr = sci.kendalltau(fold_sr[aa_mean_cols], fold_sr[aa_freq_cols],
                                   nan_policy="raise")
     fold_sr["Kendall_freq"] = corr
     fold_sr["Kendall_freq_p"] = p_corr

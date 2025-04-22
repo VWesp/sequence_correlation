@@ -9,10 +9,23 @@ def build_functions(code):
     # frequencies of each nucleotide depending on the GC content
     g = sp.symbols("g", float=True)
     letter_func = {}
-    letter_func["G"] = g/2
-    letter_func["C"] = g/2
     letter_func["A"] = (1-g)/2
+    letter_func["C"] = g/2
+    letter_func["G"] = g/2
     letter_func["T"] = (1-g)/2
+
+    # additional nucleotide symbols (IUPAC)
+    letter_func["R"] = letter_func["A"] + letter_func["G"]
+    letter_func["Y"] = letter_func["C"] + letter_func["T"]
+    letter_func["S"] = letter_func["C"] + letter_func["G"]
+    letter_func["W"] = letter_func["A"] + letter_func["T"]
+    letter_func["K"] = letter_func["G"] + letter_func["T"]
+    letter_func["M"] = letter_func["A"] + letter_func["C"]
+    letter_func["B"] = 1 - letter_func["A"]
+    letter_func["D"] = 1 - letter_func["C"]
+    letter_func["H"] = 1 - letter_func["G"]
+    letter_func["V"] = 1 - letter_func["T"]
+    letter_func["N"] = 1
 
     funcs = {"codon": {}, "amino": {}}
     #loop over all amino acids and their codons
