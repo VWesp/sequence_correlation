@@ -37,7 +37,7 @@ if __name__ == '__main__':
 
     corr_cost_df = pd.DataFrame(columns=["Corr", "P-value", "Synthesis", "Correlation test"],
                                 index=[np.arange(0, 6, 1)])
-    repeats = 100
+    repeats = 100000
     spear_glucose_corr = s_corr_permut_test(ecoli_aa_freqs.values, ecoli_aa_glocuse,
                                             repeats)
     corr_cost_df.iloc[0] = [spear_glucose_corr[0], spear_glucose_corr[1],
