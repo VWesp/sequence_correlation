@@ -24,12 +24,12 @@ def mean_corr(corrs, p_values):
     return [mean_corr, np.mean(p_values)]
 
 
-def plot_lengths(data, kingdom, output):
+def plot_lengths(data, domain, output):
     lengths = np.log10(data["Length_mean"]+1)
     bins = optimal_bin(lengths)
     sns.histplot(lengths, bins=bins, alpha=0.4, color="maroon", kde=True,
                  line_kws={"linewidth": 2, "linestyle": "--"})
-    plt.title(f"{kingdom} - Distribution of mean protein length")
+    plt.title(f"{domain} - Distribution of mean protein length")
     plt.xlabel("log10(Length)", fontweight="bold", fontsize=10)
     plt.ylabel("Count", fontweight="bold", fontsize=10)
     for ext in ["svg", "pdf"]:
@@ -39,12 +39,12 @@ def plot_lengths(data, kingdom, output):
     plt.close()
 
 
-def plot_gcs(data, kingdom, output):
+def plot_gcs(data, domain, output):
     gcs = data["GC_mean"]
     bins = optimal_bin(gcs)
     sns.histplot(gcs, bins=bins, alpha=0.4, color="maroon", kde=True,
                  line_kws={"linewidth": 2, "linestyle": "--"})
-    plt.title(f"{kingdom} - Distribution of mean protein GC content")
+    plt.title(f"{domain} - Distribution of mean protein GC content")
     plt.xlabel("GC content", fontweight="bold", fontsize=10)
     plt.ylabel("Count", fontweight="bold", fontsize=10)
     for ext in ["svg", "pdf"]:
@@ -54,12 +54,12 @@ def plot_gcs(data, kingdom, output):
     plt.close()
 
 
-def plot_amount(data, kingdom, output):
+def plot_amount(data, domain, output):
     nums = np.log10(data["#Proteins"]+1)
     bins = optimal_bin(nums)
     sns.histplot(nums, bins=bins, alpha=0.4, color="maroon", kde=True,
                  line_kws={"linewidth": 2, "linestyle": "--"})
-    plt.title(f"{kingdom} - Distribution of protein amount")
+    plt.title(f"{domain} - Distribution of protein amount")
     plt.xlabel("log10(Amount)", fontweight="bold", fontsize=10)
     plt.ylabel("Count", fontweight="bold", fontsize=10)
     for ext in ["svg", "pdf"]:
@@ -69,7 +69,7 @@ def plot_amount(data, kingdom, output):
     plt.close()
 
 
-def plot_pct(data, aa_groups, kingdom, output):
+def plot_pct(data, aa_groups, domain, output):
     fig,axes = plt.subplots(2, 2, sharey=True)
     i = 0
     j = 0
@@ -146,7 +146,7 @@ def plot_pct(data, aa_groups, kingdom, output):
                   edgecolor="grey", alpha=0.5))
 
     fig.subplots_adjust(wspace=0.6, hspace=0.3)
-    title = f"{kingdom} - Percentage difference between amino acid distributions"
+    title = f"{domain} - Percentage difference between amino acid distributions"
     fig.suptitle(title, fontsize=15, y=0.95)
     fig.set_figheight(10)
     fig.set_figwidth(15)
@@ -161,7 +161,7 @@ def plot_corr_coefficients(data, output):
     color_palette = {"CN-spear": "maroon", "GC-spear": "darkorange",
                      "CN-kendall": "royalblue", "GC-kendall": "forestgreen"}
     data["Comb_col"] = data["Correlation"] + "-" + data["Comparison"]
-    g = sns.FacetGrid(data, row="Kingdom", hue="Comb_col",
+    g = sns.FacetGrid(data, row="Domain", hue="Comb_col",
                       palette=list(color_palette.values()))
     g.map(sns.kdeplot, "Coefficient", clip_on=False, fill=False, alpha=1,
           color="black")
@@ -174,7 +174,7 @@ def plot_corr_coefficients(data, output):
         ax.text(0, 0.2, x.iloc[0], color="black", fontsize=14, ha="left",
                 va="center", fontweight="bold", transform=ax.transAxes)
 
-    g.map(label, "Kingdom")
+    g.map(label, "Domain")
     g.set_titles("")
     g.set_xlabels(label="Correlation coefficient", fontweight="bold",
                   fontsize=14)
@@ -197,7 +197,7 @@ def plot_corr_coefficients(data, output):
     g.fig.set_figheight(10)
     g.fig.set_figwidth(15)
 
-    title = "Correlation coefficient distributions across kingdoms"
+    title = "Correlation coefficient distributions across domains"
     plt.suptitle(title, x=0.55, y=1.08, fontsize=18)
     for ext in ["svg", "pdf"]:
         plt.savefig(os.path.join(output, f"corr_coefficients.{ext}"),
@@ -216,7 +216,7 @@ def plot_plotogram(data_dct, aa_groups, output):
                       for aa in aa_list]
     fig,axes = plt.subplots(5, 4)
     sns_pal = sns.color_palette("viridis", len(amino_acids))
-    for j,(kingdom,data) in enumerate(data_dct.items()):
+    for j,(domain,data) in enumerate(data_dct.items()):
         #Plot protein GC content
         gcs = data["GC_mean"]
         bins = optimal_bin(gcs)
@@ -300,7 +300,7 @@ def plot_plotogram(data_dct, aa_groups, output):
         axes[4,j].set_xlabel(u"Correlation coefficient (\u03C4)", fontweight="bold")
         axes[4,j].tick_params(axis="y", labelleft=False)
 
-        axes[0,j].set_title(kingdom, fontsize=16, fontweight="bold")
+        axes[0,j].set_title(domain, fontsize=16, fontweight="bold")
         for i in range(5):
             axes[i,j].set_ylabel("")
 
@@ -346,7 +346,7 @@ def plot_plotogram(data_dct, aa_groups, output):
                      fancybox=True, fontsize=10)
 
     # Set the plots of the first and last two rows to share the same x-axis
-    # across kingdoms
+    # across domains
     for i in [0, 3, 4]:
         x_min = min([axes[i,j].get_xlim()[0] for j in range(4)])
         x_max = max([axes[i,j].get_xlim()[1] for j in range(4)])
@@ -357,7 +357,7 @@ def plot_plotogram(data_dct, aa_groups, output):
                 axes[i,j].set_xlim(x_min, 1)
 
     # Set the plots of the next two rows to share the same y-axis across
-    # kingdoms
+    # domains
     for i in [1, 2]:
         y_min = min([axes[i,j].get_ylim()[0] for j in range(4)])
         y_max = max([axes[i,j].get_ylim()[1] for j in range(4)])
@@ -394,36 +394,36 @@ if __name__ == "__main__":
                  "W", "Y"], "Charged": ["D", "E", "H", "K", "R"],
                  "Uncharged": ["C", "N", "P", "Q", "S", "T"]}
 
-    kingdoms = ["Archaea", "Bacteria", "Eukaryotes", "Viruses"]
-    kingdom_corr_df = pd.DataFrame(columns=["Coefficient", "Correlation",
-                                            "Comparison", "Kingdom"])
+    domains = ["Archaea", "Bacteria", "Eukaryotes", "Viruses"]
+    domain_corr_df = pd.DataFrame(columns=["Coefficient", "Correlation",
+                                            "Comparison", "Domain"])
     all_data_dct = {}
-    for kingdom in kingdoms:
-        king_path = os.path.join(input, kingdom)
+    for domain in domains:
+        king_path = os.path.join(input, domain)
         data = pd.read_csv(os.path.join(king_path, "aa_corr_results.csv"),
                            sep="\t", header=0, index_col=0)
-        plot_lengths(data, kingdom, king_path)
-        plot_gcs(data, kingdom, king_path)
-        plot_amount(data, kingdom, king_path)
-        plot_pct(data, aa_groups, kingdom, king_path)
-        all_data_dct[kingdom] = data
+        plot_lengths(data, domain, king_path)
+        plot_gcs(data, domain, king_path)
+        plot_amount(data, domain, king_path)
+        plot_pct(data, aa_groups, domain, king_path)
+        all_data_dct[domain] = data
 
-    ######################################## Protein amounts across all kingdoms
+    ######################################## Protein amounts across all domains
     fig,axes = plt.subplots(2, 2, sharex=True)
     i = 0
     j = 0
-    amount_df = pd.DataFrame(columns=kingdoms)
-    for kingdom,data in all_data_dct.items():
+    amount_df = pd.DataFrame(columns=domains)
+    for domain,data in all_data_dct.items():
         lengths = np.log10(data["#Proteins"]+1)
         bins = optimal_bin(lengths)
         sns.histplot(lengths, bins=bins, alpha=0.4, color="maroon", kde=True,
                      line_kws={"linewidth": 2, "linestyle": "--"}, ax=axes[i,j])
-        axes[i,j].set_title(f"{kingdom}", fontweight="bold", fontsize=14)
+        axes[i,j].set_title(f"{domain}", fontweight="bold", fontsize=14)
         axes[i,j].set_xlabel("log10(Amount)", fontweight="bold", fontsize=12)
         axes[i,j].set_ylabel("Count", fontweight="bold", fontsize=12)
         amount_df = amount_df.reindex(np.arange(0, max(len(amount_df.index),
                                                        len(data.index))))
-        amount_df[kingdom] = pd.Series(data["Length_mean"].values)
+        amount_df[domain] = pd.Series(data["Length_mean"].values)
         j = 1 if i == 1 else j
         i = 0 if i == 1 else i + 1
 
@@ -443,22 +443,22 @@ if __name__ == "__main__":
                      index=False)
     ############################################################################
 
-    ######################################## Protein lengths across all kingdoms
+    ######################################## Protein lengths across all domains
     fig,axes = plt.subplots(2, 2, sharex=True)
     i = 0
     j = 0
-    length_df = pd.DataFrame(columns=kingdoms)
-    for kingdom,data in all_data_dct.items():
+    length_df = pd.DataFrame(columns=domains)
+    for domain,data in all_data_dct.items():
         lengths = np.log10(data["Length_mean"]+1)
         bins = optimal_bin(lengths)
         sns.histplot(lengths, bins=bins, alpha=0.4, color="maroon", kde=True,
                      line_kws={"linewidth": 2, "linestyle": "--"}, ax=axes[i,j])
-        axes[i,j].set_title(f"{kingdom}", fontweight="bold", fontsize=14)
+        axes[i,j].set_title(f"{domain}", fontweight="bold", fontsize=14)
         axes[i,j].set_xlabel("log10(Length)", fontweight="bold", fontsize=12)
         axes[i,j].set_ylabel("Count", fontweight="bold", fontsize=12)
         length_df = length_df.reindex(np.arange(0, max(len(length_df.index),
                                                        len(data.index))))
-        length_df[kingdom] = pd.Series(data["Length_mean"].values)
+        length_df[domain] = pd.Series(data["Length_mean"].values)
         i = 1 if j == 1 else i
         j = 0 if j == 1 else j + 1
 
@@ -478,22 +478,22 @@ if __name__ == "__main__":
                      index=False)
     ############################################################################
 
-    #################################### Protein GC contents across all kingdoms
+    #################################### Protein GC contents across all domains
     fig,axes = plt.subplots(2, 2, sharex=True)
     i = 0
     j = 0
-    gcs_df = pd.DataFrame(columns=kingdoms)
-    for kingdom,data in all_data_dct.items():
+    gcs_df = pd.DataFrame(columns=domains)
+    for domain,data in all_data_dct.items():
         lengths = data["GC_mean"]
         bins = optimal_bin(lengths)
         sns.histplot(lengths, bins=bins, alpha=0.4, color="maroon", kde=True,
                      line_kws={"linewidth": 2, "linestyle": "--"}, ax=axes[i,j])
-        axes[i,j].set_title(f"{kingdom}", fontweight="bold", fontsize=14)
+        axes[i,j].set_title(f"{domain}", fontweight="bold", fontsize=14)
         axes[i,j].set_xlabel("GC content", fontweight="bold", fontsize=12)
         axes[i,j].set_ylabel("Count", fontweight="bold", fontsize=12)
         gcs_df = gcs_df.reindex(np.arange(0, max(len(gcs_df.index),
                                                  len(data.index))))
-        gcs_df[kingdom] = pd.Series(data["GC_mean"].values)
+        gcs_df[domain] = pd.Series(data["GC_mean"].values)
         i = 1 if j == 1 else i
         j = 0 if j == 1 else j + 1
 
@@ -520,8 +520,8 @@ if __name__ == "__main__":
     j = 0
     positve = ["D", "E"]
     negative = ["H", "K", "R"]
-    charged_df = pd.DataFrame(columns=kingdoms)
-    for kingdom,data in all_data_dct.items():
+    charged_df = pd.DataFrame(columns=domains)
+    for domain,data in all_data_dct.items():
         gcs = np.asarray((data["GC_mean"]*100).apply(np.floor)/100)
         positive_data = data[["H_mean", "K_mean", "R_mean"]].sum(axis=1)
         positive_df = pd.DataFrame(columns=["GC", "Value"])
@@ -546,17 +546,17 @@ if __name__ == "__main__":
                      color="goldenrod", linewidth=1, ax=axes[i,j])
 
         corr,corr_p = sci.spearmanr(positive_data, negative_data)
-        axes[i,j].set_title(f"{kingdom}, $r_S$={corr:.3f}, p={corr_p:.3e}",
+        axes[i,j].set_title(f"{domain}, $r_S$={corr:.3f}, p={corr_p:.3e}",
                             fontweight="bold", fontsize=14)
         axes[i,j].set_xlabel("GC content", fontweight="bold", fontsize=12)
         axes[i,j].set_ylabel("Frequency", fontweight="bold", fontsize=12)
 
-        charged_df.loc["Positive_mean", kingdom] = positive_data.mean()
-        charged_df.loc["Positive_std", kingdom] = positive_data.std()
-        charged_df.loc["Negative_mean", kingdom] = negative_data.mean()
-        charged_df.loc["Negative_std", kingdom] = negative_data.std()
-        charged_df.loc["Spearman", kingdom] = corr
-        charged_df.loc["Spearman_p", kingdom] = corr_p
+        charged_df.loc["Positive_mean", domain] = positive_data.mean()
+        charged_df.loc["Positive_std", domain] = positive_data.std()
+        charged_df.loc["Negative_mean", domain] = negative_data.mean()
+        charged_df.loc["Negative_std", domain] = negative_data.std()
+        charged_df.loc["Spearman", domain] = corr
+        charged_df.loc["Spearman_p", domain] = corr_p
         i = 1 if j == 1 else i
         j = 0 if j == 1 else j + 1
 
@@ -582,11 +582,11 @@ if __name__ == "__main__":
     charged_df.to_csv(os.path.join(input, "charged_aas.csv"), sep="\t")
     ############################################################################
 
-    ############################# Mean amino acid abundances across all kingdoms
-    freq_df = pd.DataFrame(columns=kingdoms, index=aa_mean_cols+aa_std_cols)
-    for kingdom,data in all_data_dct.items():
-        freq_df.loc[aa_mean_cols, kingdom] = data[aa_mean_cols].mean()
-        freq_df.loc[aa_std_cols, kingdom] = data[aa_mean_cols].std().values
+    ############################# Mean amino acid abundances across all domains
+    freq_df = pd.DataFrame(columns=domains, index=aa_mean_cols+aa_std_cols)
+    for domain,data in all_data_dct.items():
+        freq_df.loc[aa_mean_cols, domain] = data[aa_mean_cols].mean()
+        freq_df.loc[aa_std_cols, domain] = data[aa_mean_cols].std().values
 
     freq_df.to_csv(os.path.join(input, "amino_acid_abundances.csv"), sep="\t")
     freq_df.loc[aa_mean_cols].plot(kind="bar", yerr=freq_df.loc[aa_std_cols].values.T,
@@ -595,9 +595,9 @@ if __name__ == "__main__":
     plt.ylim(bottom=0)
     plt.xlabel("Amino acid", fontweight="bold", fontsize=12)
     plt.ylabel("Frequency", fontweight="bold", fontsize=12)
-    plt.title("Distributions of mean amino acid frequencies across kingdoms",
+    plt.title("Distributions of mean amino acid frequencies across domains",
               y=1.04, fontsize=16)
-    plt.legend(title="Kingdom", loc="upper left", fancybox=True, fontsize=12)
+    plt.legend(title="Domain", loc="upper left", fancybox=True, fontsize=12)
     plt.xticks(rotation=0)
     plt.grid(alpha=0.5, zorder=0)
     for ext in ["svg", "pdf"]:
@@ -607,20 +607,20 @@ if __name__ == "__main__":
     plt.close()
     ############################################################################
 
-    #################### Percentage differences across all kingdoms as box plots
+    #################### Percentage differences across all domains as box plots
     fig,axes = plt.subplots(2, 2, sharex=True, sharey=True)
     i = 0
     j = 0
     aa_group_order = [aa for group,aa_list in aa_groups.items()
                       for aa in aa_list]
-    pct_cols = [f"{kingdom}_{comp_type}" for kingdom in kingdoms
+    pct_cols = [f"{domain}_{comp_type}" for domain in domains
                                          for comp_type in ["code", "freq"]]
     pct_df = pd.DataFrame(columns=pct_cols, index=amino_acids+["Mean", "Median"])
     code_box = None
     freq_box = None
-    for kingdom,data in all_data_dct.items():
+    for domain,data in all_data_dct.items():
         for comp_type in ["code", "freq"]:
-            king_comp = f"{kingdom}_{comp_type}"
+            king_comp = f"{domain}_{comp_type}"
             for aa in amino_acids:
                 pct_df.loc[aa, king_comp] = np.sqrt(np.mean(data[f"{aa}_pct_{comp_type}"]**2))
 
@@ -672,7 +672,7 @@ if __name__ == "__main__":
         axes[i,j].axhline(y=0, zorder=1, color="firebrick", linestyle="--")
         axes[i,j].grid(visible=True, which="major", color="#999999",
                        linestyle="dotted", alpha=0.5, zorder=0)
-        axes[i,j].set_title(kingdom, fontweight="bold", fontsize=14)
+        axes[i,j].set_title(domain, fontweight="bold", fontsize=14)
         i = 1 if j == 1 else i
         j = 0 if j == 1 else j + 1
 
@@ -702,7 +702,7 @@ if __name__ == "__main__":
     pct_df.to_csv(os.path.join(input, "amino_acid_pcts.csv"), sep="\t")
     ############################################################################
 
-    ################### Percentage differences across all kingdoms as line plots
+    ################### Percentage differences across all domains as line plots
     fig,axes = plt.subplots(2, 2, sharex=True, sharey=True)
     i = 0
     j = 0
@@ -710,7 +710,7 @@ if __name__ == "__main__":
                       for aa in aa_list]
     aa_pct_code_cols = [f"{aa}_pct_code" for aa in aa_group_order]
     aa_pct_freq_cols = [f"{aa}_pct_freq" for aa in aa_group_order]
-    for kingdom,data in all_data_dct.items():
+    for domain,data in all_data_dct.items():
         pct_code_data = data[aa_pct_code_cols].melt(var_name="x", value_name="y")
         pct_code_data["z"] = ["Codon number"] * len(pct_code_data)
         pct_code_data["x"] = pct_code_data["x"].str.split("_").str[0]
@@ -746,7 +746,7 @@ if __name__ == "__main__":
         axes[i,j].axhline(y=0, zorder=1, color="firebrick", linestyle="--")
         axes[i,j].grid(visible=True, which="major", color="#999999",
                        linestyle="dotted", alpha=0.5, zorder=0)
-        axes[i,j].set_title(kingdom, fontweight="bold", fontsize=14)
+        axes[i,j].set_title(domain, fontweight="bold", fontsize=14)
         i = 1 if j == 1 else i
         j = 0 if j == 1 else j + 1
 
@@ -778,18 +778,18 @@ if __name__ == "__main__":
     plt.close()
     ############################################################################
 
-    ############## Correlation coefficients across all kingdoms as density plots
+    ############## Correlation coefficients across all domains as density plots
     corr_df = pd.DataFrame(columns=["Coefficient", "Correlation", "Comparison",
-                                    "Kingdom"])
-    for kingdom,data in all_data_dct.items():
+                                    "Domain"])
+    for domain,data in all_data_dct.items():
         for corr_type in ["Spearman", "Kendall"]:
             for comp_type in ["code", "freq"]:
                 local_corr_df = pd.DataFrame(columns=["Coefficient", "Correlation",
-                                                      "Comparison", "Kingdom"])
+                                                      "Comparison", "Domain"])
                 local_corr_df.loc[:, "Coefficient"] = list(data[f"{corr_type}_{comp_type}"])
                 local_corr_df.loc[:, "Correlation"] = [corr_type] * len(data)
                 local_corr_df.loc[:, "Comparison"] = [comp_type] * len(data)
-                local_corr_df.loc[:, "Kingdom"] = [kingdom] * len(data)
+                local_corr_df.loc[:, "Domain"] = [domain] * len(data)
                 corr_df = pd.concat([corr_df if not corr_df.empty else None,
                                      local_corr_df])
 
@@ -798,9 +798,9 @@ if __name__ == "__main__":
     plot_corr_coefficients(corr_df, input)
     ############################################################################
 
-    ############### Correlation coefficients across all kingdoms as violin plots
+    ############### Correlation coefficients across all domains as violin plots
     g = sns.catplot(data=corr_df, x="Correlation", y="Coefficient",
-                    hue="Comparison", kind="violin", col="Kingdom",
+                    hue="Comparison", kind="violin", col="Domain",
                     palette=["royalblue", "goldenrod"], bw_adjust=0.5, cut=0,
                     split=True, legend=None)
     g.set_axis_labels("", "")
@@ -816,7 +816,7 @@ if __name__ == "__main__":
                     fontsize=12)
     g.fig.set_figheight(10)
     g.fig.set_figwidth(15)
-    g.fig.suptitle("Correlation coefficient distributions across kingdoms", y=1,
+    g.fig.suptitle("Correlation coefficient distributions across domains", y=1,
                    fontsize=18)
     for ext in ["svg", "pdf"]:
         plt.savefig(os.path.join(input, f"corr_coefficients_catplot.{ext}"),
