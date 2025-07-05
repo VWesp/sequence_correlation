@@ -1,199 +1,144 @@
-import io
 import os
 import sys
+import tqdm
 import yaml
-import time
-import paramiko
+import argparse
 import numpy as np
-import sympy as sp
 import pandas as pd
 import scipy.stats as sci
 import multiprocessing as mp
-from functools import partial
+import sklearn.metrics as skl
 import equation_functions as ef
 
 
-os.environ["MKL_NUM_THREADS"] = "1"
-HOST = "10.148.31.9"
-PORT = 22
-USER = "valentin-wesp"
-PASSWORD = "OidaUokEidos?1871"
-paramiko.util.log_to_file("paramiko_log.txt", level="INFO")
+def combine_distribution_stats(data):
+	tax_id,dis_df,code_name,freq_funcs,resamples = data
 
+	# Canonical amino acids order
+	amino_acids = ["M", "W", "C", "D", "E", "F", "H", "K", "N", "Q", "Y", "I", "A", "G", "P", "T", "V", "L", "R", "S"]
+	
+	# One letter code for the amino acids
+	one_letter_code = {"M": "Methionine", "T": "Threonine", "N": "Asparagine", "K": "Lysine", "S": "Serine", "R": "Arginine", "V": "Valine", "A": "Alanine", "D": "Aspartic_acid", 
+						"E": "Glutamic_acid", "G": "Glycine", "F": "Phenylalanine", "L": "Leucine", "Y": "Tyrosine", "C": "Cysteine", "W": "Tryptophane", "P": "Proline",
+						"H": "Histidine", "Q": "Glutamine", "I": "Isoleucine"}
 
-def create_ssh_client():
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(HOST, PORT, USER, PASSWORD)
-    sftp = ssh.open_sftp()
-    return [ssh, sftp]
+	dis_df.fillna(0.0, inplace=True)
+	dis_sr = pd.Series(name=tax_id)
+	dis_sr["Length_median"] = dis_df["Length"].median()
+	dis_sr["Length_mad"] = (dis_df["Length"] - dis_sr["Length_median"]).abs().median()
+	dis_sr["GC_median"] = dis_df["GC"].median()
+	dis_sr["GC_mad"] = (dis_df["GC"] - dis_sr["GC_median"]).abs().median()
+	 # Load frequency functions for each amino acid based on the codons and independent of GC content (GC=50%)
+	code_freq_func = ef.calculate_frequencies(freq_funcs, 0.5)
+	 # Load frequency functions for each amino acid based on the codons and GC content
+	gc_freq_func = ef.calculate_frequencies(freq_funcs, dis_sr["GC_median"])
+	for aa in amino_acids:
+		dis_sr[f"{aa}_median"] = dis_df[aa].median()
+		dis_sr[f"{aa}_mad"] = (dis_df[aa] - dis_sr[f"{aa}_median"]).abs().median()
+		
+		############################ Percentage change between empirical and code data
+		dis_sr[f"{aa}_code"] = code_freq_func["amino"][one_letter_code[aa]]
+		dis_sr[f"{aa}_code_pct"] = (dis_sr[f"{aa}_median"] - dis_sr[f"{aa}_code"]) / ((dis_sr[f"{aa}_median"] + dis_sr[f"{aa}_code"]) / 2)
+		
+		############################ Percentage change between empirical and frequency data
+		dis_sr[f"{aa}_gc"] = gc_freq_func["amino"][one_letter_code[aa]]
+		dis_sr[f"{aa}_gc_pct"] = (dis_sr[f"{aa}_median"] - dis_sr[f"{aa}_gc"]) / ((dis_sr[f"{aa}_median"] + dis_sr[f"{aa}_gc"]) / 2)
+	
 
-
-# One letter code for the amino acids of the genetic codes without Stop
-AA_TO_ONE_LETTER = {"Methionine": "M", "Threonine": "T", "Asparagine": "N",
-                    "Lysine": "K", "Serine": "S", "Arginine": "R",
-                    "Valine": "V", "Alanine": "A", "Aspartic_acid": "D",
-                    "Glutamic_acid": "E", "Glycine": "G", "Phenylalanine": "F",
-                    "Leucine": "L", "Tyrosine": "Y", "Cysteine": "C",
-                    "Tryptophane": "W", "Proline": "P", "Histidine": "H",
-                    "Glutamine": "Q", "Isoleucine": "I"}
-ONE_LETTER_TO_AA = {v:k for k,v in AA_TO_ONE_LETTER.items()}
-
-
-def s_corr_permut_test(x, y, permuts):
-    rank_x = sci.rankdata(x)
-    rank_y = sci.rankdata(y)
-    real_corr, _ = sci.spearmanr(rank_x, rank_y)
-    permuted_corrs = np.array([
-        sci.spearmanr(np.random.permutation(rank_x), rank_y)[0]
-        for _ in range(permuts)
-    ])
-    real_p_value = np.mean(np.abs(permuted_corrs) >= np.abs(real_corr))
-    return [real_corr, real_p_value]
-
-
-def process_file(file, amino_acids, enc_df, codes, code_map_df, output, permuts,
-                 prog, size, time_prog, lock):
-    df = None
-    while(True):
-        try:
-            ssh,sftp = create_ssh_client()
-            with sftp.open(file, "r") as df_remote:
-                csv_buffer = df_remote.read().decode("utf-8")
-                df = pd.read_csv(io.StringIO(csv_buffer), sep="\t", header=0,
-                                 index_col=0, on_bad_lines="skip")
-
-            sftp.close()
-            ssh.close()
-            break
-        except paramiko.ssh_exception.SSHException:
-            time.sleep(5)
-
-    df.fillna(0.0, inplace=True)
-    fold_sr = pd.Series()
-    id = os.path.basename(file).split(".")[0]
-    fold_sr.name = id
-    fold_sr["#Proteins"] = len(df)
-    for col in ["GC", "Length"]+amino_acids:
-        if(col in df.columns):
-            fold_sr[f"{col}_mean"] = df[col].mean()
-            fold_sr[f"{col}_std"] = df[col].std()
-        else:
-            fold_sr[f"{col}_mean"] = 0.0
-            fold_sr[f"{col}_std"] = 0.0
-
-    tax_id = int(id.split("_")[1])
-    code_id = int(enc_df.loc[tax_id, "GeneticID"])
-    code_name = code_map_df.loc[code_id, "Name"]
-    code_path = os.path.join(codes, code_name)
-    code_df = pd.read_csv(f"{code_path}.csv", sep="\t", header=0, index_col=0)
-
-    yaml_code = None
-    with open(f"{code_path}.yaml", "r") as code_reader:
-        yaml_code = yaml.safe_load(code_reader)
-
-    # Load frequency functions for each amino acid based on the codons and
-    # GC content
-    freq_funcs = ef.build_functions(yaml_code)
-    calc_func = ef.calculate_frequencies(freq_funcs, fold_sr["GC_mean"])
-    for aa in amino_acids:
-        fold_sr[f"{aa}_freq"] = calc_func["amino"][ONE_LETTER_TO_AA[aa]]
-
-    aa_mean_cols = [f"{aa}_mean" for aa in amino_acids]
-    aa_freq_cols = [f"{aa}_freq" for aa in amino_acids]
-    ############################ Percentage change between empirical and code
-    ############################ data/frequency data
-    for aa in amino_acids:
-        code_freq = code_df["Frequency"][aa]
-        func_freq = fold_sr[f"{aa}_freq"]
-        fold_sr[f"{aa}_pct_code"] = ((fold_sr[f"{aa}_mean"] - code_freq) / code_freq) * 100
-        fold_sr[f"{aa}_pct_freq"] = ((fold_sr[f"{aa}_mean"] - func_freq) / func_freq) * 100
-
-    ############################ Spearman code
-    corr, p_corr = s_corr_permut_test(fold_sr[aa_mean_cols],
-                                      code_df["Frequency"][amino_acids], permuts)
-    fold_sr["Spearman_code"] = corr
-    fold_sr["Spearman_code_p"] = p_corr
-    ############################ Spearman frequency
-    corr, p_corr = s_corr_permut_test(fold_sr[aa_mean_cols],
-                                      fold_sr[aa_freq_cols], permuts)
-    fold_sr["Spearman_freq"] = corr
-    fold_sr["Spearman_freq_p"] = p_corr
-    ############################ Kendall tau code
-    corr, p_corr = sci.kendalltau(fold_sr[aa_mean_cols],
-                                  code_df["Frequency"][amino_acids],
-                                  nan_policy="raise")
-    fold_sr["Kendall_code"] = corr
-    fold_sr["Kendall_code_p"] = p_corr
-    ############################ Kendall tau frequency
-    corr, p_corr = sci.kendalltau(fold_sr[aa_mean_cols], fold_sr[aa_freq_cols],
-                                  nan_policy="raise")
-    fold_sr["Kendall_freq"] = corr
-    fold_sr["Kendall_freq_p"] = p_corr
-
-    fold_sr["Genetic_code"] = code_name
-    with lock:
-        prog.value += 1
-        elapsed_time = time.strftime("%dd:%Hh:%Mm:%Ss", time.gmtime(time.time()-time_prog.value))
-        print(f"\rFiles: {prog.value}/{size} -> {prog.value/size*100:.2f}% -> Elapsed time: {elapsed_time}",
-              end="")
-
-    return fold_sr.to_frame().T
+	aa_median_cols = [f"{aa}_median" for aa in amino_acids]
+	code_freq_cols = [f"{aa}_code" for aa in amino_acids]
+	gc_freq_cols = [f"{aa}_gc" for aa in amino_acids]
+	############################ Pearson code
+	dis_sr["Ps_code"] = sci.pearsonr(dis_sr[aa_median_cols], dis_sr[code_freq_cols]).statistic
+	dis_sr["Ps_code_p"] = sci.permutation_test((dis_sr[aa_median_cols],), lambda x: sci.pearsonr(x, dis_sr[code_freq_cols]).statistic, permutation_type="pairings", 
+																					 			 n_resamples=resamples).pvalue
+	############################ Pearson frequency
+	dis_sr["Ps_gc"] = sci.pearsonr(dis_sr[aa_median_cols], dis_sr[gc_freq_cols]).statistic
+	dis_sr["Ps_gc_p"] = sci.permutation_test((dis_sr[aa_median_cols],), lambda x: sci.pearsonr(x, dis_sr[gc_freq_cols]).statistic, permutation_type="pairings", 
+																										  n_resamples=resamples).pvalue
+	############################ Spearman code
+	dis_sr["Sm_code"] = sci.spearmanr(dis_sr[aa_median_cols], dis_sr[code_freq_cols]).statistic
+	dis_sr["Sm_code_p"] = sci.permutation_test((dis_sr[aa_median_cols],), lambda x: sci.spearmanr(x, dis_sr[code_freq_cols]).statistic, permutation_type="pairings", 
+																					 			  n_resamples=resamples).pvalue
+	############################ Spearman frequency
+	dis_sr["Sm_gc"] = sci.spearmanr(dis_sr[aa_median_cols], dis_sr[gc_freq_cols]).statistic
+	dis_sr["Sm_gc_p"] = sci.permutation_test((dis_sr[aa_median_cols],), lambda x: sci.spearmanr(x, dis_sr[gc_freq_cols]).statistic, permutation_type="pairings", 
+																										   n_resamples=resamples).pvalue
+	############################ Kendall tau code
+	dis_sr["Kt_gc"] = sci.kendalltau(dis_sr[aa_median_cols], dis_sr[code_freq_cols], nan_policy="raise").statistic
+	dis_sr["Kt_gc_p"] = sci.permutation_test((dis_sr[aa_median_cols],), lambda x: sci.kendalltau(x, dis_sr[code_freq_cols]).statistic, permutation_type="pairings", 
+																					  			   n_resamples=resamples).pvalue
+	############################ Kendall tau frequency
+	dis_sr["Kt_gc"] = sci.kendalltau(dis_sr[aa_median_cols], dis_sr[gc_freq_cols], nan_policy="raise").statistic
+	dis_sr["Kt_gc_p"]  = sci.permutation_test((dis_sr[aa_median_cols],), lambda x: sci.kendalltau(x, dis_sr[gc_freq_cols]).statistic, permutation_type="pairings",
+																									n_resamples=resamples).pvalue												
+	
+	############################ Code frequency RMSE
+	dis_sr["RMSE_code"] = skl.root_mean_squared_error(dis_sr[aa_median_cols], dis_sr[code_freq_cols])
+	############################ GC frequency RMSE
+	dis_sr["RMSE_gc"] = skl.root_mean_squared_error(dis_sr[aa_median_cols], dis_sr[gc_freq_cols])
+	
+	dis_sr["Genetic_code"] = code_name																							
+	return dis_sr.to_frame().T
 
 
 # main method
 if __name__ == "__main__":
-    mp.freeze_support()
-    manager = mp.Manager()
-    lock = manager.Lock()
-    prog = manager.Value("i", 0)
-    time_prog = manager.Value("d", 0)
+	mp.freeze_support()
+	
+	parser = argparse.ArgumentParser(description="Compute amino acid distributions in proteomes")
+	parser.add_argument("-d", "--data", help="Specify the path to the folder with the distribution files", required=True)
+	parser.add_argument("-o", "--output", help="Set the path to the output folder", required=True)
+	parser.add_argument("-e", "--encoding", help="Set the path to the encoding file", required=True)
+	parser.add_argument("-c", "--codes", help="Specify the path to the folder with the genetic code files", required=True)
+	parser.add_argument("-m", "--mapping", help="Set the path to the mappings if the genetic codes", required=True)
+	parser.add_argument("-r", "--resamples", help="Specify the number of resamples for the permutation tests (default: 9999)", type=int, default=9999)
+	parser.add_argument("-ch", "--chunks", help="Specify the chunk size (default: 100)", type=int, default=100)
+	parser.add_argument("-t", "--threads", help="Specify the number of threads to be used (default: 1)" , type=int, default=1)
+	args = parser.parse_args()
+	
+	data_path = args.data
+	output = args.output
+	encoding = args.encoding
+	code_path = args.codes
+	code_map = args.mapping
+	resamples = args.resamples
+	chunk_size = args.chunks
+	threads = args.threads
 
-    path_to_data,output,encoding,codes,code_map,permuts,procs = sys.argv[1:8]
+	os.makedirs(output, exist_ok=True)
+	
+	encoding_df = pd.read_csv(encoding, sep="\t", header=0, index_col=0)
+	code_map_df = pd.read_csv(code_map, sep="\t", header=0, index_col=0)
+	dis_files = os.listdir(data_path)
+	dis_data = []
+	for chunk in range(0, len(dis_files), chunk_size):
+		chunked_files = dis_files[chunk:chunk+chunk_size]
+		for file in tqdm.tqdm(chunked_files, desc=f"Loading distribution files for chunk [{chunk}-{min(chunk+chunk_size, len(dis_files))}]"):
+			tax_id = int(file.split(".csv")[0].split("_")[1])
+			dis_df = pd.read_csv(os.path.join(data_path, file), sep="\t", header=0, index_col=0, on_bad_lines="skip")
+			code_id = encoding_df.loc[tax_id, "GeneticID"]
+			if(pd.isna(code_id)):
+				code_id = 1
+			else:
+				code_id = int(code_id)
+			
+			code_name = code_map_df.loc[code_id, "Name"]
+			freq_funcs = None
+			with open(os.path.join(code_path, f"{code_name}.yaml"), "r") as code_reader:
+				gen_code = yaml.safe_load(code_reader)
+				freq_funcs = ef.build_functions(gen_code)
+			
+			dis_data.append([tax_id, dis_df, code_name, freq_funcs, resamples])	
+		kjfdsfds	
+		with mp.Pool(processes=threads) as pool:
+			result = list(tqdm.tqdm(pool.imap(combine_distribution_stats, dis_data), total=len(dis_data), desc=f"Calculating amino acid statistics for chunk" 
+																												"[{chunk}-{min(chunk+chunk_size, len(dis_files))}]"))
+			comb_df = pd.DataFrame()
+			for res in result:
+				comb_df = pd.concat([comb_df, res])
 
-    ssh,sftp = create_ssh_client()
-    files = sftp.listdir(path_to_data)
-    enc_df = None
-    with sftp.open(encoding, "r") as enc_remote:
-        csv_buffer = enc_remote.read().decode("utf-8")
-        enc_df = pd.read_csv(io.StringIO(csv_buffer), sep="\t", header=0,
-                             index_col=0)
-
-    sftp.close()
-    ssh.close()
-
-    os.makedirs(os.path.dirname(output), exist_ok=True)
-
-    code_map_df = pd.read_csv(code_map, sep="\t", header=0, index_col=0)
-
-    # Canonical amino acids order
-    amino_acids = ["M", "W", "C", "D", "E", "F", "H", "K", "N", "Q", "Y", "I",
-                   "A", "G", "P", "T", "V", "L", "R", "S"]
-
-    abund_files = [os.path.join(path_to_data, file)
-                   for file in files]
-
-    size = len(abund_files)
-    time_prog.value = time.time()
-    elapsed_time = time.strftime("%dd:%Hh:%Mm:%Ss", time.gmtime(time.time()-time_prog.value))
-    print(f"Files: {prog.value}/{size} -> {prog.value:.2f}% -> Elapsed time: {elapsed_time}", end="")
-    with mp.Pool(processes=int(procs)) as pool:
-        # run the process for the given parameters
-        pool_map = partial(process_file, amino_acids=amino_acids, enc_df=enc_df,
-                           codes=codes, code_map_df=code_map_df, output=output,
-                           permuts=int(permuts), prog=prog, size=size,
-                           time_prog=time_prog, lock=lock)
-        result = pool.map_async(pool_map, abund_files)
-        pool.close()
-        pool.join()
-
-        comb_df = pd.DataFrame()
-        for res in result.get():
-            comb_df = pd.concat([comb_df, res])
-
-        comb_df.astype(str).fillna("0.0", inplace=True)
-        comb_df.index.name = "Prot_Tax_ID"
-        comb_df.to_csv(output, sep="\t")
-
-    print()
-    os.remove("paramiko_log.txt")
+			comb_df.astype(str).fillna("0.0", inplace=True)
+			comb_df.index.name = "Prot_Tax_ID"
+			comb_df.to_csv(os.path.join(output, "combined_distributions.csv"), sep="\t")
+		
