@@ -112,8 +112,8 @@ if __name__ == "__main__":
 	code_map_df = pd.read_csv(code_map, sep="\t", header=0, index_col=0)
 	dis_files = os.listdir(data_path)
 	comb_dis_df = pd.DataFrame()
-	dis_data = []
 	for chunk in range(0, len(dis_files), chunk_size):
+		dis_data = []
 		chunked_files = dis_files[chunk:chunk+chunk_size]
 		for file in tqdm.tqdm(chunked_files, desc=f"Loading distribution files for chunk [{chunk}-{min(chunk+chunk_size, len(dis_files))}]"):
 			tax_id = int(file.split(".csv")[0].split("_")[1])
