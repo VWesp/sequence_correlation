@@ -111,6 +111,7 @@ if __name__ == "__main__":
 	encoding_df = pd.read_csv(encoding, sep="\t", header=0, index_col=0)
 	code_map_df = pd.read_csv(code_map, sep="\t", header=0, index_col=0)
 	dis_files = os.listdir(data_path)
+	comb_dis_df = pd.DataFrame()
 	dis_data = []
 	for chunk in range(0, len(dis_files), chunk_size):
 		chunked_files = dis_files[chunk:chunk+chunk_size]
@@ -134,11 +135,10 @@ if __name__ == "__main__":
 		with mp.Pool(processes=threads) as pool:
 			result = list(tqdm.tqdm(pool.imap(combine_distribution_stats, dis_data), total=len(dis_data), desc=f"Calculating amino acid statistics for chunk" 
 																											   f"[{chunk}-{min(chunk+chunk_size, len(dis_files))}]"))
-			comb_df = pd.DataFrame()
 			for res in result:
-				comb_df = pd.concat([comb_df, res])
+				comb_dis_df = pd.concat([comb_dis_df, res])
 
-			comb_df.astype(str).fillna("0.0", inplace=True)
-			comb_df.index.name = "Prot_Tax_ID"
-			comb_df.to_csv(os.path.join(output, "combined_distributions.csv"), sep="\t")
+	comb_dis_df.astype(str).fillna("0.0", inplace=True)
+	comb_dis_df.index.name = "Prot_Tax_ID"
+	comb_dis_df.to_csv(os.path.join(output, "combined_distributions.csv"), sep="\t")
 		
