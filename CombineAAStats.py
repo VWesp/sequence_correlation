@@ -130,10 +130,10 @@ if __name__ == "__main__":
 				freq_funcs = ef.build_functions(gen_code)
 			
 			dis_data.append([tax_id, dis_df, code_name, freq_funcs, resamples])	
-		kjfdsfds	
+			
 		with mp.Pool(processes=threads) as pool:
 			result = list(tqdm.tqdm(pool.imap(combine_distribution_stats, dis_data), total=len(dis_data), desc=f"Calculating amino acid statistics for chunk" 
-																												"[{chunk}-{min(chunk+chunk_size, len(dis_files))}]"))
+																											   f"[{chunk}-{min(chunk+chunk_size, len(dis_files))}]"))
 			comb_df = pd.DataFrame()
 			for res in result:
 				comb_df = pd.concat([comb_df, res])
