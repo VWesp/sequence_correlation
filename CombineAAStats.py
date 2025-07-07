@@ -97,7 +97,7 @@ if __name__ == "__main__":
 	parser.add_argument("-c", "--codes", help="Specify the path to the folder with the genetic code files", required=True)
 	parser.add_argument("-m", "--mapping", help="Set the path to the mappings if the genetic codes", required=True)
 	parser.add_argument("-r", "--resamples", help="Specify the number of resamples for the permutation tests (default: 9999)", type=int, default=9999)
-	parser.add_argument("-ch", "--chunks", help="Specify the chunk size (default: 100)", type=int, default=100)
+	parser.add_argument("-ch", "--chunks", help="Specify the chunk size; 0 loads all files (default: 100)", type=int, default=100)
 	parser.add_argument("-t", "--threads", help="Specify the number of threads to be used (default: 1)" , type=int, default=1)
 	args = parser.parse_args()
 	
@@ -116,6 +116,9 @@ if __name__ == "__main__":
 	code_map_df = pd.read_csv(code_map, sep="\t", header=0, index_col=0)
 	dis_files = os.listdir(data_path)
 	comb_dis_df = pd.DataFrame()
+	if(chunk_size <= 0):
+		chunk_size = len(dis_files)
+	
 	with mp.Pool(processes=threads) as pool:
 		for chunk in range(0, len(dis_files), chunk_size):
 			dis_data = []
