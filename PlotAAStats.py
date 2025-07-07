@@ -383,11 +383,20 @@ def plot_plotogram(data_dct, aa_groups, output):
 
 # main method
 if __name__ == "__main__":
-    input = sys.argv[1]
+	parser = argparse.ArgumentParser(description="Plot proteome distribution statistics")
+	parser.add_argument("-i", "--input", help="Set the path to the input statistics file", required=True)
+	parser.add_argument("-o", "--output", help="Set the path to the output folder", required=True)
+	args = parser.parse_args()
+	
+    input = args.input
+    output = args.output
+    
+    os.makedirs(output, exist_ok=True)
 
     # Canonical amino acids order
     amino_acids = ["M", "W", "C", "D", "E", "F", "H", "K", "N", "Q", "Y", "I",
                    "A", "G", "P", "T", "V", "L", "R", "S"]
+                   
     aa_mean_cols = [f"{aa}_mean" for aa in amino_acids]
     aa_std_cols = [f"{aa}_std" for aa in amino_acids]
     aa_groups = {"Aliphatic": ["A", "G", "I", "L", "M", "V"], "Aromatic": ["F",

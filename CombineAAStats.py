@@ -33,8 +33,12 @@ def combine_distribution_stats(data):
 	 # Load frequency functions for each amino acid based on the codons and GC content
 	gc_freq_func = ef.calculate_frequencies(freq_funcs, dis_sr["GC_median"])
 	for aa in amino_acids:
-		dis_sr[f"{aa}_median"] = dis_df[aa].median()
-		dis_sr[f"{aa}_mad"] = (dis_df[aa] - dis_sr[f"{aa}_median"]).abs().median()
+		try:
+			dis_sr[f"{aa}_median"] = dis_df[aa].median()
+			dis_sr[f"{aa}_mad"] = (dis_df[aa] - dis_sr[f"{aa}_median"]).abs().median()
+		except KeyError:
+			dis_sr[f"{aa}_median"] = 0.0
+			dis_sr[f"{aa}_mad"] = 0.0
 		
 		############################ Percentage change between empirical and code data
 		dis_sr[f"{aa}_code"] = code_freq_func["amino"][one_letter_code[aa]]
@@ -55,7 +59,7 @@ def combine_distribution_stats(data):
 	############################ Pearson frequency
 	dis_sr["Ps_gc"] = sci.pearsonr(dis_sr[aa_median_cols], dis_sr[gc_freq_cols]).statistic
 	dis_sr["Ps_gc_p"] = sci.permutation_test((dis_sr[aa_median_cols],), lambda x: sci.pearsonr(x, dis_sr[gc_freq_cols]).statistic, permutation_type="pairings", 
-																										  n_resamples=resamples).pvalue
+																							   n_resamples=resamples).pvalue
 	############################ Spearman code
 	dis_sr["Sm_code"] = sci.spearmanr(dis_sr[aa_median_cols], dis_sr[code_freq_cols]).statistic
 	dis_sr["Sm_code_p"] = sci.permutation_test((dis_sr[aa_median_cols],), lambda x: sci.spearmanr(x, dis_sr[code_freq_cols]).statistic, permutation_type="pairings", 
@@ -63,15 +67,15 @@ def combine_distribution_stats(data):
 	############################ Spearman frequency
 	dis_sr["Sm_gc"] = sci.spearmanr(dis_sr[aa_median_cols], dis_sr[gc_freq_cols]).statistic
 	dis_sr["Sm_gc_p"] = sci.permutation_test((dis_sr[aa_median_cols],), lambda x: sci.spearmanr(x, dis_sr[gc_freq_cols]).statistic, permutation_type="pairings", 
-																										   n_resamples=resamples).pvalue
+																								n_resamples=resamples).pvalue
 	############################ Kendall tau code
 	dis_sr["Kt_gc"] = sci.kendalltau(dis_sr[aa_median_cols], dis_sr[code_freq_cols], nan_policy="raise").statistic
 	dis_sr["Kt_gc_p"] = sci.permutation_test((dis_sr[aa_median_cols],), lambda x: sci.kendalltau(x, dis_sr[code_freq_cols]).statistic, permutation_type="pairings", 
-																					  			   n_resamples=resamples).pvalue
+																					  			 n_resamples=resamples).pvalue
 	############################ Kendall tau frequency
 	dis_sr["Kt_gc"] = sci.kendalltau(dis_sr[aa_median_cols], dis_sr[gc_freq_cols], nan_policy="raise").statistic
 	dis_sr["Kt_gc_p"]  = sci.permutation_test((dis_sr[aa_median_cols],), lambda x: sci.kendalltau(x, dis_sr[gc_freq_cols]).statistic, permutation_type="pairings",
-																									n_resamples=resamples).pvalue												
+																								  n_resamples=resamples).pvalue												
 	
 	############################ Code frequency RMSE
 	dis_sr["RMSE_code"] = skl.root_mean_squared_error(dis_sr[aa_median_cols], dis_sr[code_freq_cols])
@@ -112,29 +116,30 @@ if __name__ == "__main__":
 	code_map_df = pd.read_csv(code_map, sep="\t", header=0, index_col=0)
 	dis_files = os.listdir(data_path)
 	comb_dis_df = pd.DataFrame()
-	for chunk in range(0, len(dis_files), chunk_size):
-		dis_data = []
-		chunked_files = dis_files[chunk:chunk+chunk_size]
-		for file in tqdm.tqdm(chunked_files, desc=f"Loading distribution files for chunk [{chunk}-{min(chunk+chunk_size, len(dis_files))}]"):
-			tax_id = int(file.split(".csv")[0].split("_")[1])
-			dis_df = pd.read_csv(os.path.join(data_path, file), sep="\t", header=0, index_col=0, on_bad_lines="skip")
-			code_id = encoding_df.loc[tax_id, "GeneticID"]
-			if(pd.isna(code_id)):
-				code_id = 1
-			else:
-				code_id = int(code_id)
-			
-			code_name = code_map_df.loc[code_id, "Name"]
-			freq_funcs = None
-			with open(os.path.join(code_path, f"{code_name}.yaml"), "r") as code_reader:
-				gen_code = yaml.safe_load(code_reader)
-				freq_funcs = ef.build_functions(gen_code)
-			
-			dis_data.append([tax_id, dis_df, code_name, freq_funcs, resamples])	
-			
-		with mp.Pool(processes=threads) as pool:
-			result = list(tqdm.tqdm(pool.imap(combine_distribution_stats, dis_data), total=len(dis_data), desc=f"Calculating amino acid statistics for chunk" 
-																											   f"[{chunk}-{min(chunk+chunk_size, len(dis_files))}]"))
+	with mp.Pool(processes=threads) as pool:
+		for chunk in range(0, len(dis_files), chunk_size):
+			dis_data = []
+			chunked_files = dis_files[chunk:chunk+chunk_size]
+			max_chunk = min(chunk+chunk_size, len(dis_files))
+			for file in tqdm.tqdm(chunked_files, desc=f"Loading distribution files for chunk [{chunk}-{max_chunk}]"):
+				tax_id = int(file.split(".csv")[0].split("_")[1])
+				dis_df = pd.read_csv(os.path.join(data_path, file), sep="\t", header=0, index_col=0, on_bad_lines="skip")
+				code_id = encoding_df.loc[tax_id, "GeneticID"]
+				if(pd.isna(code_id)):
+					code_id = 1
+				else:
+					code_id = int(code_id)
+				
+				code_name = code_map_df.loc[code_id, "Name"]
+				freq_funcs = None
+				with open(os.path.join(code_path, f"{code_name}.yaml"), "r") as code_reader:
+					gen_code = yaml.safe_load(code_reader)
+					freq_funcs = ef.build_functions(gen_code)
+				
+				dis_data.append([tax_id, dis_df, code_name, freq_funcs, resamples])	
+				
+			result = list(tqdm.tqdm(pool.imap(combine_distribution_stats, dis_data), total=len(dis_data), desc=f"Calculating amino acid statistics for chunk " 
+																											   f"[{chunk}-{max_chunk}]"))
 			for res in result:
 				comb_dis_df = pd.concat([comb_dis_df, res])
 
