@@ -69,8 +69,8 @@ def combine_distribution_stats(data):
 	dis_sr["Sm_gc_p"] = sci.permutation_test((dis_sr[aa_median_cols],), lambda x: sci.spearmanr(x, dis_sr[gc_freq_cols]).statistic, permutation_type="pairings", 
 																								n_resamples=resamples).pvalue
 	############################ Kendall tau code
-	dis_sr["Kt_gc"] = sci.kendalltau(dis_sr[aa_median_cols], dis_sr[code_freq_cols], nan_policy="raise").statistic
-	dis_sr["Kt_gc_p"] = sci.permutation_test((dis_sr[aa_median_cols],), lambda x: sci.kendalltau(x, dis_sr[code_freq_cols]).statistic, permutation_type="pairings", 
+	dis_sr["Kt_code"] = sci.kendalltau(dis_sr[aa_median_cols], dis_sr[code_freq_cols], nan_policy="raise").statistic
+	dis_sr["Kt_code_p"] = sci.permutation_test((dis_sr[aa_median_cols],), lambda x: sci.kendalltau(x, dis_sr[code_freq_cols]).statistic, permutation_type="pairings", 
 																					  			 n_resamples=resamples).pvalue
 	############################ Kendall tau frequency
 	dis_sr["Kt_gc"] = sci.kendalltau(dis_sr[aa_median_cols], dis_sr[gc_freq_cols], nan_policy="raise").statistic
@@ -95,9 +95,9 @@ if __name__ == "__main__":
 	parser.add_argument("-o", "--output", help="Set the path to the output folder", required=True)
 	parser.add_argument("-e", "--encoding", help="Set the path to the encoding file", required=True)
 	parser.add_argument("-c", "--codes", help="Specify the path to the folder with the genetic code files", required=True)
-	parser.add_argument("-m", "--mapping", help="Set the path to the mappings if the genetic codes", required=True)
+	parser.add_argument("-m", "--mapping", help="Set the path to the mappings of the genetic codes", required=True)
 	parser.add_argument("-r", "--resamples", help="Specify the number of resamples for the permutation tests (default: 9999)", type=int, default=9999)
-	parser.add_argument("-ch", "--chunks", help="Specify the chunk size; 0 loads all files (default: 100)", type=int, default=100)
+	parser.add_argument("-ch", "--chunks", help="Specify the chunk size; 0 loads all files at once (default: 100)", type=int, default=100)
 	parser.add_argument("-t", "--threads", help="Specify the number of threads to be used (default: 1)" , type=int, default=1)
 	args = parser.parse_args()
 	
@@ -124,7 +124,7 @@ if __name__ == "__main__":
 			dis_data = []
 			chunked_files = dis_files[chunk:chunk+chunk_size]
 			max_chunk = min(chunk+chunk_size, len(dis_files))
-			for file in tqdm.tqdm(chunked_files, desc=f"Loading distribution files for chunk [{chunk}-{max_chunk}]"):
+			for file in tqdm.tqdm(chunked_files, desc=f"Loading distribution files for chunk [{chunk}-{max_chunk}/{len(dis_files)}]"):
 				tax_id = int(file.split(".csv")[0].split("_")[1])
 				dis_df = pd.read_csv(os.path.join(data_path, file), sep="\t", header=0, index_col=0, on_bad_lines="skip")
 				code_id = encoding_df.loc[tax_id, "GeneticID"]
@@ -142,7 +142,7 @@ if __name__ == "__main__":
 				dis_data.append([tax_id, dis_df, code_name, freq_funcs, resamples])	
 				
 			result = list(tqdm.tqdm(pool.imap(combine_distribution_stats, dis_data), total=len(dis_data), desc=f"Calculating amino acid statistics for chunk " 
-																											   f"[{chunk}-{max_chunk}]"))
+																											   f"[{chunk}-{max_chunk}/{len(dis_files)}]"))
 			for res in result:
 				comb_dis_df = pd.concat([comb_dis_df, res])
 

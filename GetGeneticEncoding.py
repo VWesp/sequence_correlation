@@ -1,5 +1,4 @@
 import os
-import sys
 import tqdm
 import argparse
 import pandas as pd
