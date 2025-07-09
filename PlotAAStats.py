@@ -10,18 +10,18 @@ plt.style.use("ggplot")
 
 
 def fisher_Z(corrs, p_values):
-    ### Fisher's Z-transformation
-    # Correlations
-    z_corr_values = [0.5*np.log((1+r)/(1-r)) for r in corrs]
-    mean_z_corr = np.mean(z_corr_values)
-    mean_corr = (np.exp(2*mean_z_corr)-1) / (np.exp(2*mean_z_corr)+1)
-    # P-values
-    z_p_values = [0.5*np.log((1+r)/(1-r)) for r in p_values]
-    mean_z_p = np.mean(z_p_values)
-    mean_p = (np.exp(2*mean_z_p)-1) / (np.exp(2*mean_z_p)+1)
-    #
-    return [mean_corr, mean_p]
-    
+	### Fisher's Z-transformation
+	# Correlations
+	z_corr_values = [0.5*np.log((1+r)/(1-r)) for r in corrs]
+	mean_z_corr = np.mean(z_corr_values)
+	mean_corr = (np.exp(2*mean_z_corr)-1) / (np.exp(2*mean_z_corr)+1)
+	# P-values
+	z_p_values = [0.5*np.log((1+r)/(1-r)) for r in p_values]
+	mean_z_p = np.mean(z_p_values)
+	mean_p = (np.exp(2*mean_z_p)-1) / (np.exp(2*mean_z_p)+1)
+	#
+	return [mean_corr, mean_p]
+	
 
 # main method
 if __name__ == "__main__":
@@ -92,7 +92,7 @@ if __name__ == "__main__":
 		index += 1
 		### Kendall's tau
 		# Code
-		kt_code,kt_code_p = fisher_Z(stats_df["Ps_code"], stats_df["Ps_code_p"])
+		kt_code,kt_code_p = fisher_Z(stats_df["Kt_code"], stats_df["Kt_code_p"])
 		fisher_df.loc[index, "Correlation coefficient"] = kt_code
 		fisher_df.loc[index, "P-value"] = kt_code_p
 		fisher_df.loc[index, "Domain"] = domain
@@ -175,23 +175,39 @@ if __name__ == "__main__":
 	
 	###### Plot percentage differences
 	if(not no_plot):
+		aa_groups = {"Aliphatic": ["A", "G", "I", "L", "M", "V"], "Aromatic": ["F",
+					 "W", "Y"], "Charged": ["D", "E", "H", "K", "R"],
+					 "Uncharged": ["C", "N", "P", "Q", "S", "T"]}	   
+		aa_group_order = [aa for group in aa_groups.values() for aa in group]
 		fig,axes = plt.subplots(2, 1, figsize=(18, 10), sharey=True)
 		### Based on genetic codes
-		aa_code_pct_cols = [f"{aa}_code_pct" for aa in amino_acids]
+		aa_code_pct_cols = [f"{aa}_code_pct" for aa in aa_group_order]
 		melted_df = all_stats_df.melt(id_vars="Domain", value_vars=aa_code_pct_cols, var_name="AminoAcid", value_name="PctVal")
 		sns.barplot(data=melted_df, x="AminoAcid", y="PctVal", hue="Domain", palette=sns.color_palette("colorblind", n_colors=4), ax=axes[0])
-		axes[0].set_xticks(np.arange(len(amino_acids)), amino_acids)
+		axes[0].set_xticks(np.arange(len(aa_group_order)), aa_group_order)
 		axes[0].set_title(f"a) Based on codon numbers", fontweight="bold", fontsize=t_font)
 		axes[0].set_xlabel("")
 		axes[0].set_ylabel("Percentage difference", fontweight="bold", fontsize=l_font)
+		group_pos = 0
+		for group,aas in aa_groups.items():
+			group_pos += len(aas)
+			if(group_pos < 20):
+				axes[0].axvline(x=group_pos-0.5, color="brown", linestyle="--", linewidth=2)
+		
 		### Based on genetic codes and GC contents
-		aa_gc_pct_cols = [f"{aa}_gc_pct" for aa in amino_acids]
+		aa_gc_pct_cols = [f"{aa}_gc_pct" for aa in aa_group_order]
 		melted_df = all_stats_df.melt(id_vars="Domain", value_vars=aa_gc_pct_cols, var_name="AminoAcid", value_name="PctVal")
 		sns.barplot(data=melted_df, x="AminoAcid", y="PctVal", hue="Domain", palette=sns.color_palette("colorblind", n_colors=4), ax=axes[1])
-		axes[1].set_xticks(np.arange(len(amino_acids)), amino_acids)
+		axes[1].set_xticks(np.arange(len(aa_group_order)), aa_group_order)
 		axes[1].set_title(f"b) Based on codon numbers and GC contents", fontweight="bold", fontsize=t_font)
 		axes[1].set_xlabel("Amino acid", fontweight="bold", fontsize=l_font)
 		axes[1].set_ylabel("Percentage difference", fontweight="bold", fontsize=l_font)
+		group_pos = 0
+		for group,aas in aa_groups.items():
+			group_pos += len(aas)
+			if(group_pos < 20):
+				axes[1].axvline(x=group_pos-0.5, color="brown", linestyle="--", linewidth=2)
+			
 		###
 		fig.subplots_adjust(hspace=0.4)
 		fig.suptitle("Percentage differences between empirical and theoretical frequencies", fontweight="bold", fontsize=16, y=0.95)
@@ -264,7 +280,7 @@ if __name__ == "__main__":
 		fig,axes = plt.subplots(1, 4, figsize=(18, 10), sharey=True)
 		for index,domain in enumerate(domains):
 			domain_df = all_stats_df[all_stats_df["Domain"]==domain]
-			code_df = pd.DataFrame({"Pearson": domain_df["Ps_code"], "Spearman": domain_df["Sm_code"], "Kendall's tau": domain_df["Ps_code"]}).melt(var_name="Correlation test", 
+			code_df = pd.DataFrame({"Pearson": domain_df["Ps_code"], "Spearman": domain_df["Sm_code"], "Kendall's tau": domain_df["Kt_code"]}).melt(var_name="Correlation test", 
 																																			   value_name="Correlation coefficient")
 			code_df["Type"] = "Codon number"
 			gc_df = pd.DataFrame({"Pearson": domain_df["Ps_gc"], "Spearman": domain_df["Sm_gc"], "Kendall's tau": domain_df["Kt_gc"]}).melt(var_name="Correlation test", 
