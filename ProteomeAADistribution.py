@@ -1,6 +1,7 @@
 import os
 import re
 import gzip
+import time
 import tqdm
 import argparse
 import pandas as pd
@@ -66,6 +67,7 @@ if __name__ == "__main__":
 					gene_seqio = SeqIO.to_dict(SeqIO.parse(gene_handle, "fasta"))
 					seq_data.append([file_id, prot_seqio, gene_seqio])
 					
+		time.sleep(300)
 		fdsfdsgfsd
 		# start the multicore process for a given number of cores
 		with mp.Pool(processes=threads) as pool:
