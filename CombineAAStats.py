@@ -92,7 +92,7 @@ if __name__ == "__main__":
 	
 	parser = argparse.ArgumentParser(description="Compute amino acid distributions in proteomes")
 	parser.add_argument("-d", "--data", help="Specify the path to the folder with the distribution files", required=True)
-	parser.add_argument("-o", "--output", help="Set the path to the output folder", required=True)
+	parser.add_argument("-o", "--output", help="Specify the output file", required=True)
 	parser.add_argument("-e", "--encoding", help="Set the path to the encoding file", required=True)
 	parser.add_argument("-c", "--codes", help="Specify the path to the folder with the genetic code files", required=True)
 	parser.add_argument("-m", "--mapping", help="Set the path to the mappings of the genetic codes", required=True)
@@ -109,8 +109,6 @@ if __name__ == "__main__":
 	resamples = args.resamples
 	chunk_size = args.chunks
 	threads = args.threads
-
-	os.makedirs(output, exist_ok=True)
 	
 	encoding_df = pd.read_csv(encoding, sep="\t", header=0, index_col=0)
 	code_map_df = pd.read_csv(code_map, sep="\t", header=0, index_col=0)
@@ -148,5 +146,5 @@ if __name__ == "__main__":
 
 	comb_dis_df.astype(str).fillna("0.0", inplace=True)
 	comb_dis_df.index.name = "Prot_Tax_ID"
-	comb_dis_df.to_csv(os.path.join(output, "combined_distributions.csv"), sep="\t")
+	comb_dis_df.to_csv(output, sep="\t")
 		

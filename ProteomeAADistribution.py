@@ -40,7 +40,7 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description="Compute amino acid distributions in proteomes")
 	parser.add_argument("-d", "--data", help="Specify the path to the folder with the proteome files", required=True)
 	parser.add_argument("-o", "--output", help="Set the path to the output folder", required=True)
-	parser.add_argument("-c", "--chunks", help="Specify the chunk size (default: 100)", type=int, default=100)
+	parser.add_argument("-c", "--chunks", help="Specify the chunk size; 0 loads all files at once (default: 100)", type=int, default=100)
 	parser.add_argument("-t", "--threads", help="Specify the number of threads to be used (default: 1)", type=int, default=1)
 	args = parser.parse_args()
 
@@ -52,6 +52,9 @@ if __name__ == "__main__":
 	os.makedirs(output, exist_ok=True)
 	
 	prot_files = list(filter(re.compile(r"^(?!.*_DNA\.fasta\.gz$).*\.fasta\.gz$").match, os.listdir(data_path)))
+	if(chunk_size <= 0):
+		chunk_size = len(prot_files)
+		
 	for chunk in range(0, len(prot_files), chunk_size):
 		seq_data = []
 		chunked_files = prot_files[chunk:chunk+chunk_size]
@@ -63,7 +66,7 @@ if __name__ == "__main__":
 					gene_seqio = SeqIO.to_dict(SeqIO.parse(gene_handle, "fasta"))
 					seq_data.append([file_id, prot_seqio, gene_seqio])
 					
-		
+		fdsfdsgfsd
 		# start the multicore process for a given number of cores
 		with mp.Pool(processes=threads) as pool:
 			pool_map = partial(get_proteome_distribution, output=output)
