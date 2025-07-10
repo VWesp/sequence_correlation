@@ -110,16 +110,14 @@ if __name__ == "__main__":
 		
 	fisher_df.to_csv(os.path.join(output, "averaged_correlation_coefficients.csv"), sep="\t", index=False)
 	
-	t_font = 14
-	l_font = 12
 	###### Plot median protein lengths
 	if(not no_plot):
-		sns.histplot(data=all_stats_df, x="Length_median", hue="Domain", log_scale=10, alpha=0.5, kde=True, line_kws={"linewidth": 2, "linestyle": "--"}, stat="density",
-					 common_norm=False, palette=sns.color_palette("colorblind", n_colors=4))
-		plt.title(f"Distribution of median protein lengths", fontweight="bold", fontsize=t_font)
-		plt.xlabel("Length", fontweight="bold", fontsize=l_font)
-		plt.ylabel("Density", fontweight="bold", fontsize=l_font)
-		plt.rcParams["figure.figsize"] = (18, 10)
+		g = sns.histplot(data=all_stats_df, x="Length_median", hue="Domain", log_scale=10, alpha=0.5, kde=True, line_kws={"linewidth": 2, "linestyle": "--"}, stat="density",
+					 	 common_norm=False, palette=sns.color_palette("colorblind", n_colors=4))
+		g.set_title(f"Distribution of median protein lengths", fontweight="bold", fontsize=12)
+		g.set_xlabel("Length", fontweight="bold", fontsize=10)
+		g.set_ylabel("Density", fontweight="bold", fontsize=10)
+		g.xaxis.grid(True, linestyle="--")
 		for ext in ["svg", "pdf"]:
 			plt.savefig(os.path.join(output, f"median_protein_lengths.{ext}"), bbox_inches="tight")
 					
@@ -127,12 +125,12 @@ if __name__ == "__main__":
 	
 	###### Plot median gene GC contents
 	if(not no_plot):
-		sns.histplot(data=all_stats_df, x="GC_median", hue="Domain", alpha=0.5, kde=True, line_kws={"linewidth": 2, "linestyle": "--"}, stat="density", common_norm=False, 
-					 palette=sns.color_palette("colorblind", n_colors=4))
-		plt.title(f"Distribution of median gene GC contents", fontweight="bold", fontsize=t_font)
-		plt.xlabel("GC content", fontweight="bold", fontsize=l_font)
-		plt.ylabel("Density", fontweight="bold", fontsize=l_font)
-		plt.rcParams["figure.figsize"] = (18, 10)
+		g = sns.histplot(data=all_stats_df, x="GC_median", hue="Domain", alpha=0.5, kde=True, line_kws={"linewidth": 2, "linestyle": "--"}, stat="density", common_norm=False, 
+					 	 palette=sns.color_palette("colorblind", n_colors=4))
+		g.set_title(f"Distribution of median gene GC contents", fontweight="bold", fontsize=12)
+		g.set_xlabel("GC content", fontweight="bold", fontsize=10)
+		g.set_ylabel("Density", fontweight="bold", fontsize=10)
+		g.xaxis.grid(True, linestyle="--")
 		for ext in ["svg", "pdf"]:
 			plt.savefig(os.path.join(output, f"median_gene_gc.{ext}"), bbox_inches="tight")
 			
@@ -140,34 +138,40 @@ if __name__ == "__main__":
 	
 	###### Plot median amino acid frequencies
 	if(not no_plot):
-		fig,axes = plt.subplots(3, 1, figsize=(18, 10), sharey=True)
+		fig,axes = plt.subplots(3, 1, sharey=True)
 		### Empirical values
 		aa_median_cols = [f"{aa}_median" for aa in amino_acids]
 		melted_df = all_stats_df.melt(id_vars="Domain", value_vars=aa_median_cols, var_name="AminoAcid", value_name="MedianVal")
 		sns.barplot(data=melted_df, x="AminoAcid", y="MedianVal", hue="Domain", palette=sns.color_palette("colorblind", n_colors=4), ax=axes[0])
 		axes[0].set_xticks(np.arange(len(amino_acids)), amino_acids)
-		axes[0].set_title(f"a) Based on median protein distributions", fontweight="bold", fontsize=t_font)
+		axes[0].set_title(f"a) Based on median distributions in protein", fontweight="bold", fontsize=10)
 		axes[0].set_xlabel("")
-		axes[0].set_ylabel("Frequency", fontweight="bold", fontsize=l_font)
+		axes[0].set_ylabel("Frequency", fontweight="bold", fontsize=8)
+		axes[0].xaxis.grid(True, linestyle="--")
+		axes[0].legend([])
 		### Values based on code
 		aa_code_cols = [f"{aa}_code" for aa in amino_acids]
 		melted_df = all_stats_df.melt(id_vars="Domain", value_vars=aa_code_cols, var_name="AminoAcid", value_name="MedianVal")
 		sns.barplot(data=melted_df, x="AminoAcid", y="MedianVal", hue="Domain", palette=sns.color_palette("colorblind", n_colors=4), ax=axes[1])
 		axes[1].set_xticks(np.arange(len(amino_acids)), amino_acids)
-		axes[1].set_title(f"b) Based on codon numbers", fontweight="bold", fontsize=t_font)
+		axes[1].set_title(f"b) Based on codon numbers", fontweight="bold", fontsize=10)
 		axes[1].set_xlabel("")
-		axes[1].set_ylabel("Frequency", fontweight="bold", fontsize=l_font)
+		axes[1].set_ylabel("Frequency", fontweight="bold", fontsize=8)
+		axes[1].xaxis.grid(True, linestyle="--")
+		sns.move_legend(axes[1], "upper left", bbox_to_anchor=(1, 1.2))
 		### Values based on code and GC content
 		aa_gc_cols = [f"{aa}_gc" for aa in amino_acids]
 		melted_df = all_stats_df.melt(id_vars="Domain", value_vars=aa_gc_cols, var_name="AminoAcid", value_name="MedianVal")
 		sns.barplot(data=melted_df, x="AminoAcid", y="MedianVal", hue="Domain", palette=sns.color_palette("colorblind", n_colors=4), ax=axes[2])
 		axes[2].set_xticks(np.arange(len(amino_acids)), amino_acids)
-		axes[2].set_title(f"c) Based on codon numbers and GC contents", fontweight="bold", fontsize=t_font)
-		axes[2].set_xlabel("Amino acid", fontweight="bold", fontsize=l_font)
-		axes[2].set_ylabel("Frequency", fontweight="bold", fontsize=l_font)
+		axes[2].set_title(f"c) Based on codon numbers and GC contents", fontweight="bold", fontsize=10)
+		axes[2].set_xlabel("Amino acid", fontweight="bold", fontsize=8)
+		axes[2].set_ylabel("Frequency", fontweight="bold", fontsize=8)
+		axes[2].xaxis.grid(True, linestyle="--")
+		axes[2].legend([])
 		###
-		fig.subplots_adjust(hspace=0.4)
-		fig.suptitle("Frequencies of amino acid", fontweight="bold", fontsize=16, y=0.95)
+		fig.subplots_adjust(hspace=0.7)
+		fig.suptitle("Frequencies of amino acid", fontweight="bold", fontsize=12)
 		for ext in ["svg", "pdf"]:
 			plt.savefig(os.path.join(output, f"median_aa_freqs.{ext}"), bbox_inches="tight")
 			
@@ -179,15 +183,17 @@ if __name__ == "__main__":
 					 "W", "Y"], "Charged": ["D", "E", "H", "K", "R"],
 					 "Uncharged": ["C", "N", "P", "Q", "S", "T"]}	   
 		aa_group_order = [aa for group in aa_groups.values() for aa in group]
-		fig,axes = plt.subplots(2, 1, figsize=(18, 10), sharey=True)
+		fig,axes = plt.subplots(2, 1, sharey=True)
 		### Based on genetic codes
 		aa_code_pct_cols = [f"{aa}_code_pct" for aa in aa_group_order]
 		melted_df = all_stats_df.melt(id_vars="Domain", value_vars=aa_code_pct_cols, var_name="AminoAcid", value_name="PctVal")
 		sns.barplot(data=melted_df, x="AminoAcid", y="PctVal", hue="Domain", palette=sns.color_palette("colorblind", n_colors=4), ax=axes[0])
 		axes[0].set_xticks(np.arange(len(aa_group_order)), aa_group_order)
-		axes[0].set_title(f"a) Based on codon numbers", fontweight="bold", fontsize=t_font)
+		axes[0].set_title(f"a) Based on codon numbers", fontweight="bold", fontsize=10)
 		axes[0].set_xlabel("")
-		axes[0].set_ylabel("Percentage difference", fontweight="bold", fontsize=l_font)
+		axes[0].set_ylabel("Perc. difference", fontweight="bold", fontsize=8)
+		axes[0].xaxis.grid(True, linestyle="--")
+		axes[0].legend([])
 		group_pos = 0
 		for group,aas in aa_groups.items():
 			group_pos += len(aas)
@@ -199,9 +205,11 @@ if __name__ == "__main__":
 		melted_df = all_stats_df.melt(id_vars="Domain", value_vars=aa_gc_pct_cols, var_name="AminoAcid", value_name="PctVal")
 		sns.barplot(data=melted_df, x="AminoAcid", y="PctVal", hue="Domain", palette=sns.color_palette("colorblind", n_colors=4), ax=axes[1])
 		axes[1].set_xticks(np.arange(len(aa_group_order)), aa_group_order)
-		axes[1].set_title(f"b) Based on codon numbers and GC contents", fontweight="bold", fontsize=t_font)
-		axes[1].set_xlabel("Amino acid", fontweight="bold", fontsize=l_font)
-		axes[1].set_ylabel("Percentage difference", fontweight="bold", fontsize=l_font)
+		axes[1].set_title(f"b) Based on codon numbers and GC contents", fontweight="bold", fontsize=10)
+		axes[1].set_xlabel("Amino acid", fontweight="bold", fontsize=8)
+		axes[1].set_ylabel("Perc. difference", fontweight="bold", fontsize=8)
+		axes[1].xaxis.grid(True, linestyle="--")
+		sns.move_legend(axes[1], "upper left", bbox_to_anchor=(1, 1.6))
 		group_pos = 0
 		for group,aas in aa_groups.items():
 			group_pos += len(aas)
@@ -210,7 +218,7 @@ if __name__ == "__main__":
 			
 		###
 		fig.subplots_adjust(hspace=0.4)
-		fig.suptitle("Percentage differences between empirical and theoretical frequencies", fontweight="bold", fontsize=16, y=0.95)
+		fig.suptitle("Percentage differences\nbetween empirical and theoretical frequencies", fontweight="bold", fontsize=12, y=1.02)
 		for ext in ["svg", "pdf"]:
 			plt.savefig(os.path.join(output, f"pct_values.{ext}"), bbox_inches="tight")
 			
@@ -218,9 +226,10 @@ if __name__ == "__main__":
 	
 	###### Plot median empirical frequencies of charged amino acids
 	if(not no_plot):
-		fig,axes = plt.subplots(2, 2, figsize=(18, 10), sharey=True)
+		fig,axes = plt.subplots(2, 2, sharey=True)
 		i = 0
 		j = 0
+		label_lst = ["a)", "b)", "c)", "d)"]
 		for index,domain in enumerate(domains):
 			domain_df = all_stats_df[all_stats_df["Domain"]==domain]
 			pos_df = pd.DataFrame({"Positively charged": domain_df["Pos_charged"]}).melt(var_name="Amino acid", value_name="Frequency")
@@ -230,24 +239,29 @@ if __name__ == "__main__":
 			combined_df = pd.concat([pos_df, neg_df], ignore_index=True)
 			sns.lineplot(data=combined_df, x="GC content", y="Frequency", hue="Amino acid", style="Amino acid", errorbar="pi", markers=True,
 						 palette=sns.color_palette("colorblind", n_colors=2), ax=axes[i,j])
-			axes[i,j].set_title(domain, fontweight="bold", fontsize=t_font)
+			axes[i,j].set_title(f"{label_lst[index]} {domain}", fontweight="bold", fontsize=10)
+			axes[i,j].xaxis.grid(True, linestyle="--")
+			if(i == 1 and j == 1):
+				sns.move_legend(axes[i,j], "upper left", bbox_to_anchor=(1.05, 1.4))
+			else:
+				axes[i,j].legend([])
+			
 			if(i == 1):
-				axes[i,j].set_xlabel("GC content", fontweight="bold", fontsize=l_font)
+				axes[i,j].set_xlabel("GC content", fontweight="bold", fontsize=8)
 			else:
 				axes[i,j].set_xlabel("")
 				
 			if(j == 0):
-				axes[i,j].set_ylabel("Frequency", fontweight="bold", fontsize=l_font)
-				
+				axes[i,j].set_ylabel("Frequency", fontweight="bold", fontsize=8)
+			
 			j += 1
 			if(j > 1):
 				i += 1
 				j = 0
 			
-			
 		###
 		fig.subplots_adjust(hspace=0.4)
-		fig.suptitle("Median frequencies of charged amino acids", fontweight="bold", fontsize=16, y=0.95)
+		fig.suptitle("Median frequencies of charged amino acids", fontweight="bold", fontsize=12)
 		for ext in ["svg", "pdf"]:
 			plt.savefig(os.path.join(output, f"median_charged_aa_freqs.{ext}"), bbox_inches="tight")
 			
@@ -255,21 +269,25 @@ if __name__ == "__main__":
 	
 	###### Plot RMSE 
 	if(not no_plot):
-		fig,axes = plt.subplots(2, 1, figsize=(18, 10), sharex=True, sharey=True)
+		fig,axes = plt.subplots(2, 1, sharex=True, sharey=True)
 		### Between empirical values and values Based on codon numbers
 		sns.kdeplot(data=all_stats_df, x="RMSE_code", hue="Domain", fill=True, common_norm=False, alpha=0.5, palette=sns.color_palette("colorblind", n_colors=4), ax=axes[0])
-		axes[0].set_title(f"a) Based on codon numbers", fontweight="bold", fontsize=t_font)
-		axes[0].set_xlabel("RMSE", fontweight="bold", fontsize=l_font)
-		axes[0].set_ylabel("Density", fontweight="bold", fontsize=l_font)
+		axes[0].set_title(f"a) Based on codon numbers", fontweight="bold", fontsize=10)
+		axes[0].set_xlabel("RMSE", fontweight="bold", fontsize=8)
+		axes[0].set_ylabel("Density", fontweight="bold", fontsize=8)
 		axes[0].xaxis.set_tick_params(labelbottom=True)
+		axes[0].xaxis.grid(True, linestyle="--")
+		axes[0].legend([])
 		### Between empirical values and values Based on codon numbers and GC contents
 		sns.kdeplot(data=all_stats_df, x="RMSE_gc", hue="Domain", fill=True, common_norm=False, alpha=0.5, palette=sns.color_palette("colorblind", n_colors=4), ax=axes[1])
-		axes[1].set_title(f"b) Based on codon numbers and GC contents", fontweight="bold", fontsize=t_font)
-		axes[1].set_xlabel("RMSE", fontweight="bold", fontsize=l_font)
-		axes[1].set_ylabel("Density", fontweight="bold", fontsize=l_font)
+		axes[1].set_title(f"b) Based on codon numbers and GC contents", fontweight="bold", fontsize=10)
+		axes[1].set_xlabel("RMSE", fontweight="bold", fontsize=8)
+		axes[1].set_ylabel("Density", fontweight="bold", fontsize=8)
+		axes[1].xaxis.grid(True, linestyle="--")
+		sns.move_legend(axes[1], "upper left", bbox_to_anchor=(1, 1.6))
 		###
 		fig.subplots_adjust(hspace=0.4)
-		fig.suptitle("Root mean squared errors between amino acid frequencies and theoretical values", fontweight="bold", fontsize=16, y=0.95)
+		fig.suptitle("Root mean squared errors between\namino acid frequencies and theoretical values", fontweight="bold", fontsize=12, y=1.02)
 		for ext in ["svg", "pdf"]:
 			plt.savefig(os.path.join(output, f"rmse_values.{ext}"), bbox_inches="tight")
 			
@@ -277,7 +295,10 @@ if __name__ == "__main__":
 	
 	###### Plot correlation coefficients
 	if(not no_plot):
-		fig,axes = plt.subplots(1, 4, figsize=(18, 10), sharey=True)
+		fig,axes = plt.subplots(2, 2, sharey=True)
+		i = 0
+		j = 0
+		label_lst = ["a)", "b)", "c)", "d)"]
 		for index,domain in enumerate(domains):
 			domain_df = all_stats_df[all_stats_df["Domain"]==domain]
 			code_df = pd.DataFrame({"Pearson": domain_df["Ps_code"], "Spearman": domain_df["Sm_code"], "Kendall's tau": domain_df["Kt_code"]}).melt(var_name="Correlation test", 
@@ -287,13 +308,26 @@ if __name__ == "__main__":
 																																			value_name="Correlation coefficient")
 			gc_df["Type"] = "Codon number+GC"
 			comb_df = pd.concat([code_df, gc_df], ignore_index=True)
-			sns.violinplot(data=comb_df, x="Type", y="Correlation coefficient", hue="Correlation test", palette=sns.color_palette("colorblind", n_colors=3), ax=axes[index])
-			axes[index].yaxis.set_tick_params(labelleft=True)
-			axes[index].set_xlabel(domain, fontweight="bold", fontsize=l_font)
-			axes[index].xaxis.set_label_position("top")
+			sns.violinplot(data=comb_df, x="Type", y="Correlation coefficient", hue="Correlation test", palette=sns.color_palette("colorblind", n_colors=3), ax=axes[i,j])
+			axes[i,j].set_title(f"{label_lst[index]} {domain}", fontweight="bold", fontsize=10)
+			axes[i,j].set_xlabel("")
+			axes[i,j].set_ylabel("Corr. coefficient", fontweight="bold", fontsize=8)
+			axes[i,j].tick_params(axis="x", which="major", labelsize=8)
+			axes[i,j].yaxis.set_tick_params(labelleft=True)
+			axes[i,j].xaxis.grid(True, linestyle="--")
+			if(i == 1 and j == 1):
+				sns.move_legend(axes[i,j], "upper left", bbox_to_anchor=(1.05, 1.5))
+			else:
+				axes[i,j].legend([])
+				
+			j += 1
+			if(j > 1):
+				i += 1
+				j = 0
 			
 		###
-		fig.suptitle("Correlation coefficients between amino acid frequencies and theoretical values", fontweight="bold", fontsize=16, y=0.95)
+		fig.subplots_adjust(hspace=0.4)
+		fig.suptitle("Correlation coefficients between\namino acid frequencies and theoretical values", fontweight="bold", fontsize=12, y=1.02)
 		for ext in ["svg", "pdf"]:
 			plt.savefig(os.path.join(output, f"corr_coefficients.{ext}"), bbox_inches="tight")
 			
@@ -366,11 +400,11 @@ if __name__ == "__main__":
 		ecoli_df.loc[8, "Correlation test"] = "Kendall's tau"
 		ecoli_df.to_csv(os.path.join(output, "ecoli_cost_corr_coefficients.csv"), sep="\t", index=False)
 		###
-		sns.barplot(data=ecoli_df, x="Synthesis", y="Correlation coefficient", hue="Correlation test", palette=sns.color_palette("colorblind", n_colors=3))
-		plt.xlabel("Starting synthesis compound", fontweight="bold", fontsize=l_font)
-		plt.ylabel("Correlation coefficient", fontweight="bold", fontsize=l_font)
-		plt.title(r"Correlation coefficients between amino acid frequencies and biosynthesis costs for $\it{Escherichia\ coli}$", fontsize=t_font)
-		plt.rcParams["figure.figsize"] = (18, 10)
+		g = sns.barplot(data=ecoli_df, x="Synthesis", y="Correlation coefficient", hue="Correlation test", palette=sns.color_palette("colorblind", n_colors=3))
+		g.set_xlabel("Starting synthesis compound", fontweight="bold", fontsize=10)
+		g.set_ylabel("Corr. coefficient", fontweight="bold", fontsize=10)
+		g.set_title("Correlation coefficients between amino acid frequencies\nand biosynthesis costs for "r"$\mathbfit{Escherichia\ coli}$", fontweight="bold", fontsize=12)
+		g.xaxis.grid(True, linestyle="--")
 		for ext in ["svg", "pdf"]:
 			plt.savefig(os.path.join(output, f"ecoli_cost_corr_coefficients.{ext}"), bbox_inches="tight")
 			
