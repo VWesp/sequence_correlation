@@ -1,7 +1,6 @@
 import os
 import re
 import gzip
-import time
 import tqdm
 import argparse
 import pandas as pd
@@ -55,22 +54,22 @@ if __name__ == "__main__":
 	prot_files = list(filter(re.compile(r"^(?!.*_DNA\.fasta\.gz$).*\.fasta\.gz$").match, os.listdir(data_path)))
 	if(chunk_size <= 0):
 		chunk_size = len(prot_files)
-		
-	for chunk in range(0, len(prot_files), chunk_size):
-		seq_data = []
-		chunked_files = prot_files[chunk:chunk+chunk_size]
-		for file in tqdm.tqdm(chunked_files, desc=f"Loading proteome files for chunk [{chunk}-{min(chunk+chunk_size, len(prot_files))}]"):
-			file_id = file.split(".fasta.gz")[0]
-			with gzip.open(os.path.join(data_path, file), "rt") as prot_handle:
-				prot_seqio = SeqIO.to_dict(SeqIO.parse(prot_handle, "fasta"))
-				with gzip.open(os.path.join(data_path, f"{file_id}_DNA.fasta.gz"), "rt") as gene_handle:
-					gene_seqio = SeqIO.to_dict(SeqIO.parse(gene_handle, "fasta"))
-					seq_data.append([file_id, prot_seqio, gene_seqio])
-					
-		time.sleep(300)
-		fdsfdsgfsd
-		# start the multicore process for a given number of cores
-		with mp.Pool(processes=threads) as pool:
+	
+	# start the multicore process for a given number of cores
+	with mp.Pool(processes=threads) as pool:
+		for chunk in range(0, len(prot_files), chunk_size):
+			seq_data = []
+			chunked_files = prot_files[chunk:chunk+chunk_size]
+			max_chunk = min(chunk+chunk_size, len(prot_files))
+			for file in tqdm.tqdm(chunked_files, desc=f"Loading proteome files for chunk [{chunk}-{max_chunk}/{len(prot_files)}]"):
+				file_id = file.split(".fasta.gz")[0]
+				with gzip.open(os.path.join(data_path, file), "rt") as prot_handle:
+					prot_seqio = SeqIO.to_dict(SeqIO.parse(prot_handle, "fasta"))
+					with gzip.open(os.path.join(data_path, f"{file_id}_DNA.fasta.gz"), "rt") as gene_handle:
+						gene_seqio = SeqIO.to_dict(SeqIO.parse(gene_handle, "fasta"))
+						seq_data.append([file_id, prot_seqio, gene_seqio])
+						
 			pool_map = partial(get_proteome_distribution, output=output)
-			tqdm.tqdm(pool.imap(pool_map, seq_data), total=len(seq_data), desc=f"Calculating amino acid distributions for chunk [{chunk}-{min(chunk+chunk_size, len(prot_files))}]")
+			tqdm.tqdm(pool.imap(pool_map, seq_data), total=len(seq_data), desc=f"Calculating amino acid distributions for chunk "
+																			   f"[{chunk}-{max_chunk}/{len(prot_files)}]")
 

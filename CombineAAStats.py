@@ -1,5 +1,4 @@
 import os
-import sys
 import tqdm
 import yaml
 import argparse
@@ -138,7 +137,7 @@ if __name__ == "__main__":
 					freq_funcs = ef.build_functions(gen_code)
 				
 				dis_data.append([tax_id, dis_df, code_name, freq_funcs, resamples])	
-				
+			
 			result = list(tqdm.tqdm(pool.imap(combine_distribution_stats, dis_data), total=len(dis_data), desc=f"Calculating amino acid statistics for chunk " 
 																											   f"[{chunk}-{max_chunk}/{len(dis_files)}]"))
 			for res in result:

@@ -44,22 +44,27 @@ if __name__ == "__main__":
 					proteome_url = f"{domain_url}{id}/"
 					ftp.cwd(proteome_url)
 					files = ftp.nlst()
-					prot_filter = list(filter(re.compile(f"{id}_[0-9]+.fasta.gz").match, files))[0]
-					prot_file = f"{proteome_url}{prot_filter}"
-					prot_output = os.path.join(file_output, prot_filter)
-					if(not os.path.exists(prot_output)):
-						with open(prot_output, "wb") as writer:
-							ftp.retrbinary(f"RETR {prot_file}", writer.write)
-					
-					dna_filter = list(filter(re.compile(f"{id}_[0-9]+_DNA.fasta.gz").match, files))[0]
-					dna_file = f"{proteome_url}{dna_filter}"
-					dna_output = os.path.join(file_output, dna_filter)
-					if(not os.path.exists(dna_output)):
-						with open(dna_output, "wb") as writer:
-							ftp.retrbinary(f"RETR {dna_file}", writer.write)
-					
-					log_file.write(f"\n{id} -> success -> {tries}/{max_tries} tries")
-					log_file.flush()
+					prot_filter = list(filter(re.compile(f"{id}_[0-9]+.fasta.gz").match, files))
+					dna_filter = list(filter(re.compile(f"{id}_[0-9]+_DNA.fasta.gz").match, files))
+					if(len(prot_filter) and len(dna_filter)):
+						prot_file = f"{proteome_url}{prot_filter[0]}"
+						prot_output = os.path.join(file_output, prot_filter[0])
+						if(not os.path.exists(prot_output)):
+							with open(prot_output, "wb") as writer:
+								ftp.retrbinary(f"RETR {prot_file}", writer.write)
+						
+						dna_file = f"{proteome_url}{dna_filter[0]}"
+						dna_output = os.path.join(file_output, dna_filter[0])
+						if(not os.path.exists(dna_output)):
+							with open(dna_output, "wb") as writer:
+								ftp.retrbinary(f"RETR {dna_file}", writer.write)
+						
+						log_file.write(f"\n{id} -> success -> {tries}/{max_tries} tries")
+						log_file.flush()
+					else:
+						log_file.write(f"\n{id} -> no success -> {tries}/{max_tries} tries -> files are missing")
+						log_file.flush()
+						
 					break
 				except Exception:
 					tries += 1
