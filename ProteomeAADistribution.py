@@ -70,6 +70,6 @@ if __name__ == "__main__":
 						seq_data.append([file_id, prot_seqio, gene_seqio])
 						
 			pool_map = partial(get_proteome_distribution, output=output)
-			tqdm.tqdm(pool.imap(pool_map, seq_data), total=len(seq_data), desc=f"Calculating amino acid distributions for chunk "
-																			   f"[{chunk}-{max_chunk}/{len(prot_files)}]")
+			list(tqdm.tqdm(pool.imap(pool_map, seq_data), total=len(seq_data), desc=f"Calculating amino acid distributions for chunk "
+																			   		f"[{chunk}-{max_chunk}/{len(prot_files)}]"))
 
