@@ -25,7 +25,8 @@ def fisher_Z(corrs, p_values):
 
 # main method
 if __name__ == "__main__":
-	parser = argparse.ArgumentParser(description="Plot proteome distribution statistics")
+	parser = argparse.ArgumentParser(
+	description="Plot proteome distribution statistics")
 	parser.add_argument("-i", "--input", help="Specify the path to folder with the domains", required=True)
 	parser.add_argument("-o", "--output", help="Set the path to the output folder", required=True)
 	parser.add_argument("-r", "--resamples", help="Specify the number of resamples for the permutation tests (default: 9999)", type=int, default=9999)
@@ -51,7 +52,6 @@ if __name__ == "__main__":
 		stats_df = pd.read_csv(os.path.join(domain_path, "combined_distributions.csv"), sep="\t", header=0, index_col=0)
 		stats_df["Pos_charged"] = stats_df[["H_median", "K_median", "R_median"]].sum(axis=1)
 		stats_df["Neg_charged"] = stats_df[["D_median", "E_median"]].sum(axis=1)
-		stats_df.describe().to_csv(os.path.join(domain_path, "combined_distributions_described.csv"), sep="\t")
 		stats_df["GC_grouped"] = (stats_df["GC_median"] // 0.01) * 0.01
 		stats_df["Domain"] = domain
 		all_stats_df = pd.concat([all_stats_df, stats_df])
