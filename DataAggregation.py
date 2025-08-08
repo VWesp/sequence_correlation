@@ -25,7 +25,6 @@ if __name__ == "__main__":
     	df.index.name = "TaxID"
     	frames.append(df)
     	num_prots.append(len(df))
-    	break
     
     print("Saving aggregated data...")	
     aggregated_df = pd.concat(frames).fillna(0.0)
