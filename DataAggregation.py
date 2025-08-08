@@ -10,7 +10,7 @@ import scipy.stats as sci
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Aggregating distribution files and their median statistics")
     parser.add_argument("-d", "--data", help="Specify the path to the folder with the distribution files", required=True)
-    parser.add_argument("-o", "--output", help="Specify the output folder", required=True)
+    parser.add_argument("-o", "--output", help="Specify the output file", required=True)
     args = parser.parse_args()
     
     data = args.data
@@ -36,4 +36,4 @@ if __name__ == "__main__":
     median_df.loc["MAD", "#Proteins"] = sci.median_abs_deviation(num_prots)
     median_df.loc["Median", columns] = aggregated_df[columns].median()
     median_df.loc["MAD", columns] = (aggregated_df[columns] - median_df.loc["Median"]).abs().median()
-    median_df.to_csv(os.path.join(output, "median_distributions.csv"), sep="\t")
+    median_df.to_csv(output, sep="\t")
