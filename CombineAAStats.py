@@ -109,7 +109,7 @@ if __name__ == "__main__":
 	chunk_size = args.chunks
 	threads = args.threads
 	
-	encoding_df = pd.read_csv(encoding, sep="\t", header=0, index_col=0)
+	encoding_df = pd.read_csv(encoding, sep="\t", header=0, index_col=0).fillna("1")
 	code_map_df = pd.read_csv(code_map, sep="\t", header=0, index_col=0)
 	dis_files = os.listdir(data_path)
 	comb_dis_df = pd.DataFrame()
@@ -123,8 +123,7 @@ if __name__ == "__main__":
 			max_chunk = min(chunk+chunk_size, len(dis_files))
 			for file in tqdm.tqdm(chunked_files, desc=f"Loading distribution files for chunk [{chunk}-{max_chunk}/{len(dis_files)}]"):
 				tax_id = int(file.split(".csv")[0].split("_")[1])
-				dis_df = pd.read_csv(os.path.join(data_path, file), sep="\t", header=0, index_col=0, on_bad_lines="skip").fillna("1")
-				print(encoding_df.loc[tax_id, "GeneticID"])
+				dis_df = pd.read_csv(os.path.join(data_path, file), sep="\t", header=0, index_col=0, on_bad_lines="skip")
 				code_id = int(encoding_df.loc[tax_id, "GeneticID"])
 				code_name = code_map_df.loc[code_id, "Name"]
 				freq_funcs = None
