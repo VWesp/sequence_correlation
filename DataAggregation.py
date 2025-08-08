@@ -25,13 +25,15 @@ if __name__ == "__main__":
     	df.index.name = "TaxID"
     	frames.append(df)
     	num_prots.append(len(df))
+    	break
     
     print("Saving aggregated data...")	
-    aggregated_df = pd.concat(frames)
+    aggregated_df = pd.concat(frames).fillna(0.0)
     aggregated_df.to_csv(os.path.join(output, "aggregated_distributions.csv"), sep="\t")
     
     print("Calculating medians...")	
     columns = aggregated_df.columns[3:]
+    print(aggregated_df)
     median_df = pd.DataFrame(columns=["#Proteins"]+columns, index=["Median", "MAD"])
     median_df.loc["Median", "#Proteins"] = np.median(num_prots)
     median_df.loc["MAD", "#Proteins"] = sci.median_abs_deviation(num_prots)
