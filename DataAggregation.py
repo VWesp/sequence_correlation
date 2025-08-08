@@ -26,10 +26,6 @@ if __name__ == "__main__":
     	frames.append(df)
     	num_prots.append(len(df))
     
-    print("Saving aggregated data...")	
-    aggregated_df = pd.concat(frames).fillna(0.0)
-    aggregated_df.to_csv(os.path.join(output, "aggregated_distributions.csv"), sep="\t")
-    
     print("Calculating medians...")	
     columns = aggregated_df.columns[3:]
     median_df = pd.DataFrame(index=["Median", "MAD"])
