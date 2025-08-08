@@ -26,6 +26,9 @@ if __name__ == "__main__":
     	frames.append(df)
     	num_prots.append(len(df))
     
+    print("Aggregating data...")	
+    aggregated_df = pd.concat(frames).fillna(0.0)
+    
     print("Calculating medians...")	
     columns = aggregated_df.columns[3:]
     median_df = pd.DataFrame(index=["Median", "MAD"])
