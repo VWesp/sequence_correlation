@@ -124,12 +124,7 @@ if __name__ == "__main__":
 			for file in tqdm.tqdm(chunked_files, desc=f"Loading distribution files for chunk [{chunk}-{max_chunk}/{len(dis_files)}]"):
 				tax_id = int(file.split(".csv")[0].split("_")[1])
 				dis_df = pd.read_csv(os.path.join(data_path, file), sep="\t", header=0, index_col=0, on_bad_lines="skip")
-				code_id = encoding_df.loc[tax_id, "GeneticID"]
-				if(pd.isna(code_id)):
-					code_id = 1
-				else:
-					code_id = int(code_id)
-				
+				code_id = int(encoding_df.loc[tax_id, "GeneticID"].fillna("1"))
 				code_name = code_map_df.loc[code_id, "Name"]
 				freq_funcs = None
 				with open(os.path.join(code_path, f"{code_name}.yaml"), "r") as code_reader:

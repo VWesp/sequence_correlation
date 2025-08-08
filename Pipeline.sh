@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for domain in "Archaea" "Bacteria" "Eukaryota" "Viruses"; do
+for domain in "Archaea" "Viruses" "Bacteria" "Eukaryota"; do
 	echo $domain
 	/home/we63kel/anaconda3/bin/python3 DownloadProteome.py -d $domain -o /home/we63kel/uniprot_knowledgebase -t 5 -w 15 &&
 	/home/we63kel/anaconda3/bin/python3 ProteomeAADistribution.py -d /home/we63kel/uniprot_knowledgebase/$domain/data -o /home/we63kel/uniprot_knowledgebase/$domain/aa_distributions -c 1000 -t 60 &&
