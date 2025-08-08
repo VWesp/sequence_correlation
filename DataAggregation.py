@@ -39,4 +39,3 @@ if __name__ == "__main__":
     median_df.loc["Median", columns] = aggregated_df[columns].median()
     median_df.loc["MAD", columns] = (aggregated_df[columns] - median_df.loc["Median"]).abs().median()
     median_df.to_csv(os.path.join(output, "median_distributions.csv"), sep="\t")
-    print(median_df)
