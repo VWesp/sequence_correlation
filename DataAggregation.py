@@ -1,7 +1,9 @@
 import os
 import tqdm
 import argparse
+import numpy as np
 import pandas as pd
+import scipy.stats as sci
 
 
 # main method
@@ -15,12 +17,14 @@ if __name__ == "__main__":
     output= args.output
     
     frames = []
+    num_prots = []
     for file in tqdm.tqdm(os.listdir(data), desc=f"Combining distribution files"):
     	tax_id = int(file.split(".csv")[0].split("_")[1])
     	df = pd.read_csv(os.path.join(data, file), sep="\t", header=0)
     	df.index = [tax_id] * len(df)
     	df.index.name = "TaxID"
     	frames.append(df)
+    	num_prots.append(len(df))
     
     print("Saving aggregated data...")	
     aggregated_df = pd.concat(frames)
@@ -28,7 +32,9 @@ if __name__ == "__main__":
     
     print("Calculating medians...")	
     columns = aggregated_df.columns[3:]
-    median_df = pd.DataFrame(columns=columns, index=["Median", "MAD"])
-    median_df.loc["Median"] = aggregated_df[columns].median()
-    median_df.loc["MAD"] = (aggregated_df[columns] - median_df.loc["Median"]).abs().median()
+    median_df = pd.DataFrame(columns=["#Proteins"]+columns, index=["Median", "MAD"])
+    median_df.loc["Median", "#Proteins"] = np.median(num_prots)
+    median_df.loc["MAD", "#Proteins"] = sci.median_abs_deviation(num_prots)
+    median_df.loc["Median", columns] = (aggregated_df[columns] - median_df.loc["Median"]).abs().median()
+    median_df.loc["MAD", columns] = (aggregated_df[columns] - median_df.loc["Median"]).abs().median()
     median_df.to_csv(os.path.join(output, "median_distributions.csv"), sep="\t")
