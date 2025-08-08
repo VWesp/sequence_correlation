@@ -21,11 +21,13 @@ if __name__ == "__main__":
     	df.index = [tax_id] * len(df)
     	df.index.name = "TaxID"
     	frames.append(df)
-    	
+    
+    print("Saving aggregated data...")	
     aggregated_df = pd.concat(frames)
     aggregated_df.to_csv(os.path.join(output, "aggregated_distributions.csv"), sep="\t")
     
-    median_df = pd.DataFrame(columns=aggregated_df.columns[2:], index=["Median", "MAD"])
-    median_df.loc["Median"] = aggregated_df.median()
-    median_df.loc["MAD"] = (aggregated_df - median_df.loc["Median"]).abs().median()
+    print("Calculating medians...")	
+    median_df = pd.DataFrame(columns=aggregated_df.columns[3:], index=["Median", "MAD"])
+    median_df.loc["Median"] = aggregated_df.columns[3:].median()
+    median_df.loc["MAD"] = (aggregated_df.columns[3:] - median_df.loc["Median"]).abs().median()
     median_df.to_csv(os.path.join(output, "median_distributions.csv"), sep="\t")
