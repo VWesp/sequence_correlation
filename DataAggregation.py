@@ -29,11 +29,21 @@ if __name__ == "__main__":
     print("Aggregating data...")	
     aggregated_df = pd.concat(frames).fillna(0.0)
     
-    print("Calculating medians...")	
+    print("Describing statistics...")	
     columns = aggregated_df.columns[3:]
-    median_df = pd.DataFrame(index=["Median", "MAD"])
+    median_df = pd.DataFrame(index=["Median", "MAD", "Min", "Max", "25%", "75%"])
     median_df.loc["Median", "#Proteins"] = np.median(num_prots)
     median_df.loc["MAD", "#Proteins"] = sci.median_abs_deviation(num_prots)
+    median_df.loc["Min", "#Proteins"] = np.min(num_prots)
+    median_df.loc["Max", "#Proteins"] = np.max(num_prots)
+    median_df.loc["25%", "#Proteins"] = np.quantile(num_prots, 0.25)
+    median_df.loc["75%", "#Proteins"] = np.quantile(num_prots, 0.75)
+    
     median_df.loc["Median", columns] = aggregated_df[columns].median()
     median_df.loc["MAD", columns] = (aggregated_df[columns] - median_df.loc["Median"]).abs().median()
+    median_df.loc["Min", columns] = aggregated_df[columns].min()
+    median_df.loc["Max", columns] = aggregated_df[columns].max()
+    median_df.loc["25%", columns] = aggregated_df[columns].quantile(0.25)
+    median_df.loc["75%", columns] = aggregated_df[columns].quantile(0.75)
+    
     median_df.to_csv(output, sep="\t")
