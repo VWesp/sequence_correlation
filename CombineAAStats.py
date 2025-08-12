@@ -70,6 +70,7 @@ def combine_distribution_stats(data):
 	dis_sr["log_RMSE_code"] = np.log(skl.root_mean_squared_error(dis_sr[aa_median_cols], dis_sr[code_freq_cols]))
 	dis_sr["log_RMSE_gc"] = np.log(skl.root_mean_squared_error(dis_sr[aa_median_cols], dis_sr[gc_freq_cols]))
 	############################ Pearson code
+	print(dis_sr[aa_median_cols])
 	dis_sr["Ps_code"] = sci.pearsonr(dis_sr[aa_median_cols], dis_sr[code_freq_cols]).statistic
 	dis_sr["Ps_code_p"] = sci.permutation_test((dis_sr[aa_median_cols],), lambda x: sci.pearsonr(x, dis_sr[code_freq_cols]).statistic, permutation_type="pairings", 
 																					 			 n_resamples=resamples).pvalue
