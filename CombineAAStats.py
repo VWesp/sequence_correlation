@@ -13,11 +13,11 @@ import equation_functions as ef
 def fisher_Z(x):
 	### Fisher's Z-transformation
 	# Correlations
-	z = [0.5*np.log((1+r)/(1-r)) for r in x]
+	z = np.arctanh(x)
 	mean_z = np.mean(z)
 	std_z = 1 / np.sqrt(len(x)-3)
-	mean_r = (np.exp(2*mean_z)-1) / (np.exp(2*mean_z)+1)
-	std_r = (np.exp(2*std_z)-1) / (np.exp(2*std_z)+1)
+	mean_r = np.tanh(mean_z)
+	std_r = (np.tanh(std_z)
 	return [mean_r, std_r]
 
 
@@ -162,27 +162,26 @@ if __name__ == "__main__":
 	### Summarize data
 	corr_start_idx = [i for i,col in enumerate(comb_dis_df.columns) if col.startswith("Ps_")][0]
 	summary_df = pd.DataFrame(index=["Sum", "Median", "MAD", "Min", "Max", "25%", "75%"])
+	cols = [col for col in comb_dis_df.columns[:corr_start_idx] if(not col.endswith("_mad"))]
 	# Summarize non correlation data
-	for col in comb_dis_df.columns[:corr_start_idx]:
-		if(not col.endswith("_mad")):
-			summary_df.loc["Sum", col] = comb_dis_df[col].sum()
-			summary_df.loc["Mean", col] = comb_dis_df[col].mean()
-			summary_df.loc["Std", col] = comb_dis_df[col].std()
-			summary_df.loc["Min", col] = comb_dis_df[col].min()
-			summary_df.loc["Max", col] = comb_dis_df[col].max()
-			summary_df.loc["25%", col] = comb_dis_df[col].quantile(0.25)
-			summary_df.loc["75%", col] = comb_dis_df[col].quantile(0.75)
+	summary_df.loc["Sum", cols] = comb_dis_df[cols].sum()
+	summary_df.loc["Mean", cols] = comb_dis_df[cols].mean()
+	summary_df.loc["Std", cols] = comb_dis_df[cols].std()
+	summary_df.loc["Min", cols] = comb_dis_df[cols].min()
+	summary_df.loc["Max", cols] = comb_dis_df[cols].max()
+	summary_df.loc["25%", cols] = comb_dis_df[cols].quantile(0.25)
+	summary_df.loc["75%", cols] = comb_dis_df[cols].quantile(0.75)
 		
 	# Summarize correlation data
-	for col in comb_dis_df.columns[corr_start_idx:-1]:
-		summary_df.loc["Sum", col] = comb_dis_df[col].sum()
-		mean,std = fisher_Z(comb_dis_df[col])
-		summary_df.loc["Mean", col] = mean
-		summary_df.loc["Std", col] = std
-		summary_df.loc["Min", col] = comb_dis_df[col].min()
-		summary_df.loc["Max", col] = comb_dis_df[col].max()
-		summary_df.loc["25%", col] = comb_dis_df[col].quantile(0.25)
-		summary_df.loc["75%", col] = comb_dis_df[col].quantile(0.75)
+	cols = comb_dis_df.columns[corr_start_idx:-1]
+	summary_df.loc["Sum", cols] = comb_dis_df[cols].sum()
+	mean,std = fisher_Z(comb_dis_df[cols])
+	summary_df.loc["Mean", cols] = mean
+	summary_df.loc["Std", cols] = std
+	summary_df.loc["Min", cols] = comb_dis_df[col].min()
+	summary_df.loc["Max", cols] = comb_dis_df[col].max()
+	summary_df.loc["25%", cols] = comb_dis_df[col].quantile(0.25)
+	summary_df.loc["75%", cols] = comb_dis_df[col].quantile(0.75)
 		
 	summary_df.to_csv(os.path.join(output, "distribution_description.csv"), sep="\t")
 	
