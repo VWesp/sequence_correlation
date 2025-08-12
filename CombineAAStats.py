@@ -72,7 +72,7 @@ def combine_distribution_stats(data):
 	############################ Pearson code
 	print(dis_sr[aa_median_cols])
 	print(dis_sr[code_freq_cols])
-	print(sci.pearsonr(dis_sr[aa_median_cols], dis_sr[code_freq_cols]))
+	print(sci.pearsonr(dis_sr[aa_median_cols].values, dis_sr[code_freq_cols].values))
 	dis_sr["Ps_code"] = sci.pearsonr(dis_sr[aa_median_cols], dis_sr[code_freq_cols]).statistic
 	dis_sr["Ps_code_p"] = sci.permutation_test((dis_sr[aa_median_cols],), lambda x: sci.pearsonr(x, dis_sr[code_freq_cols]).statistic, permutation_type="pairings", 
 																					 			 n_resamples=resamples).pvalue
