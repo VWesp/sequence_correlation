@@ -160,7 +160,7 @@ if __name__ == "__main__":
 	comb_dis_df.to_csv(os.path.join(output, "combined_distributions.csv"), sep="\t")
 	
 	### Summarize data
-	corr_start_idx = [i for i,col in enumerate(df.columns) if col.startswith("Ps_")][0]
+	corr_start_idx = [i for i,col in enumerate(comb_dis_df.columns) if col.startswith("Ps_")][0]
 	summary_df = pd.DataFrame(index=["Sum", "Median", "MAD", "Min", "Max", "25%", "75%"])
 	# Summarize non correlation data
 	for col in comb_dis_df.columns[:corr_start_idx]:
