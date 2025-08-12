@@ -15,7 +15,7 @@ def fisher_Z(x):
 	# Correlations
 	z = [0.5*np.log((1+r)/(1-r)) for r in x]
 	mean_z = np.mean(z)
-	std_z = 1 / np.sqrt(len(x)-3)
+	std_z = np.std(z)
 	mean_r = (np.exp(2*mean_z)-1) / (np.exp(2*mean_z)+1)
 	std_r = (np.exp(2*std_z)-1) / (np.exp(2*std_z)+1)
 	return [mean_r, std_r]
