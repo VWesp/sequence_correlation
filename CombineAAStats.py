@@ -164,7 +164,7 @@ if __name__ == "__main__":
 	summary_df = pd.DataFrame(index=["Sum", "Median", "MAD", "Min", "Max", "25%", "75%"])
 	# Summarize non correlation data
 	for col in comb_dis_df.columns[1:corr_start_idx]:
-		if(not col.endswith("_mad"):
+		if(not col.endswith("_mad")):
 			summary_df.loc["Sum", col] = comb_dis_df[col].sum()
 			summary_df.loc["Mean", col] = comb_dis_df[col].mean()
 			summary_df.loc["Std", col] = comb_dis_df[col].std()
