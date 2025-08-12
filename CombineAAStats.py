@@ -174,7 +174,7 @@ if __name__ == "__main__":
 	summary_df.to_csv(os.path.join(output, "distribution_description.csv"), sep="\t")
 		
 	# Summarize correlation data
-	corr_summary_df = pd.DataFrame(index=["Sum", "Median"])
+	corr_summary_df = pd.DataFrame(index=["Mean", "Std"])
 	cols = comb_dis_df.columns[corr_start_idx:-1]
 	for col in cols:
 		mean,std = fisher_Z(comb_dis_df[col])
