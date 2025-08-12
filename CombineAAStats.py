@@ -165,8 +165,8 @@ if __name__ == "__main__":
 	summary_df = pd.DataFrame(index=["Sum", "Median", "MAD", "Min", "Max", "25%", "75%"])
 	cols = [col for col in comb_dis_df.columns[:corr_start_idx] if(not col.endswith("_mad"))]
 	summary_df.loc["Sum", cols] = comb_dis_df[cols].sum()
-	summary_df.loc["Mean", cols] = comb_dis_df[cols].mean()
-	summary_df.loc["Std", cols] = comb_dis_df[cols].std()
+	summary_df.loc["Median", cols] = comb_dis_df[cols].median()
+	summary_df.loc["MAD", cols] = (comb_dis_df[cols] - summary_df.loc["Median", cols]).abs().median()
 	summary_df.loc["Min", cols] = comb_dis_df[cols].min()
 	summary_df.loc["Max", cols] = comb_dis_df[cols].max()
 	summary_df.loc["25%", cols] = comb_dis_df[cols].quantile(0.25)
