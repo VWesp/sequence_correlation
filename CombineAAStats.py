@@ -17,7 +17,7 @@ def fisher_Z(x):
 	mean_z = np.mean(z)
 	std_z = 1 / np.sqrt(len(x)-3)
 	mean_r = np.tanh(mean_z)
-	std_r = (np.tanh(std_z)
+	std_r = np.tanh(std_z)
 	return [mean_r, std_r]
 
 
