@@ -34,7 +34,6 @@ def combine_distribution_stats(data):
 
 	dis_df.fillna(0.0, inplace=True)
 	dis_sr = pd.Series(name=tax_id)
-	dis_sr["Genetic_code"] = code_name		
 	dis_sr["#Proteins"] = len(dis_df)
 	dis_sr["Length_median"] = dis_df["Length"].median()
 	dis_sr["Length_mad"] = (dis_df["Length"] - dis_sr["Length_median"]).abs().median()
@@ -70,14 +69,10 @@ def combine_distribution_stats(data):
 	dis_sr["log_RMSE_code"] = np.log(skl.root_mean_squared_error(dis_sr[aa_median_cols], dis_sr[code_freq_cols]))
 	dis_sr["log_RMSE_gc"] = np.log(skl.root_mean_squared_error(dis_sr[aa_median_cols], dis_sr[gc_freq_cols]))
 	############################ Pearson code
-	print(dis_sr[aa_median_cols])
-	print(dis_sr[code_freq_cols])
-	print(sci.pearsonr(dis_sr[aa_median_cols].values, dis_sr[code_freq_cols].values))
 	dis_sr["Ps_code"] = sci.pearsonr(dis_sr[aa_median_cols], dis_sr[code_freq_cols]).statistic
 	dis_sr["Ps_code_p"] = sci.permutation_test((dis_sr[aa_median_cols],), lambda x: sci.pearsonr(x, dis_sr[code_freq_cols]).statistic, permutation_type="pairings", 
 																					 			 n_resamples=resamples).pvalue
 	############################ Pearson frequency
-	gbjkgjdf
 	dis_sr["Ps_gc"] = sci.pearsonr(dis_sr[aa_median_cols], dis_sr[gc_freq_cols]).statistic
 	dis_sr["Ps_gc_p"] = sci.permutation_test((dis_sr[aa_median_cols],), lambda x: sci.pearsonr(x, dis_sr[gc_freq_cols]).statistic, permutation_type="pairings", 
 																							   n_resamples=resamples).pvalue
@@ -97,7 +92,8 @@ def combine_distribution_stats(data):
 	dis_sr["Kt_gc"] = sci.kendalltau(dis_sr[aa_median_cols], dis_sr[gc_freq_cols], nan_policy="raise").statistic
 	dis_sr["Kt_gc_p"]  = sci.permutation_test((dis_sr[aa_median_cols],), lambda x: sci.kendalltau(x, dis_sr[gc_freq_cols]).statistic, permutation_type="pairings",
 																								  n_resamples=resamples).pvalue
-																						
+	
+	dis_sr["Genetic_code"] = code_name														
 	return dis_sr.to_frame().T
 
 
@@ -167,7 +163,7 @@ if __name__ == "__main__":
 	corr_start_idx = [i for i,col in enumerate(df.columns) if col.startswith("Ps_")][0]
 	summary_df = pd.DataFrame(index=["Sum", "Median", "MAD", "Min", "Max", "25%", "75%"])
 	# Summarize non correlation data
-	for col in comb_dis_df.columns[1:corr_start_idx]:
+	for col in comb_dis_df.columns[:corr_start_idx]:
 		if(not col.endswith("_mad")):
 			summary_df.loc["Sum", col] = comb_dis_df[col].sum()
 			summary_df.loc["Mean", col] = comb_dis_df[col].mean()
@@ -178,7 +174,7 @@ if __name__ == "__main__":
 			summary_df.loc["75%", col] = comb_dis_df[col].quantile(0.75)
 		
 	# Summarize correlation data
-	for col in comb_dis_df.columns[corr_start_idx:]:
+	for col in comb_dis_df.columns[corr_start_idx:-1]:
 		summary_df.loc["Sum", col] = comb_dis_df[col].sum()
 		mean,std = fisher_Z(comb_dis_df[col])
 		summary_df.loc["Mean", col] = mean
