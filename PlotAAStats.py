@@ -42,6 +42,19 @@ if __name__ == "__main__":
 	domain_colors = ["red", "green", "blue", "orange"]
 	corr_colors = pp.load_cmap("Acadia", keep_first_n=3).colors
 	
+	###### Plot number of proteins
+	if(not no_plot):
+		g = sns.histplot(data=all_stats_df, x="#Proteins", hue="Domain", alpha=0.5, kde=True, line_kws={"linewidth": 2, "linestyle": "--"}, stat="density", common_norm=False, 
+					 	 log_scale=True, palette=domain_colors)
+		g.set_xlabel("#Proteins", fontweight="bold", fontsize=10)
+		g.set_ylabel("Density", fontweight="bold", fontsize=10)
+		g.xaxis.grid(True, linestyle="--")
+		g.legend(g.get_legend().legend_handles, domains, shadow=True)
+		for ext in ["svg", "pdf"]:
+			plt.savefig(os.path.join(output, f"number_of_proteins.{ext}"), bbox_inches="tight")
+			
+		plt.close()
+	
 	###### Plot median protein lengths
 	if(not no_plot):
 		g = sns.histplot(data=all_stats_df, x="Length_median", hue="Domain", log_scale=10, alpha=0.5, kde=True, line_kws={"linewidth": 2, "linestyle": "--"}, stat="density",
@@ -49,6 +62,7 @@ if __name__ == "__main__":
 		g.set_xlabel("Length", fontweight="bold", fontsize=10)
 		g.set_ylabel("Density", fontweight="bold", fontsize=10)
 		g.xaxis.grid(True, linestyle="--")
+		g.legend(g.get_legend().legend_handles, domains, shadow=True)
 		for ext in ["svg", "pdf"]:
 			plt.savefig(os.path.join(output, f"median_protein_lengths.{ext}"), bbox_inches="tight")
 					
@@ -61,6 +75,7 @@ if __name__ == "__main__":
 		g.set_xlabel("GC content", fontweight="bold", fontsize=10)
 		g.set_ylabel("Density", fontweight="bold", fontsize=10)
 		g.xaxis.grid(True, linestyle="--")
+		g.legend(g.get_legend().legend_handles, domains, shadow=True)
 		for ext in ["svg", "pdf"]:
 			plt.savefig(os.path.join(output, f"median_gene_gc.{ext}"), bbox_inches="tight")
 			
@@ -78,7 +93,7 @@ if __name__ == "__main__":
 		axes[0].set_xlabel("")
 		axes[0].set_ylabel("Frequency", fontweight="bold", fontsize=8)
 		axes[0].xaxis.grid(True, linestyle="--")
-		axes[0].legend([])
+		axes[0].legend([], frameon=False)
 		### Values based on code
 		aa_code_cols = [f"{aa}_code" for aa in amino_acids]
 		melted_df = all_stats_df.melt(id_vars="Domain", value_vars=aa_code_cols, var_name="AminoAcid", value_name="MedianVal")
@@ -98,7 +113,7 @@ if __name__ == "__main__":
 		axes[2].set_xlabel("Amino acid", fontweight="bold", fontsize=8)
 		axes[2].set_ylabel("Frequency", fontweight="bold", fontsize=8)
 		axes[2].xaxis.grid(True, linestyle="--")
-		axes[2].legend([])
+		axes[2].legend([], frameon=False)
 		###
 		fig.subplots_adjust(hspace=0.7)
 		for ext in ["svg", "pdf"]:
@@ -122,7 +137,7 @@ if __name__ == "__main__":
 		axes[0].set_xlabel("")
 		axes[0].set_ylabel("Perc. difference", fontweight="bold", fontsize=8)
 		axes[0].xaxis.grid(True, linestyle="--")
-		axes[0].legend([])
+		axes[0].legend([], frameon=False)
 		group_pos = 0
 		for group,aas in aa_groups.items():
 			group_pos += len(aas)
@@ -168,7 +183,7 @@ if __name__ == "__main__":
 		axes[0].set_xlabel("")
 		axes[0].set_ylabel("log-Fold change", fontweight="bold", fontsize=8)
 		axes[0].xaxis.grid(True, linestyle="--")
-		axes[0].legend([])
+		axes[0].legend([], frameon=False)
 		group_pos = 0
 		for group,aas in aa_groups.items():
 			group_pos += len(aas)
@@ -219,7 +234,7 @@ if __name__ == "__main__":
 			if(i == 1 and j == 1):
 				sns.move_legend(axes[i,j], "upper left", bbox_to_anchor=(-1, 1.62), ncols=2, shadow=True)
 			else:
-				axes[i,j].legend([])
+				axes[i,j].legend([], frameon=False)
 			
 			if(i == 1):
 				axes[i,j].set_xlabel("GC content", fontweight="bold", fontsize=8)
@@ -251,7 +266,7 @@ if __name__ == "__main__":
 		axes[0].set_ylabel("Density", fontweight="bold", fontsize=8)
 		axes[0].xaxis.set_tick_params(labelbottom=True)
 		axes[0].xaxis.grid(True, linestyle="--")
-		axes[0].legend([])
+		axes[0].legend([], frameon=False)
 		### Between empirical values and values Based on codon numbers and GC contents
 		sns.kdeplot(data=all_stats_df, x="log_RMSE_gc", hue="Domain", fill=True, common_norm=False, alpha=0.5, palette=domain_colors, ax=axes[1])
 		axes[1].set_title(f"b) Based on codon numbers and GC contents", fontweight="bold", fontsize=10)
@@ -291,7 +306,7 @@ if __name__ == "__main__":
 			if(i == 1 and j == 1):
 				sns.move_legend(axes[i,j], "upper left", bbox_to_anchor=(-1, 1.62), ncols=3, shadow=True)
 			else:
-				axes[i,j].legend([])
+				axes[i,j].legend([], frameon=False)
 				
 			j += 1
 			if(j > 1):
