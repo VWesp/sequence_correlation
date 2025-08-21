@@ -2,12 +2,12 @@
 
 for domain in "Archaea" "Bacteria" "Eukaryota" "Viruses"; do
 	echo $domain
-	/home/we63kel/anaconda3/bin/python3 DownloadProteome.py -d $domain -o /home/we63kel/uniprot_knowledgebase -t 5 -w 15 &&
-	/home/we63kel/anaconda3/bin/python3 ProteomeAADistribution.py -d /home/we63kel/uniprot_knowledgebase/$domain/data -o /home/we63kel/uniprot_knowledgebase/$domain/aa_distributions -c -1 -t 60 &&
-	/home/we63kel/anaconda3/bin/python3 GetGeneticEncoding.py -d /home/we63kel/uniprot_knowledgebase/$domain/aa_distributions/ -o /home/we63kel/uniprot_knowledgebase/$domain/encoding_data.csv &&
-	/home/we63kel/anaconda3/bin/python3 CombineAAStats.py -d /home/we63kel/uniprot_knowledgebase/$domain/aa_distributions/ -o /home/we63kel/uniprot_knowledgebase/$domain/ -e /home/we63kel/uniprot_knowledgebase/$domain/encoding_data.csv -c genetic_codes/ -m code_map.csv -r 10000 -ch -1 -t 60
+	/root/anaconda3/bin/python3 DownloadProteome.py -d $domain -o /home/vwesp/uniprot_knowledgebase/ -t 5 -w 15 &&
+	/root/anaconda3/bin/python3 ProteomeAADistribution.py -d /home/vwesp/uniprot_knowledgebase/$domain/data -o /home/vwesp/uniprot_knowledgebase/$domain/aa_distributions -c 1000 -t 20 &&
+	/root/anaconda3/bin/python3 GetGeneticEncoding.py -d /home/vwesp/uniprot_knowledgebase/$domain/aa_distributions/ -o /home/vwesp/uniprot_knowledgebase/$domain/encoding_data.csv &&
+	/root/anaconda3/bin/python3 CombineAAStats.py -d /home/vwesp/uniprot_knowledgebase/$domain/aa_distributions/ -o /home/vwesp/uniprot_knowledgebase/$domain/ -e /home/vwesp/uniprot_knowledgebase/$domain/encoding_data.csv -c genetic_codes/ -m code_map.csv -r 10000 -ch 1000 -t 20
 	echo ""
 done
 
-#echo "Plotting statistics..."
-#/home/we63kel/anaconda3/bin/python3 PlotAAStats.py -i /home/we63kel/uniprot_knowledgebase/ -o /home/we63kel/uniprot_knowledgebase/stats_results -r 10000
+echo "Plotting statistics..."
+/root/anaconda3/bin/python3 PlotAAStats.py -i /home/vwesp/uniprot_knowledgebase/ -o /home/vwesp/uniprot_knowledgebase/stats_results -r 10000
