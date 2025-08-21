@@ -169,8 +169,7 @@ if __name__ == "__main__":
 		summary_df.loc["Mean", col] = weighted_mean
 		sum_of_squares = (((comb_dis_df["#Proteins"] - 1) * comb_dis_df[std_col]**2) + (comb_dis_df["#Proteins"] * (comb_dis_df[col] - weighted_mean)**2)).sum()
 		weighted_var = sum_of_squares / (comb_dis_df["#Proteins"].sum() - 1)
-		weighted_std = np.sqrt(weighted_var)
-		summary_df.loc["Std", col] = weighted_std
+		summary_df.loc["Std", col] = np.sqrt(weighted_var)
 		
 	summary_df.loc["Min", cols] = comb_dis_df[cols].min()
 	summary_df.loc["Max", cols] = comb_dis_df[cols].max()
