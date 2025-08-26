@@ -46,8 +46,8 @@ if __name__ == "__main__":
 	aa_group_order = [aa for group in aa_groups.values() for aa in group]
 	aa_code_cols = [f"{aa}_code" for aa in amino_acids]
 	aa_gc_cols = [f"{aa}_gc" for aa in amino_acids]
-	aa_code_delta_clr = [f"{aa}_code_clr_delta" for aa in amino_acids]
-	aa_gc_delta_clr = [f"{aa}_gc_clr_delta" for aa in amino_acids]
+	aa_code_delta_clr = [f"{aa}_code_clr_delta" for aa in aa_group_order]
+	aa_gc_delta_clr = [f"{aa}_gc_clr_delta" for aa in aa_group_order]
 	
 	domains = ["Archaea", "Bacteria", "Eukaryota", "Viruses"]
 	all_stats = []
