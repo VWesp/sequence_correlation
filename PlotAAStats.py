@@ -136,7 +136,7 @@ if __name__ == "__main__":
 		melted_df = all_stats_df.melt(id_vars="Domain", value_vars=amino_acids, var_name="AminoAcid", value_name="meanVal")
 		sns.barplot(data=melted_df, x="AminoAcid", y="meanVal", hue="Domain", errorbar="sd", err_kws={"linewidth": 1.5}, palette=domain_colors, ax=axes[0])
 		axes[0].set_xticks(np.arange(len(amino_acids)), amino_acids)
-		axes[0].set_title(f"a) Based on mean distributions in protein", fontweight="bold", fontsize=10)
+		axes[0].set_title(f"a) Based on mean distributions in proteomes", fontweight="bold", fontsize=10)
 		axes[0].set_xlabel("")
 		axes[0].set_ylabel("Frequency", fontweight="bold", fontsize=8)
 		axes[0].xaxis.grid(True, linestyle="--")
@@ -160,7 +160,7 @@ if __name__ == "__main__":
 		axes[1].set_xlabel("")
 		axes[1].set_ylabel("Frequency", fontweight="bold", fontsize=8)
 		axes[1].xaxis.grid(True, linestyle="--")
-		sns.move_legend(axes[1], "upper left", bbox_to_anchor=(1, 1.2), shadow=True)
+		sns.move_legend(axes[1], "upper left", bbox_to_anchor=(1, 1.1), shadow=True, title="")
 		d_series = []
 		for domain in domains:
 			domain_df = all_stats_df[all_stats_df["Domain"]==domain]
@@ -236,7 +236,7 @@ if __name__ == "__main__":
 		axes[1].set_xlabel("Amino acid", fontweight="bold", fontsize=8)
 		axes[1].set_ylabel("ΔCLR", fontweight="bold", fontsize=8)
 		axes[1].xaxis.grid(True, linestyle="--")
-		sns.move_legend(axes[1], "upper left", bbox_to_anchor=(0, 1.62), ncols=4, shadow=True)
+		sns.move_legend(axes[1], "upper left", bbox_to_anchor=(0, 1.48), ncols=4, shadow=True, title="")
 		group_pos = 0
 		for group,aas in aa_groups.items():
 			group_pos += len(aas)
@@ -255,7 +255,7 @@ if __name__ == "__main__":
 		d_df.columns = aa_group_order
 		d_df.to_csv(os.path.join(output, "delta_gc_clr.csv"), sep="\t")
 		###
-		fig.subplots_adjust(hspace=0.8)
+		fig.subplots_adjust(hspace=0.7)
 		for ext in ["svg", "pdf"]:
 			plt.savefig(os.path.join(output, f"dclr_values.{ext}"), bbox_inches="tight")
 			
@@ -280,7 +280,7 @@ if __name__ == "__main__":
 			axes[i,j].set_title(f"{label_lst[index]} {domain}", fontweight="bold", fontsize=10)
 			axes[i,j].xaxis.grid(True, linestyle="--")
 			if(i == 1 and j == 1):
-				sns.move_legend(axes[i,j], "upper left", bbox_to_anchor=(-1, 1.62), ncols=2, shadow=True)
+				sns.move_legend(axes[i,j], "upper left", bbox_to_anchor=(-1, 1.48), ncols=2, shadow=True, title="")
 			else:
 				axes[i,j].legend([], frameon=False)
 			
@@ -298,7 +298,7 @@ if __name__ == "__main__":
 				j = 0
 			
 		###
-		fig.subplots_adjust(hspace=0.8)
+		fig.subplots_adjust(hspace=0.7)
 		for ext in ["svg", "pdf"]:
 			plt.savefig(os.path.join(output, f"mean_charged_aa_freqs.{ext}"), bbox_inches="tight")
 			
@@ -331,7 +331,7 @@ if __name__ == "__main__":
 		axes[1].set_xlabel("Aitchison distance", fontweight="bold", fontsize=8)
 		axes[1].set_ylabel("Density", fontweight="bold", fontsize=8)
 		axes[1].xaxis.grid(True, linestyle="--")
-		sns.move_legend(axes[1], "upper left", bbox_to_anchor=(0, 1.62), ncols=4, shadow=True)
+		sns.move_legend(axes[1], "upper left", bbox_to_anchor=(0, 1.48), ncols=4, shadow=True, title="")
 		d_series = []
 		for domain in domains:
 			domain_df = all_stats_df[all_stats_df["Domain"]==domain]
@@ -341,12 +341,12 @@ if __name__ == "__main__":
 			
 		pd.concat(d_series, axis=1).to_csv(os.path.join(output, "aitchison_gc.csv"), sep="\t")
 		###
-		fig.subplots_adjust(hspace=0.8)
+		fig.subplots_adjust(hspace=0.7)
 		for ext in ["svg", "pdf"]:
 			plt.savefig(os.path.join(output, f"aitchison_distance.{ext}"), bbox_inches="tight")
 			
 		plt.close()
-		
+	
 	###### Plot Biplot
 	if(not no_plot):
 		for domain in domains:
@@ -428,7 +428,7 @@ if __name__ == "__main__":
 			axes[i,j].yaxis.set_tick_params(labelleft=True)
 			axes[i,j].xaxis.grid(True, linestyle="--")
 			if(i == 1 and j == 1):
-				sns.move_legend(axes[i,j], "upper left", bbox_to_anchor=(-1.1, 1.62), ncols=3, shadow=True)
+				sns.move_legend(axes[i,j], "upper left", bbox_to_anchor=(-1.1, 1.48), ncols=3, shadow=True, title="")
 			else:
 				axes[i,j].legend([], frameon=False)
 				
@@ -458,7 +458,7 @@ if __name__ == "__main__":
 		pd.concat(d_code_series).to_csv(os.path.join(output, "code_corr_coefficient.csv"), sep="\t")
 		pd.concat(d_gc_series).to_csv(os.path.join(output, "gc_corr_coefficient.csv"), sep="\t")
 		###
-		fig.subplots_adjust(hspace=0.8)
+		fig.subplots_adjust(hspace=0.7)
 		for ext in ["svg", "pdf"]:
 			plt.savefig(os.path.join(output, f"corr_coefficients.{ext}"), bbox_inches="tight")
 			
@@ -529,7 +529,6 @@ if __name__ == "__main__":
 		ecoli_df.loc[8, "P-value"] = corr_stats.pvalue
 		ecoli_df.loc[8, "Synthesis"] = "Acetate"
 		ecoli_df.loc[8, "Correlation test"] = "Kendall's tau ${τ}$"
-		ecoli_df.to_csv(os.path.join(output, "ecoli_cost_corr_coefficients.csv"), sep="\t", index=False)
 		###
 		g = sns.barplot(data=ecoli_df, x="Synthesis", y="Correlation coefficient", hue="Correlation test", palette=corr_colors)
 		hatches = ["/", ".", "\\",]
@@ -546,4 +545,7 @@ if __name__ == "__main__":
 			plt.savefig(os.path.join(output, f"ecoli_cost_corr_coefficients.{ext}"), bbox_inches="tight")
 			
 		plt.close()
+		###
+		ecoli_df["Correlation test"] = ["Pearson", "Spearman", "Kendall's tau"] * 3
+		ecoli_df.to_csv(os.path.join(output, "ecoli_cost_corr_coefficients.csv"), sep="\t", index=False)
 
