@@ -415,9 +415,9 @@ if __name__ == "__main__":
 		d_gc_series = []
 		for index,domain in enumerate(domains):
 			domain_df = all_stats_df[all_stats_df["Domain"]==domain]
-			code_df = pd.DataFrame({"Pearson ${r}$": domain_df["Ps_code"], "Spearman ${ρ}$": domain_df["Sm_code"], "Kendall's tau ${τ}$": domain_df["Kt_code"]}).melt(var_name="Correlation test", value_name="Correlation coefficient")
+			code_df = pd.DataFrame({"Pearson's ${r}$": domain_df["Ps_code"], "Spearman's ${ρ}$": domain_df["Sm_code"], "Kendall's ${τ}$": domain_df["Kt_code"]}).melt(var_name="Correlation test", value_name="Correlation coefficient")
 			code_df["Type"] = "Codon number"
-			gc_df = pd.DataFrame({"Pearson ${r}$": domain_df["Ps_gc"], "Spearman ${ρ}$": domain_df["Sm_gc"], "Kendall's tau ${τ}$": domain_df["Kt_gc"]}).melt(var_name="Correlation test", value_name="Correlation coefficient")
+			gc_df = pd.DataFrame({"Pearson's ${r}$": domain_df["Ps_gc"], "Spearman's ${ρ}$": domain_df["Sm_gc"], "Kendall's ${τ}$": domain_df["Kt_gc"]}).melt(var_name="Correlation test", value_name="Correlation coefficient")
 			gc_df["Type"] = "Codon number+GC"
 			comb_df = pd.concat([code_df, gc_df], ignore_index=True)
 			sns.violinplot(data=comb_df, x="Type", y="Correlation coefficient", hue="Correlation test", palette=corr_colors, ax=axes[i,j])
@@ -476,19 +476,19 @@ if __name__ == "__main__":
 		ecoli_df.loc[0, "Correlation coefficient"] = corr_stats.statistic
 		ecoli_df.loc[0, "P-value"]  = corr_stats.pvalue
 		ecoli_df.loc[0, "Synthesis"] = "Glucose"
-		ecoli_df.loc[0, "Correlation test"] = "Pearson ${r}$"
+		ecoli_df.loc[0, "Correlation test"] = "Pearson's ${r}$"
 		# Spearman
 		corr_stats = sci.stats.permutation_test((ecoli_clr,), lambda x: sci.stats.spearmanr(x, ecoli_aa_gloc).statistic, permutation_type="pairings", n_resamples=resamples)
 		ecoli_df.loc[1, "Correlation coefficient"] = corr_stats.statistic
 		ecoli_df.loc[1, "P-value"] = corr_stats.pvalue
 		ecoli_df.loc[1, "Synthesis"] = "Glucose"
-		ecoli_df.loc[1, "Correlation test"] = "Spearman ${ρ}$"
+		ecoli_df.loc[1, "Correlation test"] = "Spearman's ${ρ}$"
 		# Kendall's tau
 		corr_stats = sci.stats.permutation_test((ecoli_clr,), lambda x: sci.stats.kendalltau(x, ecoli_aa_gloc).statistic, permutation_type="pairings", n_resamples=resamples)
 		ecoli_df.loc[2, "Correlation coefficient"] = corr_stats.statistic
 		ecoli_df.loc[2, "P-value"] = corr_stats.pvalue
 		ecoli_df.loc[2, "Synthesis"] = "Glucose"
-		ecoli_df.loc[2, "Correlation test"] = "Kendall's tau ${τ}$"
+		ecoli_df.loc[2, "Correlation test"] = "Kendall's ${τ}$"
 		### For glycerol
 		ecoli_aa_gylc = [16, -2, 6, -2, -11, 4.33, 4.33, 1, 0, -10, 6.33, 3, -3, 4, -6, 4, -6, -15, -4, -4]
 		# Pearson
@@ -496,19 +496,19 @@ if __name__ == "__main__":
 		ecoli_df.loc[3, "Correlation coefficient"] = corr_stats.statistic
 		ecoli_df.loc[3, "P-value"]  = corr_stats.pvalue
 		ecoli_df.loc[3, "Synthesis"] = "Glycerol"
-		ecoli_df.loc[3, "Correlation test"] = "Pearson ${r}$"
+		ecoli_df.loc[3, "Correlation test"] = "Pearson's ${r}$"
 		# Spearman
 		corr_stats = sci.stats.permutation_test((ecoli_clr,), lambda x: sci.stats.spearmanr(x, ecoli_aa_gylc).statistic, permutation_type="pairings", n_resamples=resamples)
 		ecoli_df.loc[4, "Correlation coefficient"]  = corr_stats.statistic
 		ecoli_df.loc[4, "P-value"] = corr_stats.pvalue
 		ecoli_df.loc[4, "Synthesis"] = "Glycerol"
-		ecoli_df.loc[4, "Correlation test"] = "Spearman ${ρ}$"
+		ecoli_df.loc[4, "Correlation test"] = "Spearman's ${ρ}$"
 		# Kendall's tau
 		corr_stats = sci.stats.permutation_test((ecoli_clr,), lambda x: sci.stats.kendalltau(x, ecoli_aa_gylc).statistic, permutation_type="pairings", n_resamples=resamples)
 		ecoli_df.loc[5, "Correlation coefficient"] = corr_stats.statistic
 		ecoli_df.loc[5, "P-value"] = corr_stats.pvalue
 		ecoli_df.loc[5, "Synthesis"] = "Glycerol"
-		ecoli_df.loc[5, "Correlation test"] = "Kendall's tau ${τ}$"
+		ecoli_df.loc[5, "Correlation test"] = "Kendall's ${τ}$"
 		### For acetate
 		ecoli_aa_acet= [17, 6, 8, -1, -2, 2.33, 7.67, 4, 1, -1, 0.33, 6, -1, -2, 3, 5, -2, -5, 5, -2]
 		# Pearson
@@ -516,19 +516,19 @@ if __name__ == "__main__":
 		ecoli_df.loc[6, "Correlation coefficient"] = corr_stats.statistic
 		ecoli_df.loc[6, "P-value"]  = corr_stats.pvalue
 		ecoli_df.loc[6, "Synthesis"] = "Acetate"
-		ecoli_df.loc[6, "Correlation test"] = "Pearson ${r}$"
+		ecoli_df.loc[6, "Correlation test"] = "Pearson's ${r}$"
 		# Spearman
 		corr_stats = sci.stats.permutation_test((ecoli_clr,), lambda x: sci.stats.spearmanr(x, ecoli_aa_acet).statistic, permutation_type="pairings",n_resamples=resamples)
 		ecoli_df.loc[7, "Correlation coefficient"]  = corr_stats.statistic
 		ecoli_df.loc[7, "P-value"] = corr_stats.pvalue
 		ecoli_df.loc[7, "Synthesis"] = "Acetate"
-		ecoli_df.loc[7, "Correlation test"] = "Spearman ${ρ}$"
+		ecoli_df.loc[7, "Correlation test"] = "Spearman's ${ρ}$"
 		# Kendall's tau
 		corr_stats = sci.stats.permutation_test((ecoli_clr,), lambda x: sci.stats.kendalltau(x, ecoli_aa_acet).statistic, permutation_type="pairings", n_resamples=resamples)
 		ecoli_df.loc[8, "Correlation coefficient"] = corr_stats.statistic
 		ecoli_df.loc[8, "P-value"] = corr_stats.pvalue
 		ecoli_df.loc[8, "Synthesis"] = "Acetate"
-		ecoli_df.loc[8, "Correlation test"] = "Kendall's tau ${τ}$"
+		ecoli_df.loc[8, "Correlation test"] = "Kendall's ${τ}$"
 		###
 		g = sns.barplot(data=ecoli_df, x="Synthesis", y="Correlation coefficient", hue="Correlation test", palette=corr_colors)
 		hatches = ["/", ".", "\\",]
