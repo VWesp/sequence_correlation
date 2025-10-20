@@ -27,15 +27,18 @@ def combine_distribution_stats(data):
 	dis_df.fillna(0.0, inplace=True)
 	dis_sr = pd.Series(name=tax_id)
 	dis_sr["#Proteins"] = len(dis_df)
-	dis_sr["Length"] = dis_df["Length"].mean()
-	dis_sr["GC"] = dis_df["GC"].mean()
+	dis_sr["Length"] = dis_df["Length"].median()
+	dis_sr["GC"] = dis_df["GC"].median()
 	 # Load frequency functions for each amino acid based on the codons and independent of GC content (GC=50%)
 	code_freq_func = ef.calculate_frequencies(freq_funcs, 0.5)
 	 # Load frequency functions for each amino acid based on the codons and GC content
 	gc_freq_func = ef.calculate_frequencies(freq_funcs, dis_sr["GC"])
 	for aa in amino_acids:
 		try:
-			dis_sr[aa] = dis_df[aa].mean()
+			dis_sr[aa] = dis_df[aa].median()
+			if(dis_sr[aa] == 0.0):
+				dis_sr[aa] = repl
+
 		except KeyError:
 			dis_sr[aa] = repl
 		
