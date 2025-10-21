@@ -215,14 +215,14 @@ if __name__ == "__main__":
 	d_series = []
 	for domain in domains:
 		domain_df = all_stats_df[all_stats_df["Domain"]==domain]
-		data = domain_df[aa_code_delta_clr].abs().describe()
+		data = domain_df[aa_code_delta_clr].describe()
 		data.loc["Domain",:] = domain
 		data.loc["",:] = ""
 		d_series.append(data)
 	
 	d_df = pd.concat(d_series)
 	d_df.columns = aa_group_order
-	d_df.to_csv(os.path.join(output, "delta_code_clr.csv"), sep="\t")
+	d_df.to_csv(os.path.join(output, "dclr_code_values.csv"), sep="\t")
 	### Based on genetic codes and GC contents
 	melted_df = all_stats_df.melt(id_vars="Domain", value_vars=aa_gc_delta_clr, var_name="AminoAcid", value_name="dCLR")
 	sns.boxplot(data=melted_df, x="AminoAcid", y="dCLR", hue="Domain", showfliers=False, palette=domain_colors, ax=axes[1])
@@ -241,18 +241,18 @@ if __name__ == "__main__":
 	d_series = []
 	for domain in domains:
 		domain_df = all_stats_df[all_stats_df["Domain"]==domain]
-		data = domain_df[aa_gc_delta_clr].abs().describe()
+		data = domain_df[aa_gc_delta_clr].describe()
 		data.loc["Domain",:] = domain
 		data.loc["",:] = ""
 		d_series.append(data)
 	
 	d_df = pd.concat(d_series)
 	d_df.columns = aa_group_order
-	d_df.to_csv(os.path.join(output, "delta_gc_clr.csv"), sep="\t")
+	d_df.to_csv(os.path.join(output, "dclr_gc_values.csv"), sep="\t")
 	###
 	fig.subplots_adjust(hspace=0.7)
 	for ext in ["svg", "pdf"]:
-		plt.savefig(os.path.join(output, f"dclr_values.{ext}"), bbox_inches="tight")
+		plt.savefig(os.path.join(output, f"dclr_boxplot.{ext}"), bbox_inches="tight")
 		
 	plt.close()
 
