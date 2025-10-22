@@ -27,18 +27,15 @@ def combine_distribution_stats(data):
 	dis_df.fillna(0.0, inplace=True)
 	dis_sr = pd.Series(name=tax_id)
 	dis_sr["#Proteins"] = len(dis_df)
-	dis_sr["Length"] = dis_df["Length"].median()
-	dis_sr["GC"] = dis_df["GC"].median()
+	dis_sr["Length"] = dis_df["Length"].mean()
+	dis_sr["GC"] = dis_df["GC"].mean()
 	 # Load frequency functions for each amino acid based on the codons and independent of GC content (GC=50%)
 	code_freq_func = ef.calculate_frequencies(freq_funcs, 0.5)
 	 # Load frequency functions for each amino acid based on the codons and GC content
 	gc_freq_func = ef.calculate_frequencies(freq_funcs, dis_sr["GC"])
 	for aa in amino_acids:
 		try:
-			dis_sr[aa] = dis_df[aa].median()
-			if(dis_sr[aa] == 0.0):
-				dis_sr[aa] = repl
-
+			dis_sr[aa] = dis_df[aa].mean()
 		except KeyError:
 			dis_sr[aa] = repl
 		
@@ -62,7 +59,7 @@ def combine_distribution_stats(data):
 	dis_sr[code_cols] = code_cls
 	for index,aa in enumerate(amino_acids):
 		dis_sr[f"{aa}_code_clr"] = code_clr[index]
-		dis_sr[f"{aa}_code_clr_delta"] = obs_clr[index] - code_clr[index]
+		dis_sr[f"{aa}_code_clr_lr"] = np.log(obs_clr[index] / code_clr[index])
 		
 	######
 	gc_val = np.asarray(dis_sr[gc_cols], dtype=float)
@@ -71,7 +68,7 @@ def combine_distribution_stats(data):
 	dis_sr[gc_cols] = gc_cls
 	for index,aa in enumerate(amino_acids):
 		dis_sr[f"{aa}_gc_clr"] = gc_clr[index]
-		dis_sr[f"{aa}_gc_clr_delta"] = obs_clr[index] - gc_clr[index]
+		dis_sr[f"{aa}_gc_clr_lr"] = np.log(obs_clr[index] / gc_clr[index])
 	
 	############################ Aitchison distance between species observed and predicted amino acid frequencies
 	dis_sr["aitchison_code"] = sci.spatial.distance.euclidean(obs_clr, code_clr)

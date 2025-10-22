@@ -20,9 +20,9 @@ plt.style.use("ggplot")
 ### Fisher's Z-transformation
 def fisher_Z(x):
 	z = [0.5*np.log((1+r)/(1-r)) for r in x]
-	median_z = np.median(z)
-	median_r = (np.exp(2*median_z)-1) / (np.exp(2*median_z)+1)
-	return median_r
+	mean_z = np.mean(z)
+	mean_r = (np.exp(2*mean_z)-1) / (np.exp(2*mean_z)+1)
+	return mean_r
 
 
 # main method
@@ -46,8 +46,8 @@ if __name__ == "__main__":
 	aa_group_order = [aa for group in aa_groups.values() for aa in group]
 	aa_code_cols = [f"{aa}_code" for aa in amino_acids]
 	aa_gc_cols = [f"{aa}_gc" for aa in amino_acids]
-	aa_code_delta_clr = [f"{aa}_code_clr_delta" for aa in aa_group_order]
-	aa_gc_delta_clr = [f"{aa}_gc_clr_delta" for aa in aa_group_order]
+	aa_code_lr_clr = [f"{aa}_code_clr_lr " for aa in aa_group_order]
+	aa_gc_lr_clr = [f"{aa}_gc_clr_lr " for aa in aa_group_order]
 	
 	domains = ["Archaea", "Bacteria", "Eukaryota", "Viruses"]
 	all_stats = []
@@ -84,7 +84,7 @@ if __name__ == "__main__":
 		
 	pd.concat(d_series, axis=1).to_csv(os.path.join(output, "number_of_proteins.csv"), sep="\t")
 	
-	###### Plot median protein lengths
+	###### Plot mean protein lengths
 	g = sns.histplot(data=all_stats_df, x="Length", hue="Domain", log_scale=10, alpha=0.5, kde=True, line_kws={"linewidth": 2, "linestyle": "--"}, stat="density",
 				 	 common_norm=False, palette=domain_colors)
 	g.set_xlabel("Length", fontweight="bold", fontsize=10)
@@ -92,7 +92,7 @@ if __name__ == "__main__":
 	g.xaxis.grid(True, linestyle="--")
 	g.legend(g.get_legend().legend_handles, domains, shadow=True)
 	for ext in ["svg", "pdf"]:
-		plt.savefig(os.path.join(output, f"median_protein_lengths.{ext}"), bbox_inches="tight")
+		plt.savefig(os.path.join(output, f"mean_protein_lengths.{ext}"), bbox_inches="tight")
 				
 	plt.close()
 	
@@ -103,9 +103,9 @@ if __name__ == "__main__":
 		data.rename(domain, inplace=True)
 		d_series.append(data)
 		
-	pd.concat(d_series, axis=1).to_csv(os.path.join(output, "median_protein_lengths.csv"), sep="\t")
+	pd.concat(d_series, axis=1).to_csv(os.path.join(output, "mean_protein_lengths.csv"), sep="\t")
 	
-	###### Plot median gene GC contents
+	###### Plot mean gene GC contents
 	g = sns.histplot(data=all_stats_df, x="GC", hue="Domain", alpha=0.5, kde=True, line_kws={"linewidth": 2, "linestyle": "--"}, stat="density", common_norm=False, 
 				 	 palette=domain_colors)
 	g.set_xlabel("GC content", fontweight="bold", fontsize=10)
@@ -113,7 +113,7 @@ if __name__ == "__main__":
 	g.xaxis.grid(True, linestyle="--")
 	g.legend(g.get_legend().legend_handles, domains, shadow=True)
 	for ext in ["svg", "pdf"]:
-		plt.savefig(os.path.join(output, f"median_gene_gc.{ext}"), bbox_inches="tight")
+		plt.savefig(os.path.join(output, f"mean_gene_gc.{ext}"), bbox_inches="tight")
 		
 	plt.close()
 	
@@ -124,15 +124,15 @@ if __name__ == "__main__":
 		data.rename(domain, inplace=True)
 		d_series.append(data)
 		
-	pd.concat(d_series, axis=1).to_csv(os.path.join(output, "median_gene_gc.csv"), sep="\t")
+	pd.concat(d_series, axis=1).to_csv(os.path.join(output, "mean_gene_gc.csv"), sep="\t")
 	
-	###### Plot median amino acid frequencies
+	###### Plot mean amino acid frequencies
 	fig,axes = plt.subplots(3, 1, sharey=True)
 	### Empirical values
 	melted_df = all_stats_df.melt(id_vars="Domain", value_vars=amino_acids, var_name="AminoAcid", value_name="medVal")
 	sns.barplot(data=melted_df, x="AminoAcid", y="medVal", hue="Domain", errorbar="sd", err_kws={"linewidth": 1.5}, palette=domain_colors, ax=axes[0])
 	axes[0].set_xticks(np.arange(len(amino_acids)), amino_acids)
-	axes[0].set_title(f"a) Based on median distributions in proteomes", fontweight="bold", fontsize=10)
+	axes[0].set_title(f"a) Based on mean distributions in proteomes", fontweight="bold", fontsize=10)
 	axes[0].set_xlabel("")
 	axes[0].set_ylabel("Frequency", fontweight="bold", fontsize=8)
 	axes[0].xaxis.grid(True, linestyle="--")
@@ -147,7 +147,7 @@ if __name__ == "__main__":
 	
 	d_df = pd.concat(d_series)
 	d_df.columns = amino_acids
-	d_df.to_csv(os.path.join(output, "median_obs_freqs.csv"), sep="\t")
+	d_df.to_csv(os.path.join(output, "mean_obs_freqs.csv"), sep="\t")
 	### Values based on code
 	melted_df = all_stats_df.melt(id_vars="Domain", value_vars=aa_code_cols, var_name="AminoAcid", value_name="medVal")
 	sns.barplot(data=melted_df, x="AminoAcid", y="medVal", hue="Domain", errorbar="sd", err_kws={"linewidth": 1.5}, palette=domain_colors, ax=axes[1])
@@ -187,18 +187,18 @@ if __name__ == "__main__":
 		
 	d_df = pd.concat(d_series)
 	d_df.columns = amino_acids
-	d_df.to_csv(os.path.join(output, "median_gc_freqs.csv"), sep="\t")
+	d_df.to_csv(os.path.join(output, "mean_gc_freqs.csv"), sep="\t")
 	###
 	fig.subplots_adjust(hspace=0.7)
 	for ext in ["svg", "pdf"]:
-		plt.savefig(os.path.join(output, f"median_aa_freqs.{ext}"), bbox_inches="tight")
+		plt.savefig(os.path.join(output, f"mean_aa_freqs.{ext}"), bbox_inches="tight")
 		
 	plt.close()
 	
 	###### Plot delta CLR as boxplots
 	fig,axes = plt.subplots(2, 1, sharey=True)
 	### Based on genetic codes
-	melted_df = all_stats_df.melt(id_vars="Domain", value_vars=aa_code_delta_clr, var_name="AminoAcid", value_name="dCLR")
+	melted_df = all_stats_df.melt(id_vars="Domain", value_vars=aa_code_lr_clr, var_name="AminoAcid", value_name="dCLR")
 	sns.boxplot(data=melted_df, x="AminoAcid", y="dCLR", hue="Domain", showfliers=False, palette=domain_colors, ax=axes[0])
 	axes[0].set_xticks(np.arange(len(aa_group_order)), aa_group_order)
 	axes[0].set_title("a) Based on codon numbers", fontweight="bold", fontsize=10)
@@ -215,7 +215,7 @@ if __name__ == "__main__":
 	d_series = []
 	for domain in domains:
 		domain_df = all_stats_df[all_stats_df["Domain"]==domain]
-		data = domain_df[aa_code_delta_clr].describe()
+		data = domain_df[aa_code_lr_clr].describe()
 		data.loc["Domain",:] = domain
 		data.loc["",:] = ""
 		d_series.append(data)
@@ -259,13 +259,13 @@ if __name__ == "__main__":
 	###### Plot delta CLR as radar plots
 	fig,axes = plt.subplots(1, 2, sharey=True, subplot_kw={"projection": "polar"})
 	### Based on genetic codes
-	median_code_df = all_stats_df[aa_code_delta_clr+["Domain"]].groupby("Domain").median()
-	num_aas = len(median_code_df.columns)
+	mean_code_df = all_stats_df[aa_code_lr_clr+["Domain"]].groupby("Domain").mean()
+	num_aas = len(mean_code_df.columns)
 	angles = [n / float(num_aas)*2*np.pi for n in range(num_aas)]
 	angles += angles[:1]
 
-	rmin = np.min(median_code_df.values) * 1.1
-	rmax = np.max(median_code_df.values) * 1.1
+	rmin = np.min(mean_code_df.values) * 1.1
+	rmax = np.max(mean_code_df.values) * 1.1
 	line_pos = 0
 	index = 0
 	for i,angle in enumerate(angles[:-1]):
@@ -275,10 +275,10 @@ if __name__ == "__main__":
 	        index += 1
 
 	axes[0].plot(np.linspace(0, 2*np.pi, 100), [0]*100, color="brown", linestyle="dotted", linewidth=2, alpha=0.5)
-	for i,(domain,row) in enumerate(median_code_df.iterrows()):
-		aa_medians = row.to_list()
-		aa_medians += aa_medians[:1]
-		axes[0].plot(angles, aa_medians, label=domain, linewidth=2.5, linestyle="dashed", color=domain_colors[i], alpha=0.75)
+	for i,(domain,row) in enumerate(mean_code_df.iterrows()):
+		aa_means = row.to_list()
+		aa_means += aa_means[:1]
+		axes[0].plot(angles, aa_means, label=domain, linewidth=2.5, linestyle="dashed", color=domain_colors[i], alpha=0.75)
 
 	axes[0].set_xlabel("Amino acid", fontweight="bold", fontsize=12)
 	axes[0].set_xticks(angles[:-1], aa_group_order)
@@ -286,13 +286,13 @@ if __name__ == "__main__":
 	axes[0].set_title("a) Based on codon numbers", fontweight="bold", pad=30, fontsize=14)
 	axes[0].legend(bbox_to_anchor=(1.24, 1), shadow=True, fontsize=12, title="")
 	### Based on genetic codes and GC contents
-	median_gc_df = all_stats_df[aa_gc_delta_clr+["Domain"]].groupby("Domain").median()
-	num_aas = len(median_gc_df.columns)
+	mean_gc_df = all_stats_df[aa_gc_delta_clr+["Domain"]].groupby("Domain").mean()
+	num_aas = len(mean_gc_df.columns)
 	angles = [n / float(num_aas)*2*np.pi for n in range(num_aas)]
 	angles += angles[:1]
 
-	rmin = np.min(median_gc_df.values) * 1.1
-	rmax = np.max(median_gc_df.values) * 1.1
+	rmin = np.min(mean_gc_df.values) * 1.1
+	rmax = np.max(mean_gc_df.values) * 1.1
 	line_pos = 0
 	index = 0
 	for i,angle in enumerate(angles[:-1]):
@@ -302,10 +302,10 @@ if __name__ == "__main__":
 	        index += 1
 
 	axes[1].plot(np.linspace(0, 2*np.pi, 100), [0]*100, color="brown", linestyle="dotted", linewidth=2, alpha=0.5)
-	for i,(domain,row) in enumerate(median_gc_df.iterrows()):
-		aa_medians = row.to_list()
-		aa_medians += aa_medians[:1]
-		axes[1].plot(angles, aa_medians, label=domain, linewidth=2.5, linestyle="dashed", color=domain_colors[i], alpha=0.75)
+	for i,(domain,row) in enumerate(mean_gc_df.iterrows()):
+		aa_means = row.to_list()
+		aa_means += aa_means[:1]
+		axes[1].plot(angles, aa_means, label=domain, linewidth=2.5, linestyle="dashed", color=domain_colors[i], alpha=0.75)
 
 	axes[1].set_xlabel("Amino acid", fontweight="bold", fontsize=12)
 	axes[1].set_xticks(angles[:-1], aa_group_order)
@@ -318,7 +318,7 @@ if __name__ == "__main__":
 		
 	plt.close()
 	
-	###### Plot median frequencies of charged amino acids
+	###### Plot mean frequencies of charged amino acids
 	fig,axes = plt.subplots(2, 2, sharey=True)
 	i = 0
 	j = 0
@@ -356,7 +356,7 @@ if __name__ == "__main__":
 	###
 	fig.subplots_adjust(hspace=0.7)
 	for ext in ["svg", "pdf"]:
-		plt.savefig(os.path.join(output, f"median_charged_aa_freqs.{ext}"), bbox_inches="tight")
+		plt.savefig(os.path.join(output, f"mean_charged_aa_freqs.{ext}"), bbox_inches="tight")
 		
 	plt.close()
 	
@@ -435,20 +435,20 @@ if __name__ == "__main__":
 		
 		corr_df = pd.DataFrame(columns=["Pearson", "Pearson_p", "Spearman", "Spearman_p", "Kendall", "Kendall_p"])
 		corr_df.loc[domain, "Pearson"] = fisher_Z(domain_df["Ps_code"])
-		corr_df.loc[domain, "Pearson_p"] = fisher_Z(domain_df["Ps_code_p"])
+		corr_df.loc[domain, "Pearson_p"] = domain_df["Ps_code_p"].mean()
 		corr_df.loc[domain, "Spearman"] = fisher_Z(domain_df["Sm_code"])
-		corr_df.loc[domain, "Spearman_p"] = fisher_Z(domain_df["Sm_code_p"])
+		corr_df.loc[domain, "Spearman_p"] = domain_df["Sm_code_p"].mean()
 		corr_df.loc[domain, "Kendall"] = fisher_Z(domain_df["Kt_code"])
-		corr_df.loc[domain, "Kendall_p"] = fisher_Z(domain_df["Kt_code_p"])
+		corr_df.loc[domain, "Kendall_p"] = domain_df["Kt_code_p"].mean()
 		d_code_series.append(corr_df)
 		
 		corr_df = pd.DataFrame(columns=["Pearson", "Pearson_p", "Spearman", "Spearman_p", "Kendall", "Kendall_p"])
 		corr_df.loc[domain, "Pearson"] = fisher_Z(domain_df["Ps_gc"])
-		corr_df.loc[domain, "Pearson_p"] = fisher_Z(domain_df["Ps_gc_p"])
+		corr_df.loc[domain, "Pearson_p"] = domain_df["Ps_gc_p"].mean()
 		corr_df.loc[domain, "Spearman"] = fisher_Z(domain_df["Sm_gc"])
-		corr_df.loc[domain, "Spearman_p"] = fisher_Z(domain_df["Sm_gc_p"])
+		corr_df.loc[domain, "Spearman_p"] = domain_df["Sm_gc_p"].mean()
 		corr_df.loc[domain, "Kendall"] = fisher_Z(domain_df["Kt_gc"])
-		corr_df.loc[domain, "Kendall_p"] = fisher_Z(domain_df["Kt_gc_p"])
+		corr_df.loc[domain, "Kendall_p"] = domain_df["Kt_gc_p"].mean()
 		d_gc_series.append(corr_df)
 		
 	pd.concat(d_code_series).to_csv(os.path.join(output, "code_corr_coefficient.csv"), sep="\t")
