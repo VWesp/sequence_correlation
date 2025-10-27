@@ -22,7 +22,7 @@ one_letter_code = {"M": "Methionine", "T": "Threonine", "N": "Asparagine", "K": 
 
 
 def combine_distribution_stats(data):
-	tax_id,dis_df,code_name,freq_funcs,resamples,repl = data
+	tax_id,dis_df,code_name,freq_funcs,resamples,add = data
 	
 	dis_df.fillna(0.0, inplace=True)
 	dis_sr = pd.Series(name=tax_id)
@@ -35,9 +35,9 @@ def combine_distribution_stats(data):
 	gc_freq_func = ef.calculate_frequencies(freq_funcs, dis_sr["GC"])
 	for aa in amino_acids:
 		try:
-			dis_sr[aa] = dis_df[aa].median() + repl
+			dis_sr[aa] = dis_df[aa].median() + add
 		except KeyError:
-			dis_sr[aa] = repl
+			dis_sr[aa] = add
 		
 		###### Code frequency
 		dis_sr[f"{aa}_code"] = code_freq_func["amino"][one_letter_code[aa]]
@@ -113,7 +113,7 @@ if __name__ == "__main__":
 	parser.add_argument("-c", "--codes", help="Specify the path to the folder with the genetic code files", required=True)
 	parser.add_argument("-m", "--mapping", help="Set the path to the mappings of the genetic codes", required=True)
 	parser.add_argument("-r", "--resamples", help="Specify the number of resamples for the permutation tests (default: 9999)", type=int, default=9999)
-	parser.add_argument("-rp", "--replace", help="Add a small value to each frequency to avoid zeroes (default: 1e-12)", type=float, default=1e-12)
+	parser.add_argument("-a", "--add", help="Add a small value to each frequency to avoid zeroes (default: 1e-12)", type=float, default=1e-12)
 	parser.add_argument("-ch", "--chunks", help="Specify the chunk size; 0 and below loads all files at once (default: 100)", type=int, default=100)
 	parser.add_argument("-t", "--threads", help="Specify the number of threads to be used (default: 1)" , type=int, default=1)
 	args = parser.parse_args()
@@ -125,7 +125,7 @@ if __name__ == "__main__":
 	code_path = args.codes
 	code_map = args.mapping
 	resamples = args.resamples if args.resamples > 1 else 1
-	repl = args.replace
+	add = args.add
 	chunks = args.chunks if args.chunks > 0 else len(dis_files)
 	threads = args.threads if args.threads > 0 else 1
 	
@@ -147,7 +147,7 @@ if __name__ == "__main__":
 					gen_code = yaml.safe_load(code_reader)
 					freq_funcs = ef.build_functions(gen_code)
 				
-				dis_data.append([tax_id, dis_df, code_name, freq_funcs, resamples, repl])	
+				dis_data.append([tax_id, dis_df, code_name, freq_funcs, resamples, add])	
 			
 			result = list(tqdm.tqdm(pool.imap(combine_distribution_stats, dis_data), total=len(dis_data), desc=f"Calculating amino acid statistics for chunk " 
 																											   f"[{chunk}-{max_chunk}/{len(dis_files)}]"))
