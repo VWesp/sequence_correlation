@@ -364,7 +364,6 @@ if __name__ == "__main__":
 		
 	plt.close()
 
-
 	###### Plot Aitchison distances
 	fig,axes = plt.subplots(2, 1, sharex=True, sharey=True)
 	### Observed vs. code
@@ -404,12 +403,12 @@ if __name__ == "__main__":
 	label_lst = ["a)", "b)", "c)", "d)"]
 	for index,domain in enumerate(domains):
 		domain_code_df = code_corr_df[code_corr_df["Domain"]==domain]
-		code_df = pd.DataFrame({"Pearson's ${r}$": domain_code_df["Pearson"], "Spearman's ${ρ}$": domain_code_df["Spearman"], "Kendall's ${τ}$": domain_code_df["Kendall"]}).melt(var_name="CorrelationTest", value_name="CorrelationCoefficient")
-		code_df["Type"] = "Codon number"
+		domain_code_corr_df = pd.DataFrame({"Pearson's ${r}$": domain_code_df["Pearson"], "Spearman's ${ρ}$": domain_code_df["Spearman"], "Kendall's ${τ}$": domain_code_df["Kendall"]}).melt(var_name="CorrelationTest", value_name="CorrelationCoefficient")
+		domain_code_corr_df["Type"] = "Codon number"
 		domain_gc_df = gc_corr_df[gc_corr_df["Domain"]==domain]
-		gc_df = pd.DataFrame({"Pearson's ${r}$": gc_corr_df["Pearson"], "Spearman's ${ρ}$": gc_corr_df["Spearman"], "Kendall's ${τ}$": gc_corr_df["Kendall"]}).melt(var_name="CorrelationTest", value_name="CorrelationCoefficient")
-		gc_df["Type"] = "Codon number+GC"
-		comb_df = pd.concat([code_df, gc_df], ignore_index=True)
+		domain_gc_corr_df = pd.DataFrame({"Pearson's ${r}$": domain_gc_df["Pearson"], "Spearman's ${ρ}$": domain_gc_df["Spearman"], "Kendall's ${τ}$": domain_gc_df["Kendall"]}).melt(var_name="CorrelationTest", value_name="CorrelationCoefficient")
+		domain_gc_corr_df["Type"] = "Codon number+GC"
+		comb_df = pd.concat([domain_code_corr_df, domain_gc_corr_df], ignore_index=True)
 		sns.violinplot(data=comb_df, x="Type", y="CorrelationCoefficient", hue="CorrelationTest", palette=corr_colors, ax=axes[i,j])
 		axes[i,j].set_title(f"{label_lst[index]} {domain}", fontweight="bold", fontsize=10)
 		axes[i,j].set_xlabel("")
