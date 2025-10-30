@@ -25,81 +25,98 @@ def combine_distribution_stats(data):
 	tax_id,dis_df,code_name,freq_funcs,resamples,add = data
 	
 	dis_df.fillna(0.0, inplace=True)
-	dis_sr = pd.Series(name=tax_id)
-	dis_sr["#Proteins"] = len(dis_df)
-	dis_sr["Length"] = dis_df["Length"].median()
-	dis_sr["GC"] = dis_df["GC"].median()
-	 # Load frequency functions for each amino acid based on the codons and independent of GC content (GC=50%)
+
+	# Observed frequencies
+	obs_df = pd.Series(name=tax_id, index=["#Proteins", "Length", "GC"]+amino_acids)
+	obs_df["#Proteins"] = len(dis_df)
+	obs_df["Length"] = dis_df["Length"].median()
+	obs_df["GC"] = dis_df["GC"].median()
+	obs_median_aas = np.array([add] * len(amino_acids))
+	for index,aa in enumerate(amino_acids):
+		if aa in dis_df.columns:
+			obs_median_aas[index] += dis_df[aa].median()
+
+	obs_df[amino_acids] = skb.stats.composition.closure(obs_median_aas)
+	# Observed CLR values
+	obs_clr_df = pd.Series(name=tax_id, index=amino_acids)
+	obs_clr = np.array(skb.stats.composition.clr(obs_median_aas))
+	obs_clr_df[amino_acids] = obs_clr
+
+	# Load frequency functions for each amino acid based on the codons and independent of GC content (GC=50%)
+	code_df = pd.Series(name=tax_id, index=["Genetic_code"]+amino_acids, dtype=str)
+	code_df["Genetic_code"] = code_name	
 	code_freq_func = ef.calculate_frequencies(freq_funcs, 0.5)
-	 # Load frequency functions for each amino acid based on the codons and GC content
-	gc_freq_func = ef.calculate_frequencies(freq_funcs, dis_sr["GC"])
-	for aa in amino_acids:
-		try:
-			dis_sr[aa] = dis_df[aa].median() + add
-		except KeyError:
-			dis_sr[aa] = add
-		
-		###### Code frequency
-		dis_sr[f"{aa}_code"] = code_freq_func["amino"][one_letter_code[aa]]
-		###### GC frequency
-		dis_sr[f"{aa}_gc"] = gc_freq_func["amino"][one_letter_code[aa]]
+	code_freq_aas = np.array([code_freq_func["amino"][one_letter_code[aa]] for aa in amino_acids])
+	code_freq_cls = np.array(skb.stats.composition.closure(code_freq_aas))
+	code_df[amino_acids] = code_freq_cls
+	# Code CLR values
+	code_clr_df = pd.Series(name=tax_id, index=amino_acids)
+	code_clr = np.array(skb.stats.composition.clr(code_freq_cls))
+	code_clr_df[amino_acids] = code_clr
+	# CLR distances and Aitchison distance
+	code_delta_df = pd.Series(name=tax_id, index=amino_acids+["Aitchison_distance"])
+	code_delta_df[amino_acids] = obs_clr - code_clr
+	code_delta_df["Aitchison_distance"] = sci.spatial.distance.euclidean(obs_clr, code_clr)
+
+	# Load frequency functions for each amino acid based on the codons and GC content
+	gc_df = pd.Series(name=tax_id, index=["Genetic_code"]+amino_acids, dtype=str)
+	gc_df["Genetic_code"] = code_name
+	gc_freq_func = ef.calculate_frequencies(freq_funcs, obs_df["GC"])
+	gc_freq_aas = np.array([gc_freq_func["amino"][one_letter_code[aa]] for aa in amino_acids])
+	gc_freq_cls = np.array(skb.stats.composition.closure(gc_freq_aas))
+	gc_df[amino_acids] = gc_freq_cls
+	# Code+GC content CLR values and Aitchison distance
+	gc_clr_df = pd.Series(name=tax_id, index=amino_acids)
+	gc_clr = np.array(skb.stats.composition.clr(gc_freq_cls))
+	gc_clr_df[amino_acids] = gc_clr
+	# CLR distances and Aitchison distance
+	gc_delta_df = pd.Series(name=tax_id, index=amino_acids+["Aitchison_distance"])
+	gc_delta_df[amino_acids] = obs_clr - gc_clr
+	gc_delta_df["Aitchison_distance"] = sci.spatial.distance.euclidean(obs_clr, gc_clr)
 	
-	######
-	obs_val = np.asarray(dis_sr[amino_acids], dtype=float)
-	obs_cls = skb.stats.composition.closure(obs_val)
-	obs_clr = skb.stats.composition.clr(obs_cls)
-	dis_sr[amino_acids] = obs_cls
-	for index,aa in enumerate(amino_acids):
-		dis_sr[f"{aa}_clr"] = obs_clr[index]
-	
-	######
-	code_val = np.asarray(dis_sr[code_cols], dtype=float)
-	code_cls = skb.stats.composition.closure(code_val)
-	code_clr = skb.stats.composition.clr(code_cls)
-	dis_sr[code_cols] = code_cls
-	for index,aa in enumerate(amino_acids):
-		dis_sr[f"{aa}_code_delta"] = code_clr[index]
-		dis_sr[f"{aa}_code_clr_delta"] = obs_clr[index] - code_clr[index]
-		
-	######
-	gc_val = np.asarray(dis_sr[gc_cols], dtype=float)
-	gc_cls = skb.stats.composition.closure(gc_val)
-	gc_clr = skb.stats.composition.clr(gc_cls)
-	dis_sr[gc_cols] = gc_cls
-	for index,aa in enumerate(amino_acids):
-		dis_sr[f"{aa}_gc_clr"] = gc_clr[index]
-		dis_sr[f"{aa}_gc_clr_delta"] = obs_clr[index] - gc_clr[index]
-	
-	############################ Aitchison distance between species observed and predicted amino acid frequencies
-	dis_sr["aitchison_code"] = sci.spatial.distance.euclidean(obs_clr, code_clr)
-	dis_sr["aitchison_gc"] = sci.spatial.distance.euclidean(obs_clr, gc_clr)
-	############################ Pearson code
-	corr_stats = sci.stats.permutation_test((obs_clr,), lambda x: sci.stats.pearsonr(x, code_clr).statistic, permutation_type="pairings", n_resamples=resamples)
-	dis_sr["Ps_code"] = corr_stats.statistic
-	dis_sr["Ps_code_p"] = corr_stats.pvalue
-	############################ Pearson frequency
-	corr_stats = sci.stats.permutation_test((obs_clr,), lambda x: sci.stats.pearsonr(x, gc_clr).statistic, permutation_type="pairings", n_resamples=resamples)
-	dis_sr["Ps_gc"] = corr_stats.statistic
-	dis_sr["Ps_gc_p"] = corr_stats.pvalue
-	############################ Spearman code
-	corr_stats = sci.stats.permutation_test((obs_clr,), lambda x: sci.stats.spearmanr(x, code_clr).statistic, permutation_type="pairings", n_resamples=resamples)
-	dis_sr["Sm_code"] = corr_stats.statistic
-	dis_sr["Sm_code_p"] = corr_stats.pvalue
-	############################ Spearman frequency
-	corr_stats = sci.stats.permutation_test((obs_clr,), lambda x: sci.stats.spearmanr(x, gc_clr).statistic, permutation_type="pairings", n_resamples=resamples)
-	dis_sr["Sm_gc"] = corr_stats.statistic
-	dis_sr["Sm_gc_p"] = corr_stats.pvalue
-	############################ Kendall tau code
-	corr_stats = sci.stats.permutation_test((obs_clr,), lambda x: sci.stats.kendalltau(x, code_clr).statistic, permutation_type="pairings", n_resamples=resamples)
-	dis_sr["Kt_code"] = corr_stats.statistic
-	dis_sr["Kt_code_p"] = corr_stats.pvalue
-	############################ Kendall tau frequency
-	corr_stats = sci.stats.permutation_test((obs_clr,), lambda x: sci.stats.kendalltau(x, gc_clr).statistic, permutation_type="pairings", n_resamples=resamples)
-	dis_sr["Kt_gc"] = corr_stats.statistic
-	dis_sr["Kt_gc_p"]  = corr_stats.pvalue
-		
-	dis_sr["Genetic_code"] = code_name													
-	return dis_sr.to_frame().T
+	# Correlation values
+	rng = np.random.default_rng()
+	perms = np.array([rng.permutation(len(obs_clr)) for _ in range(resamples)])
+	obs_perms = obs_clr[perms]
+
+	def p_value(obs, perms):
+		return (np.sum(np.abs(perms) >= abs(obs)) + 1) / (len(perms) + 1)
+
+	# for code frequencies
+	code_corr_df = pd.Series(name=tax_id, index=["Pearson", "Pearson_p", "Spearman", "Spearman_p", "Kendall", "Kendall_p"])
+	# Pearson
+	code_corr_df["Pearson"] = sci.stats.pearsonr(obs_clr, code_clr).statistic
+	pears_perms = np.array([sci.stats.pearsonr(perm, code_clr).statistic for perm in obs_perms])
+	code_corr_df["Pearson_p"] = p_value(code_corr_df["Pearson"], pears_perms)
+	# Spearman
+	code_corr_df["Spearman"] = sci.stats.spearmanr(obs_clr, code_clr).statistic
+	spearm_perms = np.array([sci.stats.spearmanr(perm, code_clr).statistic for perm in obs_perms])
+	code_corr_df["Spearman_p"] = p_value(code_corr_df["Spearman"], spearm_perms)
+	# Kendall
+	code_corr_df["Kendall"] = sci.stats.kendalltau(obs_clr, code_clr).statistic
+	kendallt_perms = np.array([sci.stats.kendalltau(perm, code_clr).statistic for perm in obs_perms])
+	code_corr_df["Kendall_p"] = p_value(code_corr_df["Kendall"], kendallt_perms)
+
+	# for code+GC content frequencies
+	gc_corr_df = pd.Series(name=tax_id, index=["Pearson", "Pearson_p", "Spearman", "Spearman_p", "Kendall", "Kendall_p"])
+	# Pearson
+	gc_corr_df["Pearson"] = sci.stats.pearsonr(obs_clr, gc_clr).statistic
+	pears_perms = np.array([sci.stats.pearsonr(perm, gc_clr).statistic for perm in obs_perms])
+	gc_corr_df["Pearson_p"] = p_value(gc_corr_df["Pearson"], pears_perms)
+	# Spearman
+	gc_corr_df["Spearman"] = sci.stats.spearmanr(obs_clr, gc_clr).statistic
+	spearm_perms = np.array([sci.stats.spearmanr(perm, gc_clr).statistic for perm in obs_perms])
+	gc_corr_df["Spearman_p"] = p_value(gc_corr_df["Spearman"], spearm_perms)
+	# Kendall
+	gc_corr_df["Kendall"] = sci.stats.kendalltau(obs_clr, gc_clr).statistic
+	kendallt_perms = np.array([sci.stats.kendalltau(perm, gc_clr).statistic for perm in obs_perms])
+	gc_corr_df["Kendall_p"] = p_value(gc_corr_df["Kendall"], kendallt_perms)
+
+											
+	return [obs_df.to_frame().T, obs_clr_df.to_frame().T,
+			code_df.to_frame().T, code_clr_df.to_frame().T, code_delta_df.to_frame().T,
+			gc_df.to_frame().T, gc_clr_df.to_frame().T, gc_delta_df.to_frame().T,
+			code_corr_df.to_frame().T, gc_corr_df.to_frame().T]
 
 
 # main method
@@ -108,12 +125,12 @@ if __name__ == "__main__":
 	
 	parser = argparse.ArgumentParser(description="Compute amino acid distributions in proteomes")
 	parser.add_argument("-d", "--data", help="Specify the path to the folder with the distribution files", required=True)
-	parser.add_argument("-o", "--output", help="Specify the output file", required=True)
+	parser.add_argument("-o", "--output", help="Specify the output folder", required=True)
 	parser.add_argument("-e", "--encoding", help="Set the path to the encoding file", required=True)
 	parser.add_argument("-c", "--codes", help="Specify the path to the folder with the genetic code files", required=True)
 	parser.add_argument("-m", "--mapping", help="Set the path to the mappings of the genetic codes", required=True)
 	parser.add_argument("-r", "--resamples", help="Specify the number of resamples for the permutation tests (default: 9999)", type=int, default=9999)
-	parser.add_argument("-a", "--add", help="Add a small value to each frequency to avoid zeroes (default: 1e-12)", type=float, default=1e-12)
+	parser.add_argument("-a", "--add", help="Add a small value to each frequency to avoid zeroes for the CLR-transformation (default: 1e-12)", type=float, default=1e-12)
 	parser.add_argument("-ch", "--chunks", help="Specify the chunk size; 0 and below loads all files at once (default: 100)", type=int, default=100)
 	parser.add_argument("-t", "--threads", help="Specify the number of threads to be used (default: 1)" , type=int, default=1)
 	args = parser.parse_args()
@@ -121,6 +138,7 @@ if __name__ == "__main__":
 	data_path = args.data
 	dis_files = os.listdir(data_path)
 	output = args.output
+	os.makedirs(output, exist_ok=True)
 	encoding = args.encoding
 	code_path = args.codes
 	code_map = args.mapping
@@ -153,10 +171,14 @@ if __name__ == "__main__":
 																											   f"[{chunk}-{max_chunk}/{len(dis_files)}]"))
 			for res in result:
 				frames.append(res)
-					
-	comb_dis_df = pd.concat(frames)
-	comb_dis_df.astype(str).fillna("0.0", inplace=True)
-	comb_dis_df.index.name = "TaxID"
-	comb_dis_df.to_csv(output, sep="\t")
+
+	file_list = ["obs_frequencies", "obs_clr",
+				 "code_frequencies", "code_clr", "code_clr_delta",
+				 "gc_frequencies", "gc_clr", "gc_clr_delta",
+				 "code_corrs", "gc_corrs"]
+	for index,file in enumerate(file_list):
+		comb_df = pd.concat([f[index] for f in frames])
+		comb_df.index.name = "TaxID"
+		comb_df.to_csv(os.path.join(output, f"{file}.csv"), sep="\t")
 	
 		
