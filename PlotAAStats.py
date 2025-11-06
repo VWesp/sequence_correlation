@@ -2,6 +2,7 @@ import os
 import math
 import argparse
 import numpy as np
+import mpmath as mp
 import pandas as pd
 import scipy as sci
 import skbio as skb
@@ -15,7 +16,7 @@ import matplotlib.patheffects as pe
 import matplotlib.gridspec as gridspec
 
 plt.style.use("ggplot")
-
+mp.mp.dps = 10
 
 # Pandas describe_function but with median and mad instead of mean and std
 def describe_data(x):
@@ -44,12 +45,20 @@ def mad_interval(x):
 	return (median-mad, median+mad)
 
 
-### Fisher's Z-transformation
-def fisher_Z(x):
+### Fisher's Z-transformation for averaging correlation coefficients
+def fisher_Z_transform(x):
 	z = [0.5*np.log((1+r)/(1-r)) for r in x]
 	mean_z = np.mean(z)
 	mean_r = (np.exp(2*mean_z)-1) / (np.exp(2*mean_z)+1)
 	return mean_r
+
+
+# Fisher's method for combining p-values
+def fisher_method(x):
+	chi_stat = mp.mpf(-2 * np.sum(np.log(x)))
+	dof = 2 * len(x)
+	comb_p = mp.gammainc(dof/2, chi_stat/2, mp.inf) / mp.gamma(dof/2)
+	return comb_p
 
 
 # main method
@@ -457,11 +466,19 @@ if __name__ == "__main__":
 		plt.savefig(os.path.join(output, f"corr_coefficients.{ext}"), bbox_inches="tight")
 		
 	plt.close()
+	###
+	corr_cols = ["Pearson", "Spearman", "Kendall"]
+	p_cols = ["Pearson_p", "Spearman_p", "Kendall_p"]
 	#
-	fisher_code_corr_df = code_corr_df.groupby("Domain")[["Pearson", "Pearson_p", "Spearman", "Spearman_p", "Kendall", "Kendall_p"]].agg(fisher_Z)
-	fisher_code_corr_df.to_csv(os.path.join(output, "code_corr_stats.csv"))
-	fisher_gc_corr_df = gc_corr_df.groupby("Domain")[["Pearson", "Pearson_p", "Spearman", "Spearman_p", "Kendall", "Kendall_p"]].agg(fisher_Z)
-	fisher_gc_corr_df.to_csv(os.path.join(output, "gc_corr_stats.csv"))
+	fisher_code_corr_df = pd.DataFrame(index=domains, columns=["Pearson", "Pearson_p", "Spearman", "Spearman_p", "Kendall", "Kendall_p"])
+	fisher_code_corr_df.loc[domains, corr_cols] = code_corr_df.groupby("Domain")[["Pearson", "Spearman", "Kendall"]].agg(fisher_Z_transform)
+	fisher_code_corr_df.loc[domains, p_cols] = code_corr_df.groupby("Domain")[["Pearson_p", "Spearman_p", "Kendall_p"]].agg(fisher_method)
+	fisher_code_corr_df.to_csv(os.path.join(output, "code_corr_stats.csv"), sep="\t")
+	#
+	fisher_gc_corr_df = pd.DataFrame(index=domains, columns=["Pearson", "Pearson_p", "Spearman", "Spearman_p", "Kendall", "Kendall_p"])
+	fisher_gc_corr_df.loc[domains, corr_cols] = gc_corr_df.groupby("Domain")[["Pearson", "Spearman", "Kendall"]].agg(fisher_Z_transform)
+	fisher_gc_corr_df.loc[domains, p_cols] = gc_corr_df.groupby("Domain")[["Pearson_p", "Spearman_p", "Kendall_p"]].agg(fisher_method)
+	fisher_gc_corr_df.to_csv(os.path.join(output, "gc_corr_stats.csv"), sep="\t")
 
 	###### Plot median observed frequencies of charged amino acids
 	fig,axes = plt.subplots(2, 2, sharey=True)
