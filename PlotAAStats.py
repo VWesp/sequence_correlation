@@ -2,7 +2,6 @@ import os
 import math
 import argparse
 import numpy as np
-import mpmath as mp
 import pandas as pd
 import scipy as sci
 import skbio as skb
@@ -16,7 +15,7 @@ import matplotlib.patheffects as pe
 import matplotlib.gridspec as gridspec
 
 plt.style.use("ggplot")
-mp.mp.dps = 10
+
 
 # Pandas describe_function but with median and mad instead of mean and std
 def describe_data(x):
@@ -55,9 +54,9 @@ def fisher_Z_transform(x):
 
 # Fisher's method for combining p-values
 def fisher_method(x):
-	chi_stat = mp.mpf(-2 * np.sum(np.log(x)))
+	chi_stat = -2 * np.sum(np.log(x))
 	dof = 2 * len(x)
-	comb_p = mp.gammainc(dof/2, chi_stat/2, mp.inf) / mp.gamma(dof/2)
+	comb_p = 1 - sci.stats.chi2.cdf(chi_stat, dof)
 	return comb_p
 
 
