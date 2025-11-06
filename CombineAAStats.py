@@ -12,9 +12,6 @@ import equation_functions as ef
 
 # Canonical amino acids order
 amino_acids = ["M", "W", "C", "D", "E", "F", "H", "K", "N", "Q", "Y", "I", "A", "G", "P", "T", "V", "L", "R", "S"]
-code_cols = [f"{aa}_code" for aa in amino_acids]
-gc_cols = [f"{aa}_gc" for aa in amino_acids]
-	
 # Full name for each amino acid
 one_letter_code = {"M": "Methionine", "T": "Threonine", "N": "Asparagine", "K": "Lysine", "S": "Serine", "R": "Arginine", "V": "Valine", "A": "Alanine", "D": "Aspartic_acid",
 				   "E": "Glutamic_acid", "G": "Glycine", "F": "Phenylalanine", "L": "Leucine", "Y": "Tyrosine", "C": "Cysteine", "W": "Tryptophane", "P": "Proline",
@@ -22,7 +19,7 @@ one_letter_code = {"M": "Methionine", "T": "Threonine", "N": "Asparagine", "K": 
 
 
 def combine_distribution_stats(data):
-	tax_id,dis_df,code_name,freq_funcs,resamples,add = data
+	tax_id,dis_df,code_name,freq_funcs,resamples,replace = data
 	
 	dis_df.fillna(0.0, inplace=True)
 
@@ -31,11 +28,12 @@ def combine_distribution_stats(data):
 	obs_df["#Proteins"] = len(dis_df)
 	obs_df["Length"] = dis_df["Length"].median()
 	obs_df["GC"] = dis_df["GC"].median()
-	obs_median_aas = np.array([add] * len(amino_acids))
+	obs_median_aas = np.array([0.0] * len(amino_acids))
 	for index,aa in enumerate(amino_acids):
 		if aa in dis_df.columns:
-			obs_median_aas[index] += dis_df[aa].median()
+			obs_median_aas[index] = dis_df[aa].median()
 
+	obs_median_aas[obs_median_aas ==0 ] = replace
 	obs_df[amino_acids] = skb.stats.composition.closure(obs_median_aas)
 	# Observed CLR values
 	obs_clr_df = pd.Series(name=tax_id, index=amino_acids)
@@ -130,7 +128,7 @@ if __name__ == "__main__":
 	parser.add_argument("-c", "--codes", help="Specify the path to the folder with the genetic code files", required=True)
 	parser.add_argument("-m", "--mapping", help="Set the path to the mappings of the genetic codes", required=True)
 	parser.add_argument("-r", "--resamples", help="Specify the number of resamples for the permutation tests (default: 9999)", type=int, default=9999)
-	parser.add_argument("-a", "--add", help="Add a small value to each frequency to avoid zeroes for the CLR-transformation (default: 1e-12)", type=float, default=1e-12)
+	parser.add_argument("-rp", "--replace", help="Replace a (small) value to zero values for the CLR-transformation (default: 1e-12)", type=float, default=1e-12)
 	parser.add_argument("-ch", "--chunks", help="Specify the chunk size; 0 and below loads all files at once (default: 100)", type=int, default=100)
 	parser.add_argument("-t", "--threads", help="Specify the number of threads to be used (default: 1)" , type=int, default=1)
 	args = parser.parse_args()
@@ -143,7 +141,7 @@ if __name__ == "__main__":
 	code_path = args.codes
 	code_map = args.mapping
 	resamples = args.resamples if args.resamples > 1 else 1
-	add = args.add
+	replace = args.replace
 	chunks = args.chunks if args.chunks > 0 else len(dis_files)
 	threads = args.threads if args.threads > 0 else 1
 	
@@ -165,7 +163,7 @@ if __name__ == "__main__":
 					gen_code = yaml.safe_load(code_reader)
 					freq_funcs = ef.build_functions(gen_code)
 				
-				dis_data.append([tax_id, dis_df, code_name, freq_funcs, resamples, add])	
+				dis_data.append([tax_id, dis_df, code_name, freq_funcs, resamples, replace])	
 			
 			result = list(tqdm.tqdm(pool.imap(combine_distribution_stats, dis_data), total=len(dis_data), desc=f"Calculating amino acid statistics for chunk " 
 																											   f"[{chunk}-{max_chunk}/{len(dis_files)}]"))
