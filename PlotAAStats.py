@@ -533,6 +533,7 @@ if __name__ == "__main__":
 	for ext in ["svg", "pdf"]:
 		plt.savefig(os.path.join(output, f"observed_pca.{ext}"), bbox_inches="tight")
 
+	plt.close()
 
 	###### Plot correlations for amino acid frequencies and amino acid costs for Escherichia coli
 	ecoli_obs_clr = np.array(obs_clr_df.loc[83333][amino_acids], dtype=float)
