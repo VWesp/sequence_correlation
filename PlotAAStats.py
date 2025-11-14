@@ -283,6 +283,7 @@ if __name__ == "__main__":
 	fig,axes = plt.subplots(2, 1, sharey=True)
 	### Observed vs. code
 	melted_df = code_clr_delta_df.melt(id_vars="Domain", value_vars=aa_group_order, var_name="AminoAcid", value_name="dCLR")
+	axes[0].axhline(y=0, color="brown", linestyle="--", linewidth=1)
 	sns.boxplot(data=melted_df, x="AminoAcid", y="dCLR", hue="Domain", showfliers=False, palette=domain_colors, ax=axes[0])
 	axes[0].set_xticks(np.arange(len(aa_group_order)), aa_group_order)
 	axes[0].set_title("a) Based on codon numbers", fontweight="bold", fontsize=10)
@@ -294,7 +295,7 @@ if __name__ == "__main__":
 	for group,aas in aa_groups.items():
 		group_pos += len(aas)
 		if(group_pos < 20):
-			axes[0].axvline(x=group_pos-0.5, color="brown", linestyle="--", linewidth=2)
+			axes[0].axvline(x=group_pos-0.5, color="brown", linestyle="--", linewidth=1)
 
 	frames = []
 	for domain in domains:
@@ -306,6 +307,7 @@ if __name__ == "__main__":
 	pd.concat(frames).to_csv(os.path.join(output, "code_dclr_stats.csv"), sep="\t")
 	### Observed vs. code+GC content
 	melted_df = gc_clr_delta_df.melt(id_vars="Domain", value_vars=aa_group_order, var_name="AminoAcid", value_name="dCLR")
+	axes[1].axhline(y=0, color="brown", linestyle="--", linewidth=1)
 	sns.boxplot(data=melted_df, x="AminoAcid", y="dCLR", hue="Domain", showfliers=False, palette=domain_colors, ax=axes[1])
 	axes[1].set_xticks(np.arange(len(aa_group_order)), aa_group_order)
 	axes[1].set_title("b) Based on codon numbers and GC contents", fontweight="bold", fontsize=10)
@@ -317,7 +319,7 @@ if __name__ == "__main__":
 	for group,aas in aa_groups.items():
 		group_pos += len(aas)
 		if(group_pos < 20):
-			axes[1].axvline(x=group_pos-0.5, color="brown", linestyle="--", linewidth=2)
+			axes[1].axvline(x=group_pos-0.5, color="brown", linestyle="--", linewidth=1)
 
 	frames = []
 	for domain in domains:
