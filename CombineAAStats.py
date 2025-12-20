@@ -33,11 +33,11 @@ def combine_distribution_stats(data):
 		if aa in dis_df.columns:
 			obs_median_aas[index] = dis_df[aa].median()
 
-	obs_median_aas[obs_median_aas ==0 ] = replace
+	obs_median_aas[obs_median_aas == 0] = replace
 	obs_df[amino_acids] = skb.stats.composition.closure(obs_median_aas)
 	# Observed CLR values
 	obs_clr_df = pd.Series(name=tax_id, index=amino_acids)
-	obs_clr = np.array(skb.stats.composition.clr(obs_median_aas))
+	obs_clr = np.array(skb.stats.composition.clr(obs_df[amino_acids]))
 	obs_clr_df[amino_acids] = obs_clr
 
 	# Load frequency functions for each amino acid based on the codons and independent of GC content (GC=50%)
@@ -45,11 +45,10 @@ def combine_distribution_stats(data):
 	code_df["Genetic_code"] = code_name	
 	code_freq_func = ef.calculate_frequencies(freq_funcs, 0.5)
 	code_freq_aas = np.array([code_freq_func["amino"][one_letter_code[aa]] for aa in amino_acids])
-	code_freq_cls = np.array(skb.stats.composition.closure(code_freq_aas))
-	code_df[amino_acids] = code_freq_cls
+	code_df[amino_acids] = np.array(skb.stats.composition.closure(code_freq_aas))
 	# Code CLR values
 	code_clr_df = pd.Series(name=tax_id, index=amino_acids)
-	code_clr = np.array(skb.stats.composition.clr(code_freq_cls))
+	code_clr = np.array(skb.stats.composition.clr(code_df[amino_acids]))
 	code_clr_df[amino_acids] = code_clr
 	# CLR distances and Aitchison distance
 	code_delta_df = pd.Series(name=tax_id, index=amino_acids+["Aitchison_distance"])
@@ -61,11 +60,10 @@ def combine_distribution_stats(data):
 	gc_df["Genetic_code"] = code_name
 	gc_freq_func = ef.calculate_frequencies(freq_funcs, obs_df["GC"])
 	gc_freq_aas = np.array([gc_freq_func["amino"][one_letter_code[aa]] for aa in amino_acids])
-	gc_freq_cls = np.array(skb.stats.composition.closure(gc_freq_aas))
-	gc_df[amino_acids] = gc_freq_cls
+	gc_df[amino_acids] = np.array(skb.stats.composition.closure(gc_freq_aas))
 	# Code+GC content CLR values and Aitchison distance
 	gc_clr_df = pd.Series(name=tax_id, index=amino_acids)
-	gc_clr = np.array(skb.stats.composition.clr(gc_freq_cls))
+	gc_clr = np.array(skb.stats.composition.clr(gc_df[amino_acids]))
 	gc_clr_df[amino_acids] = gc_clr
 	# CLR distances and Aitchison distance
 	gc_delta_df = pd.Series(name=tax_id, index=amino_acids+["Aitchison_distance"])
@@ -78,7 +76,7 @@ def combine_distribution_stats(data):
 	obs_perms = obs_clr[perms]
 
 	def p_value(obs, perms):
-		return (np.sum(np.abs(perms) >= abs(obs)) + 1) / (len(perms) + 1)
+		return (np.sum(np.abs(perms) >= np.abs(obs)) + 1) / (len(perms) + 1)
 
 	# for code frequencies
 	code_corr_df = pd.Series(name=tax_id, index=["Pearson", "Pearson_p", "Spearman", "Spearman_p", "Kendall", "Kendall_p"])
