@@ -471,14 +471,22 @@ if __name__ == "__main__":
 	corr_cols = ["Pearson", "Spearman", "Kendall"]
 	p_cols = ["Pearson_p", "Spearman_p", "Kendall_p"]
 	#
-	fisher_code_corr_df = pd.DataFrame(index=domains, columns=["Pearson", "Pearson_p", "Spearman", "Spearman_p", "Kendall", "Kendall_p"])
+	fisher_code_corr_df = pd.DataFrame(index=domains, columns=["Pearson", "Pearson_p", "Pearson_q",
+												 			   "Spearman", "Spearman_p", "Spearman_q",
+												 			   "Kendall", "Kendall_p", "Kendall_q"])
 	fisher_code_corr_df.loc[domains, corr_cols] = code_corr_df.groupby("Domain")[["Pearson", "Spearman", "Kendall"]].agg(fisher_Z_transform)
-	fisher_code_corr_df.loc[domains, p_cols] = code_corr_df.groupby("Domain")[["Pearson_p", "Spearman_p", "Kendall_p"]].agg(fisher_method)
+	fisher_code_corr_df.loc[domains, p_cols] = code_corr_df.groupby("Domain")[["Pearson_p", "Pearson_q",
+																			   "Spearman_p", "Spearman_q",
+																			   "Kendall_p", "Kendall_q"]].agg(fisher_method)
 	fisher_code_corr_df.to_csv(os.path.join(output, "code_corr_stats.csv"), sep="\t")
 	#
-	fisher_gc_corr_df = pd.DataFrame(index=domains, columns=["Pearson", "Pearson_p", "Spearman", "Spearman_p", "Kendall", "Kendall_p"])
+	fisher_gc_corr_df = pd.DataFrame(index=domains, columns=["Pearson", "Pearson_p", "Pearson_q",
+												 			 "Spearman", "Spearman_p", "Spearman_q",
+												 			 "Kendall", "Kendall_p", "Kendall_q"])
 	fisher_gc_corr_df.loc[domains, corr_cols] = gc_corr_df.groupby("Domain")[["Pearson", "Spearman", "Kendall"]].agg(fisher_Z_transform)
-	fisher_gc_corr_df.loc[domains, p_cols] = gc_corr_df.groupby("Domain")[["Pearson_p", "Spearman_p", "Kendall_p"]].agg(fisher_method)
+	fisher_gc_corr_df.loc[domains, p_cols] = gc_corr_df.groupby("Domain")[["Pearson_p", "Pearson_q",
+																		   "Spearman_p", "Spearman_q",
+																		   "Kendall_p", "Kendall_q"]].agg(fisher_method)
 	fisher_gc_corr_df.to_csv(os.path.join(output, "gc_corr_stats.csv"), sep="\t")
 
 	###### Plot median observed frequencies of charged amino acids

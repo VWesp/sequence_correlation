@@ -8,6 +8,7 @@ import scipy as sci
 import skbio as skb
 import multiprocessing as mp
 import equation_functions as ef
+import statsmodels.stats.multitest as sm
 
 
 # Canonical amino acids order
@@ -19,7 +20,7 @@ one_letter_code = {"M": "Methionine", "T": "Threonine", "N": "Asparagine", "K": 
 
 
 def combine_distribution_stats(data):
-	tax_id,dis_df,code_name,freq_funcs,resamples,replace = data
+	tax_id,dis_df,code_name,freq_funcs,resamples,replace,rng = data
 	
 	dis_df.fillna(0.0, inplace=True)
 
@@ -34,10 +35,11 @@ def combine_distribution_stats(data):
 			obs_median_aas[index] = dis_df[aa].median()
 
 	obs_median_aas[obs_median_aas == 0] = replace
-	obs_df[amino_acids] = skb.stats.composition.closure(obs_median_aas)
+	obs_cls = np.array(skb.stats.composition.closure(obs_median_aas))
+	obs_df[amino_acids] = obs_cls
 	# Observed CLR values
 	obs_clr_df = pd.Series(name=tax_id, index=amino_acids)
-	obs_clr = np.array(skb.stats.composition.clr(obs_df[amino_acids]))
+	obs_clr = np.array(skb.stats.composition.clr(obs_cls))
 	obs_clr_df[amino_acids] = obs_clr
 
 	# Load frequency functions for each amino acid based on the codons and independent of GC content (GC=50%)
@@ -45,10 +47,11 @@ def combine_distribution_stats(data):
 	code_df["Genetic_code"] = code_name	
 	code_freq_func = ef.calculate_frequencies(freq_funcs, 0.5)
 	code_freq_aas = np.array([code_freq_func["amino"][one_letter_code[aa]] for aa in amino_acids])
-	code_df[amino_acids] = np.array(skb.stats.composition.closure(code_freq_aas))
+	code_cls = np.array(skb.stats.composition.closure(code_freq_aas))
+	code_df[amino_acids] = code_cls
 	# Code CLR values
 	code_clr_df = pd.Series(name=tax_id, index=amino_acids)
-	code_clr = np.array(skb.stats.composition.clr(code_df[amino_acids]))
+	code_clr = np.array(skb.stats.composition.clr(code_cls))
 	code_clr_df[amino_acids] = code_clr
 	# CLR distances and Aitchison distance
 	code_delta_df = pd.Series(name=tax_id, index=amino_acids+["Aitchison_distance"])
@@ -60,10 +63,11 @@ def combine_distribution_stats(data):
 	gc_df["Genetic_code"] = code_name
 	gc_freq_func = ef.calculate_frequencies(freq_funcs, obs_df["GC"])
 	gc_freq_aas = np.array([gc_freq_func["amino"][one_letter_code[aa]] for aa in amino_acids])
-	gc_df[amino_acids] = np.array(skb.stats.composition.closure(gc_freq_aas))
+	gc_cls = np.array(skb.stats.composition.closure(gc_freq_aas))
+	gc_df[amino_acids] = gc_cls
 	# Code+GC content CLR values and Aitchison distance
 	gc_clr_df = pd.Series(name=tax_id, index=amino_acids)
-	gc_clr = np.array(skb.stats.composition.clr(gc_df[amino_acids]))
+	gc_clr = np.array(skb.stats.composition.clr(gc_cls))
 	gc_clr_df[amino_acids] = gc_clr
 	# CLR distances and Aitchison distance
 	gc_delta_df = pd.Series(name=tax_id, index=amino_acids+["Aitchison_distance"])
@@ -71,7 +75,6 @@ def combine_distribution_stats(data):
 	gc_delta_df["Aitchison_distance"] = sci.spatial.distance.euclidean(obs_clr, gc_clr)
 	
 	# Correlation values
-	rng = np.random.default_rng()
 	perms = np.array([rng.permutation(len(obs_clr)) for _ in range(resamples)])
 	obs_perms = obs_clr[perms]
 
@@ -79,7 +82,9 @@ def combine_distribution_stats(data):
 		return (np.sum(np.abs(perms) >= np.abs(obs)) + 1) / (len(perms) + 1)
 
 	# for code frequencies
-	code_corr_df = pd.Series(name=tax_id, index=["Pearson", "Pearson_p", "Spearman", "Spearman_p", "Kendall", "Kendall_p"])
+	code_corr_df = pd.Series(name=tax_id, index=["Pearson", "Pearson_p", "Pearson_q",
+												 "Spearman", "Spearman_p", "Spearman_q",
+												 "Kendall", "Kendall_p", "Kendall_q"])
 	# Pearson
 	code_corr_df["Pearson"] = sci.stats.pearsonr(obs_clr, code_clr).statistic
 	pears_perms = np.array([sci.stats.pearsonr(perm, code_clr).statistic for perm in obs_perms])
@@ -94,7 +99,9 @@ def combine_distribution_stats(data):
 	code_corr_df["Kendall_p"] = p_value(code_corr_df["Kendall"], kendallt_perms)
 
 	# for code+GC content frequencies
-	gc_corr_df = pd.Series(name=tax_id, index=["Pearson", "Pearson_p", "Spearman", "Spearman_p", "Kendall", "Kendall_p"])
+	gc_corr_df = pd.Series(name=tax_id, index=["Pearson", "Pearson_p", "Pearson_q",
+											   "Spearman", "Spearman_p", "Spearman_q",
+											   "Kendall", "Kendall_p", "Kendall_q"])
 	# Pearson
 	gc_corr_df["Pearson"] = sci.stats.pearsonr(obs_clr, gc_clr).statistic
 	pears_perms = np.array([sci.stats.pearsonr(perm, gc_clr).statistic for perm in obs_perms])
@@ -145,6 +152,7 @@ if __name__ == "__main__":
 	
 	encoding_df = pd.read_csv(encoding, sep="\t", header=0, index_col=0).fillna("1")
 	code_map_df = pd.read_csv(code_map, sep="\t", header=0, index_col=0)
+	rng = np.random.default_rng()
 	frames = []
 	with mp.Pool(processes=threads) as pool:
 		for chunk in range(0, len(dis_files), chunks):
@@ -161,7 +169,7 @@ if __name__ == "__main__":
 					gen_code = yaml.safe_load(code_reader)
 					freq_funcs = ef.build_functions(gen_code)
 				
-				dis_data.append([tax_id, dis_df, code_name, freq_funcs, resamples, replace])	
+				dis_data.append([tax_id, dis_df, code_name, freq_funcs, resamples, replace, rng])	
 			
 			result = list(tqdm.tqdm(pool.imap(combine_distribution_stats, dis_data), total=len(dis_data), desc=f"Calculating amino acid statistics for chunk " 
 																											   f"[{chunk}-{max_chunk}/{len(dis_files)}]"))
@@ -175,6 +183,11 @@ if __name__ == "__main__":
 	for index,file in enumerate(file_list):
 		comb_df = pd.concat([f[index] for f in frames])
 		comb_df.index.name = "TaxID"
+		if(file == "code_corrs" or file == "gc_corrs"):
+			comb_df["Pearson_q"] = sm.multipletests(comb_df["Pearson_p"], method="fdr_bh")[1]
+			comb_df["Spearman_q"] = sm.multipletests(comb_df["Spearman_p"], method="fdr_bh")[1]
+			comb_df["Kendall_q"] = sm.multipletests(comb_df["Kendall_p"], method="fdr_bh")[1]
+
 		comb_df.to_csv(os.path.join(output, f"{file}.csv"), sep="\t")
 	
 		
