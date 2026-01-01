@@ -81,10 +81,9 @@ def combine_distribution_stats(data):
 	def p_value(obs, perms):
 		return (np.sum(np.abs(perms) >= np.abs(obs)) + 1) / (len(perms) + 1)
 
+	cols = ["Pearson", "Pearson_p", "Pearson_q", "Spearman", "Spearman_p", "Spearman_q", "Kendall", "Kendall_p", "Kendall_q"]
 	# for code frequencies
-	code_corr_df = pd.Series(name=tax_id, index=["Pearson", "Pearson_p", "Pearson_q",
-												 "Spearman", "Spearman_p", "Spearman_q",
-												 "Kendall", "Kendall_p", "Kendall_q"])
+	code_corr_df = pd.Series(name=tax_id, index=cols)
 	# Pearson
 	code_corr_df["Pearson"] = sci.stats.pearsonr(obs_clr, code_clr).statistic
 	pears_perms = np.array([sci.stats.pearsonr(perm, code_clr).statistic for perm in obs_perms])
@@ -99,9 +98,7 @@ def combine_distribution_stats(data):
 	code_corr_df["Kendall_p"] = p_value(code_corr_df["Kendall"], kendallt_perms)
 
 	# for code+GC content frequencies
-	gc_corr_df = pd.Series(name=tax_id, index=["Pearson", "Pearson_p", "Pearson_q",
-											   "Spearman", "Spearman_p", "Spearman_q",
-											   "Kendall", "Kendall_p", "Kendall_q"])
+	gc_corr_df = pd.Series(name=tax_id, index=cols)
 	# Pearson
 	gc_corr_df["Pearson"] = sci.stats.pearsonr(obs_clr, gc_clr).statistic
 	pears_perms = np.array([sci.stats.pearsonr(perm, gc_clr).statistic for perm in obs_perms])
