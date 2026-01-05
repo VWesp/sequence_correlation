@@ -46,7 +46,8 @@ def mad_interval(x):
 
 ### Fisher's Z-transformation for averaging correlation coefficients
 def fisher_Z_transform(x):
-	z = [0.5*np.log((1+r)/(1-r)) for r in x]
+	x_arr = np.array(x)
+	z = [0.5*np.log((1+r)/(1-r)) for r in x_arr]
 	mean_z = np.mean(z)
 	mean_r = (np.exp(2*mean_z)-1) / (np.exp(2*mean_z)+1)
 	return mean_r
@@ -54,8 +55,9 @@ def fisher_Z_transform(x):
 
 # Fisher's method for combining p-values
 def fisher_method(x):
-	chi_stat = -2 * np.sum(np.log(x))
-	dof = 2 * len(x)
+	x_arr = np.array(x)
+	chi_stat = -2 * np.sum(np.log(x_arr))
+	dof = 2 * len(x_arr)
 	comb_p = 1 - sci.stats.chi2.cdf(chi_stat, dof)
 	return comb_p
 
@@ -471,12 +473,16 @@ if __name__ == "__main__":
 	corr_cols = ["Pearson", "Spearman", "Kendall"]
 	p_cols = ["Pearson_p", "Pearson_q", "Spearman_p", "Spearman_q", "Kendall_p", "Kendall_q"]
 	#
-	fisher_code_corr_df = pd.DataFrame(index=domains, columns=[corr_cols+p_cols])
+	fisher_code_corr_df = pd.DataFrame(index=domains, columns=["Pearson", "Pearson_p", "Pearson_q",
+															   "Spearman", "Spearman_p", "Spearman_q",
+															   "Kendall", "Kendall_p", "Kendall_q"])
 	fisher_code_corr_df.loc[domains, corr_cols] = code_corr_df.groupby("Domain")[corr_cols].agg(fisher_Z_transform)
 	fisher_code_corr_df.loc[domains, p_cols] = code_corr_df.groupby("Domain")[p_cols].agg(fisher_method)
 	fisher_code_corr_df.to_csv(os.path.join(output, "code_corr_stats.csv"), sep="\t")
 	#
-	fisher_gc_corr_df = pd.DataFrame(index=domains, columns=[corr_cols+p_cols])
+	fisher_gc_corr_df = pd.DataFrame(index=domains, columns=["Pearson", "Pearson_p", "Pearson_q",
+															 "Spearman", "Spearman_p", "Spearman_q",
+															 "Kendall", "Kendall_p", "Kendall_q"])
 	fisher_gc_corr_df.loc[domains, corr_cols] = gc_corr_df.groupby("Domain")[corr_cols].agg(fisher_Z_transform)
 	fisher_gc_corr_df.loc[domains, p_cols] = gc_corr_df.groupby("Domain")[p_cols].agg(fisher_method)
 	fisher_gc_corr_df.to_csv(os.path.join(output, "gc_corr_stats.csv"), sep="\t")
