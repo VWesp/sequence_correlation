@@ -129,11 +129,11 @@ def combine_distribution_stats(data):
 	obs_cls = np.array(skb.stats.composition.closure(obs_median_aas))
 	obs_df[amino_acids] = obs_cls
 	# Observed CLR values
-	obs_clr_df, obs_clr = transform_data(skb.stats.composition.clr, tax_id, obs_cls)
+	obs_clr_df, obs_clr = transform_data(tax_id, skb.stats.composition.clr, obs_cls)
 	# Observed ILR values
-	obs_ilr_df, obs_ilr = transform_data(skb.stats.composition.ilr, tax_id, obs_cls)
+	obs_ilr_df, obs_ilr = transform_data(tax_id, skb.stats.composition.ilr, obs_cls)
 	# Observed ALR values
-	obs_alr_df, obs_alr = transform_data(skb.stats.composition.alr, tax_id, obs_cls)
+	obs_alr_df, obs_alr = transform_data(tax_id, skb.stats.composition.alr, obs_cls)
 	return_dfs = [obs_df.to_frame().T, obs_clr_df, obs_ilr_df, obs_alr_df]
 
 	# Compare observed and code frequencies
