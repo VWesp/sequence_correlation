@@ -20,7 +20,7 @@ one_letter_code = {"M": "Methionine", "T": "Threonine", "N": "Asparagine", "K": 
 
 
 def load_freq_funcs(tax_id, func, gc, code_name):
-	func_df = pd.Series(name=tax_id, index=["Genetic_code"]+amino_acids)
+	func_df = pd.Series(name=tax_id, index=["Genetic_code"]+amino_acids, dtype=str)
 	func_df["Genetic_code"] = code_name	
 	freq_func = ef.calculate_frequencies(func, gc)
 	freq_func_aas = np.array([freq_func["amino"][one_letter_code[aa]] for aa in amino_acids])
@@ -38,19 +38,19 @@ def transform_data(tax_id, func, data):
 
 def calculate_distance(tax_id, data_x, data_y):
 	dist_df = pd.Series(name=tax_id, index=amino_acids+["Aitchison_distance"])
-	dist_df[amino_acids] = obs_clr - code_clr
+	dist_df[amino_acids] = data_x - data_y
 	dist_df["Aitchison_distance"] = sci.spatial.distance.euclidean(data_x, data_y)
 	return dist_df.to_frame().T
 
 
-def p_value(obs, perms):
+def calculate_p_value(obs, perms):
 	return (np.sum(np.abs(perms) >= np.abs(obs)) + 1) / (len(perms) + 1)
 
 
 def calculate_corr_func(func, obs, obs_perms, pred):
 	corr = func(obs, pred).statistic
 	corr_perms = np.array([func(perm, pred).statistic for perm in obs_perms])
-	p_value = p_value(corr, corr_perms)
+	p_value = calculate_p_value(corr, corr_perms)
 	return corr, p_value
 
 
@@ -59,27 +59,19 @@ def correlate_data(tax_id, obs, pred, resamples):
 	perms = np.array([rng.permutation(len(obs)) for _ in range(resamples)])
 	obs_perms = obs[perms]
 
-	code_corr_df = pd.Series(name=tax_id, index=cols)
-	# Pearson
-	code_corr_df["Pearson"] = sci.stats.pearsonr(obs_clr, code_clr).statistic
-	pears_perms = np.array([sci.stats.pearsonr(perm, code_clr).statistic for perm in obs_perms])
-	code_corr_df["Pearson_p"] = p_value(code_corr_df["Pearson"], pears_perms)
-
-
 	corr_df = pd.Series(name=tax_id, index=["Pearson", "Pearson_p", "Pearson_q",
 											"Spearman", "Spearman_p", "Spearman_q",
 											"Kendall", "Kendall_p", "Kendall_q"])
 	# Pearson
-	corr_df["Pearson", "Pearson_p"] = calculate_corr_func(sci.stats.pearsonr, obs, obs_perms, pred)
+	corr_df[["Pearson", "Pearson_p"]] = calculate_corr_func(sci.stats.pearsonr, obs, obs_perms, pred)
 	# Spearman
-	corr_df["Spearman", "Spearman_p"] = calculate_corr_func(sci.stats.spearmanr, obs, obs_perms, pred)
+	corr_df[["Spearman", "Spearman_p"]] = calculate_corr_func(sci.stats.spearmanr, obs, obs_perms, pred)
 	# Kendall
-	corr_df["Kendall", "Kendall_p"] = calculate_corr_func(sci.stats.kendalltau, obs, obs_perms, pred)
+	corr_df[["Kendall", "Kendall_p"]] = calculate_corr_func(sci.stats.kendalltau, obs, obs_perms, pred)
 	return corr_df.to_frame().T
 
 
-
-def compare_values(tax_id, freq_funcs, gc, code_name, obs_clr, obs_ilr, obs_alr, resamples):
+def compare_values(tax_id, freq_funcs, gc, code_name, obs_clr, resamples):
 	# Load frequency functions for each amino acid based on the codons and GC content
 	pred_df, pred_cls = load_freq_funcs(tax_id, freq_funcs, gc, code_name)
 
@@ -90,24 +82,7 @@ def compare_values(tax_id, freq_funcs, gc, code_name, obs_clr, obs_ilr, obs_alr,
 	# CLR correlations
 	clr_corr_df = correlate_data(tax_id, obs_clr, pred_clr, resamples)
 
-	# ILR values
-	ilr_df, pred_ilr = transform_data(tax_id, skb.stats.composition.ilr, pred_cls)
-	# ILR distances and Aitchison distance
-	ilr_delta_df = calculate_distance(tax_id, obs_ilr, pred_ilr)
-	# ILR correlations
-	ilr_corr_df = correlate_data(tax_id, obs_ilr, pred_ilr, resamples)
-
-	# ALR values
-	alr_df, pred_alr = transform_data(tax_id, skb.stats.composition.alr, pred_cls)
-	# ALR distances and Aitchison distance
-	alr_delta_df = calculate_distance(tax_id, obs_alr, pred_alr)
-	# ALR correlations
-	alr_corr_df = correlate_data(tax_id, obs_alr, pred_alr, resamples)
-
-	return [pred_df, clr_df, clr_delta_df, clr_corr_df,
-			ilr_df, ilr_delta_df, ilr_corr_df,
-			alr_df, alr_delta_df, alr_corr_df]
-
+	return [pred_df, clr_df, clr_delta_df, clr_corr_df]
 
 
 def combine_distribution_stats(data):
@@ -130,18 +105,14 @@ def combine_distribution_stats(data):
 	obs_df[amino_acids] = obs_cls
 	# Observed CLR values
 	obs_clr_df, obs_clr = transform_data(tax_id, skb.stats.composition.clr, obs_cls)
-	# Observed ILR values
-	obs_ilr_df, obs_ilr = transform_data(tax_id, skb.stats.composition.ilr, obs_cls)
-	# Observed ALR values
-	obs_alr_df, obs_alr = transform_data(tax_id, skb.stats.composition.alr, obs_cls)
-	return_dfs = [obs_df.to_frame().T, obs_clr_df, obs_ilr_df, obs_alr_df]
+	return_dfs = [obs_df.to_frame().T, obs_clr_df]
 
 	# Compare observed and code frequencies
-	code_dfs = compare_values(tax_id, freq_funcs, 0.5, code_name, obs_clr, obs_ilr, obs_alr, resamples)
+	code_dfs = compare_values(tax_id, freq_funcs, 0.5, code_name, obs_clr, resamples)
 	return_dfs.extend(code_dfs)
 
 	# Compare observed and code+GC frequencies
-	gc_dfs = compare_values(tax_id, freq_funcs, float(obs_df["GC"]), code_name, obs_clr, obs_ilr, obs_alr, resamples)
+	gc_dfs = compare_values(tax_id, freq_funcs, float(obs_df["GC"]), code_name, obs_clr, resamples)
 	return_dfs.extend(gc_dfs)
 											
 	return return_dfs
@@ -201,13 +172,9 @@ if __name__ == "__main__":
 			for res in result:
 				frames.append(res)
 
-	file_list = ["obs_freq", "obs_clr", "obs_ilr", "obs_alr",
+	file_list = ["obs_freq", "obs_clr",
 				 "code_freq", "code_clr", "code_clr_delta", "code_clr_corr",
-				 "code_ilr", "code_ilr_delta", "code_ilr_corr",
-				 "code_alr", "code_alr_delta", "code_alr_corr",
-				 "gc_freq", "gc_clr", "gc_clr_delta", "gc_clr_corr",
-				 "gc_ilr", "gc_ilr_delta", "gc_ilr_corr",
-				 "gc_alr", "gc_alr_delta", "gc_alr_corr"]
+				 "gc_freq", "gc_clr", "gc_clr_delta", "gc_clr_corr"]
 	for index,file in enumerate(file_list):
 		comb_df = pd.concat([f[index] for f in frames])
 		comb_df.index.name = "TaxID"
