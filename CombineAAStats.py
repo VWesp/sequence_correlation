@@ -71,6 +71,31 @@ def correlate_data(tax_id, obs, pred, resamples):
 	return corr_df.to_frame().T
 
 
+def calculate_balances(data, codon_parts):
+	balances = {}
+
+	def calculate_splits(data, codon_parts):
+		codon_nums = sorted(set(codon_parts))
+		if(len(codon_nums) == 1):
+			return
+
+		mid = len(codon_nums) // 2
+		r_codon = codon_nums[mid:]
+		s_codons = codon_nums[:mid]
+		balance_name = f"{",".join([str(i) for i in r_codon])}_vs_{",".join([str(i) for i in s_codons])}"
+		split = [i for i,e in enumerate(codon_parts) if e in s_codons][-1] + 1
+		r_data = data[split:]
+		r_mean = np.sum(np.log(r_data)) / len(r_data)
+		s_data = data[:split]
+		s_mean = np.sum(np.log(s_data)) / len(s_data)
+		balances[balance_name] = np.sqrt((len(r_data) * len(s_data)) / (len(r_data) + len(s_data))) * (r_mean - s_mean)
+		calculate_splits(r_data, codon_parts[split:])
+		calculate_splits(s_data, codon_parts[:split])
+
+	calculate_splits(data, codon_parts)
+	return balances
+
+
 def compare_values(tax_id, freq_funcs, gc, code_name, obs_clr, resamples):
 	# Load frequency functions for each amino acid based on the codons and GC content
 	pred_df, pred_cls = load_freq_funcs(tax_id, freq_funcs, gc, code_name)
@@ -86,7 +111,7 @@ def compare_values(tax_id, freq_funcs, gc, code_name, obs_clr, resamples):
 
 
 def combine_distribution_stats(data):
-	tax_id,dis_df,code_name,freq_funcs,resamples,replace,rng = data
+	tax_id,dis_df,code_name,freq_funcs,codon_parts,resamples,replace,rng = data
 	
 	dis_df.fillna(0.0, inplace=True)
 
@@ -105,7 +130,10 @@ def combine_distribution_stats(data):
 	obs_df[amino_acids] = obs_cls
 	# Observed CLR values
 	obs_clr_df, obs_clr = transform_data(tax_id, skb.stats.composition.clr, obs_cls)
-	return_dfs = [obs_df.to_frame().T, obs_clr_df]
+	#
+	balances = calculate_balances(obs_cls, codon_parts)
+	balance_df = pd.Series(data=list(balances.values()), name=tax_id, index=list(balances.keys()))
+	return_dfs = [obs_df.to_frame().T, balance_df.to_frame().T, obs_clr_df]
 
 	# Compare observed and code frequencies
 	code_dfs = compare_values(tax_id, freq_funcs, 0.5, code_name, obs_clr, resamples)
@@ -161,18 +189,20 @@ if __name__ == "__main__":
 				code_id = int(encoding_df.loc[tax_id, "GeneticID"])
 				code_name = code_map_df.loc[code_id, "Name"]
 				freq_funcs = None
+				codon_parts = None
 				with open(os.path.join(code_path, f"{code_name}.yaml"), "r") as code_reader:
 					gen_code = yaml.safe_load(code_reader)
 					freq_funcs = ef.build_functions(gen_code)
-				
-				dis_data.append([tax_id, dis_df, code_name, freq_funcs, resamples, replace, rng])	
+					codon_parts = [len(gen_code[one_letter_code[aa]]) for aa in amino_acids]
+
+				dis_data.append([tax_id, dis_df, code_name, freq_funcs, codon_parts, resamples, replace, rng])	
 			
 			result = list(tqdm.tqdm(pool.imap(combine_distribution_stats, dis_data), total=len(dis_data), desc=f"Calculating amino acid statistics for chunk " 
 																											   f"[{chunk}-{max_chunk}/{len(dis_files)}]"))
 			for res in result:
-				frames.append(res)
+				frames.append(res)	
 
-	file_list = ["obs_freq", "obs_clr",
+	file_list = ["obs_freq", "balances", "obs_clr",
 				 "code_freq", "code_clr", "code_clr_delta", "code_clr_corr",
 				 "gc_freq", "gc_clr", "gc_clr_delta", "gc_clr_corr"]
 	for index,file in enumerate(file_list):

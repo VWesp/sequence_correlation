@@ -88,7 +88,7 @@ if __name__ == "__main__":
 	# Dataframe of observed frequencies
 	frames = []
 	for domain in domains:
-		path = os.path.join(input, os.path.join(domain, os.path.join("output", "obs_frequencies.csv")))
+		path = os.path.join(input, os.path.join(domain, os.path.join("output", "obs_freq.csv")))
 		df = pd.read_csv(path, sep="\t", header=0, index_col=0)
 		df["Domain"] = [domain] * len(df)
 		frames.append(df)
@@ -107,7 +107,7 @@ if __name__ == "__main__":
 	# Dataframe of code frequencies
 	frames = []
 	for domain in domains:
-		path = os.path.join(input, os.path.join(domain, os.path.join("output", "code_frequencies.csv")))
+		path = os.path.join(input, os.path.join(domain, os.path.join("output", "code_freq.csv")))
 		df = pd.read_csv(path, sep="\t", header=0, index_col=0)
 		df["Domain"] = [domain] * len(df)
 		frames.append(df)
@@ -134,7 +134,7 @@ if __name__ == "__main__":
 	# Dataframe of code correlations
 	frames = []
 	for domain in domains:
-		path = os.path.join(input, os.path.join(domain, os.path.join("output", "code_corrs.csv")))
+		path = os.path.join(input, os.path.join(domain, os.path.join("output", "code_clr_corrs.csv")))
 		df = pd.read_csv(path, sep="\t", header=0, index_col=0)
 		df["Domain"] = [domain] * len(df)
 		frames.append(df)
@@ -145,7 +145,7 @@ if __name__ == "__main__":
 	# Dataframe of code+GC content frequencies
 	frames = []
 	for domain in domains:
-		path = os.path.join(input, os.path.join(domain, os.path.join("output", "gc_frequencies.csv")))
+		path = os.path.join(input, os.path.join(domain, os.path.join("output", "gc_freq.csv")))
 		df = pd.read_csv(path, sep="\t", header=0, index_col=0)
 		df["Domain"] = [domain] * len(df)
 		frames.append(df)
@@ -172,7 +172,7 @@ if __name__ == "__main__":
 	# Dataframe of code+GC content correlations
 	frames = []
 	for domain in domains:
-		path = os.path.join(input, os.path.join(domain, os.path.join("output", "gc_corrs.csv")))
+		path = os.path.join(input, os.path.join(domain, os.path.join("output", "gc_clr_corrs.csv")))
 		df = pd.read_csv(path, sep="\t", header=0, index_col=0)
 		df["Domain"] = [domain] * len(df)
 		frames.append(df)
