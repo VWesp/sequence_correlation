@@ -73,7 +73,7 @@ def correlate_data(tax_id, obs, pred, resamples):
 
 # Taken from: https://file.statistik.tuwien.ac.at/filz/papers/CorrMatG09.pdf
 def calculate_balances(tax_id, data, codon_parts):
-	balances = {}
+	balances = []
 
 	def calculate_splits(data, codon_parts):
 		codons = sorted(set(codon_parts))
@@ -95,18 +95,19 @@ def calculate_balances(tax_id, data, codon_parts):
 		s = len(s_data)
 		s_mean = np.mean(np.log(s_data))
 
-		balance_name = f"{",".join([str(i) for i in r_codons])}_vs_{",".join([str(i) for i in s_codons])}"
 		scale = np.sqrt((r * s) / (r + s))
-		balances[balance_name] = scale * (r_mean - s_mean)
+		balance = scale * (r_mean - s_mean)
+		balances.append(balance)
 		calculate_splits(r_data, codon_parts[split])
 		calculate_splits(s_data, codon_parts[mask])
 
 	calculate_splits(data, codon_parts)
-	bal_df = pd.Series(data=list(balances.values()), name=tax_id, index=list(balances.keys()))
+	names = [f"B{i+1}" for i in range(len(balances))] 
+	bal_df = pd.Series(data=balances, name=tax_id, index=names)
 	return bal_df.to_frame().T
 
 
-def compare_values(tax_id, freq_funcs, gc, code_name, obs_clr, obs_bal_df, codon_parts, resamples):
+def compare_values(tax_id, freq_funcs, gc, code_name, obs_cls, obs_clr, obs_bal_df, codon_parts, resamples):
 	# Load frequency functions for each amino acid based on the codons and GC content
 	pred_df, pred_cls = load_freq_funcs(tax_id, freq_funcs, gc, code_name)
 
@@ -114,6 +115,7 @@ def compare_values(tax_id, freq_funcs, gc, code_name, obs_clr, obs_bal_df, codon
 	# as well as their distance to the observed balances
 	pred_bal_df = calculate_balances(tax_id, pred_cls, codon_parts)
 	pred_bal_delta_df = obs_bal_df - pred_bal_df
+	pred_bal_delta_df["Deg_load"] = np.sum(obs_cls * np.log(pred_cls))
 	pred_bal_delta_df["Aitchison_distance"] = np.sqrt((pred_bal_delta_df**2).sum(axis=1))
 
 	# CLR values
@@ -151,11 +153,11 @@ def combine_distribution_stats(data):
 	return_dfs = [obs_df.to_frame().T, obs_bal_df, obs_clr_df]
 
 	# Compare observed and code frequencies
-	code_dfs = compare_values(tax_id, freq_funcs, 0.5, code_name, obs_clr, obs_bal_df, codon_parts, resamples)
+	code_dfs = compare_values(tax_id, freq_funcs, 0.5, code_name, obs_cls, obs_clr, obs_bal_df, codon_parts, resamples)
 	return_dfs.extend(code_dfs)
 
 	# Compare observed and code+GC frequencies
-	gc_dfs = compare_values(tax_id, freq_funcs, float(obs_df["GC"]), code_name, obs_clr, obs_bal_df, codon_parts, resamples)
+	gc_dfs = compare_values(tax_id, freq_funcs, float(obs_df["GC"]), code_name, obs_cls, obs_clr, obs_bal_df, codon_parts, resamples)
 	return_dfs.extend(gc_dfs)
 											
 	return return_dfs
@@ -227,6 +229,9 @@ if __name__ == "__main__":
 			comb_df["Pearson_q"] = sm.multipletests(comb_df["Pearson_p"], method="fdr_bh")[1]
 			comb_df["Spearman_q"] = sm.multipletests(comb_df["Spearman_p"], method="fdr_bh")[1]
 			comb_df["Kendall_q"] = sm.multipletests(comb_df["Kendall_p"], method="fdr_bh")[1]
+		if(file.endswith("_bal_delta")):
+			cols = [col for col in comb_df.columns if col != "Deg_load" and col != "Aitchison_distance"]
+			comb_df = comb_df[cols + ["Deg_load", "Aitchison_distance"]]
 
 		comb_df.to_csv(os.path.join(output, f"{file}.csv"), sep="\t")
 	
