@@ -39,7 +39,7 @@ def transform_data(tax_id, func, data):
 def calculate_distance(tax_id, data_x, data_y):
 	dist_df = pd.Series(name=tax_id, index=amino_acids+["Aitchison_distance"])
 	dist_df[amino_acids] = data_x - data_y
-	dist_df["Aitchison_distance"] = sci.spatial.distance.euclidean(data_x, data_y)
+	dist_df["Aitchison_distance"] = np.sqrt((dist_df[amino_acids]**2).sum())
 	return dist_df.to_frame().T
 
 
@@ -71,34 +71,50 @@ def correlate_data(tax_id, obs, pred, resamples):
 	return corr_df.to_frame().T
 
 
-def calculate_balances(data, codon_parts):
+# Taken from: https://file.statistik.tuwien.ac.at/filz/papers/CorrMatG09.pdf
+def calculate_balances(tax_id, data, codon_parts):
 	balances = {}
 
 	def calculate_splits(data, codon_parts):
-		codon_nums = sorted(set(codon_parts))
-		if(len(codon_nums) == 1):
+		codons = sorted(set(codon_parts))
+		if(len(codons) == 1):
 			return
 
-		mid = len(codon_nums) // 2
-		r_codon = codon_nums[mid:]
-		s_codons = codon_nums[:mid]
-		balance_name = f"{",".join([str(i) for i in r_codon])}_vs_{",".join([str(i) for i in s_codons])}"
-		split = [i for i,e in enumerate(codon_parts) if e in s_codons][-1] + 1
-		r_data = data[split:]
-		r_mean = np.sum(np.log(r_data)) / len(r_data)
-		s_data = data[:split]
-		s_mean = np.sum(np.log(s_data)) / len(s_data)
-		balances[balance_name] = np.sqrt((len(r_data) * len(s_data)) / (len(r_data) + len(s_data))) * (r_mean - s_mean)
-		calculate_splits(r_data, codon_parts[split:])
-		calculate_splits(s_data, codon_parts[:split])
+		mid = len(codons) // 2
+
+		r_codons = codons[mid:]
+		split = [i for i,e in enumerate(codon_parts) if e in r_codons]
+		r_data = data[split]
+		r = len(r_data)
+		r_mean = np.mean(np.log(r_data))
+
+		s_codons = codons[:mid]
+		mask = np.ones(len(codon_parts), dtype=bool)
+		mask[split] = False
+		s_data = data[mask]
+		s = len(s_data)
+		s_mean = np.mean(np.log(s_data))
+
+		balance_name = f"{",".join([str(i) for i in r_codons])}_vs_{",".join([str(i) for i in s_codons])}"
+		scale = np.sqrt((r * s) / (r + s))
+		balances[balance_name] = scale * (r_mean - s_mean)
+		calculate_splits(r_data, codon_parts[split])
+		calculate_splits(s_data, codon_parts[mask])
 
 	calculate_splits(data, codon_parts)
-	return balances
+	bal_df = pd.Series(data=list(balances.values()), name=tax_id, index=list(balances.keys()))
+	return bal_df.to_frame().T
 
 
-def compare_values(tax_id, freq_funcs, gc, code_name, obs_clr, resamples):
+def compare_values(tax_id, freq_funcs, gc, code_name, obs_clr, obs_bal_df, codon_parts, resamples):
 	# Load frequency functions for each amino acid based on the codons and GC content
 	pred_df, pred_cls = load_freq_funcs(tax_id, freq_funcs, gc, code_name)
+
+	# Calculate the balances between high codon amino acids and low codons
+	# as well as their distance to the observed balances
+	pred_bal_df = calculate_balances(tax_id, pred_cls, codon_parts)
+	pred_bal_delta_df = obs_bal_df - pred_bal_df
+	pred_bal_delta_df["Aitchison_distance"] = np.sqrt((pred_bal_delta_df**2).sum(axis=1))
 
 	# CLR values
 	clr_df, pred_clr = transform_data(tax_id, skb.stats.composition.clr, pred_cls)
@@ -107,7 +123,7 @@ def compare_values(tax_id, freq_funcs, gc, code_name, obs_clr, resamples):
 	# CLR correlations
 	clr_corr_df = correlate_data(tax_id, obs_clr, pred_clr, resamples)
 
-	return [pred_df, clr_df, clr_delta_df, clr_corr_df]
+	return [pred_df, pred_bal_df, pred_bal_delta_df, clr_df, clr_delta_df, clr_corr_df]
 
 
 def combine_distribution_stats(data):
@@ -130,17 +146,16 @@ def combine_distribution_stats(data):
 	obs_df[amino_acids] = obs_cls
 	# Observed CLR values
 	obs_clr_df, obs_clr = transform_data(tax_id, skb.stats.composition.clr, obs_cls)
-	#
-	balances = calculate_balances(obs_cls, codon_parts)
-	balance_df = pd.Series(data=list(balances.values()), name=tax_id, index=list(balances.keys()))
-	return_dfs = [obs_df.to_frame().T, balance_df.to_frame().T, obs_clr_df]
+	# Calculate the balances between high codon amino acids and low codons
+	obs_bal_df = calculate_balances(tax_id, obs_cls, codon_parts)
+	return_dfs = [obs_df.to_frame().T, obs_bal_df, obs_clr_df]
 
 	# Compare observed and code frequencies
-	code_dfs = compare_values(tax_id, freq_funcs, 0.5, code_name, obs_clr, resamples)
+	code_dfs = compare_values(tax_id, freq_funcs, 0.5, code_name, obs_clr, obs_bal_df, codon_parts, resamples)
 	return_dfs.extend(code_dfs)
 
 	# Compare observed and code+GC frequencies
-	gc_dfs = compare_values(tax_id, freq_funcs, float(obs_df["GC"]), code_name, obs_clr, resamples)
+	gc_dfs = compare_values(tax_id, freq_funcs, float(obs_df["GC"]), code_name, obs_clr, obs_bal_df, codon_parts, resamples)
 	return_dfs.extend(gc_dfs)
 											
 	return return_dfs
@@ -193,7 +208,7 @@ if __name__ == "__main__":
 				with open(os.path.join(code_path, f"{code_name}.yaml"), "r") as code_reader:
 					gen_code = yaml.safe_load(code_reader)
 					freq_funcs = ef.build_functions(gen_code)
-					codon_parts = [len(gen_code[one_letter_code[aa]]) for aa in amino_acids]
+					codon_parts = np.array([len(gen_code[one_letter_code[aa]]) for aa in amino_acids])
 
 				dis_data.append([tax_id, dis_df, code_name, freq_funcs, codon_parts, resamples, replace, rng])	
 			
@@ -202,9 +217,9 @@ if __name__ == "__main__":
 			for res in result:
 				frames.append(res)	
 
-	file_list = ["obs_freq", "balances", "obs_clr",
-				 "code_freq", "code_clr", "code_clr_delta", "code_clr_corr",
-				 "gc_freq", "gc_clr", "gc_clr_delta", "gc_clr_corr"]
+	file_list = ["obs_freq", "obs_bal", "obs_clr",
+				 "code_freq", "code_bal", "code_bal_delta", "code_clr", "code_clr_delta", "code_clr_corr",
+				 "gc_freq", "gc_bal", "gc_bal_delta", "gc_clr", "gc_clr_delta", "gc_clr_corr"]
 	for index,file in enumerate(file_list):
 		comb_df = pd.concat([f[index] for f in frames])
 		comb_df.index.name = "TaxID"
