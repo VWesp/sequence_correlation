@@ -36,11 +36,18 @@ def transform_data(tax_id, func, data):
 	return trans_df.to_frame().T, trans_data
 
 
-def calculate_distance(tax_id, data_x, data_y):
+def calculate_log_distance(tax_id, data_x, data_y):
 	dist_df = pd.Series(name=tax_id, index=amino_acids+["Aitchison_distance"])
 	dist_df[amino_acids] = data_x - data_y
 	dist_df["Aitchison_distance"] = np.sqrt((dist_df[amino_acids]**2).sum())
 	return dist_df.to_frame().T
+
+
+def calculate_kl_entropy(tax_id, data_x, data_y):
+	entropy_df = pd.Series(name=tax_id, index=amino_acids+["KL_entropy"])
+	entropy_df[amino_acids] = data_x * np.log(data_x / data_y)
+	entropy_df["KL_entropy"] = np.sum(entropy_df[amino_acids])
+	return entropy_df.to_frame().T
 
 
 def calculate_p_value(obs, perms):
@@ -107,25 +114,20 @@ def calculate_balances(tax_id, data, codon_parts):
 	return bal_df.to_frame().T
 
 
-def compare_values(tax_id, freq_funcs, gc, code_name, obs_cls, obs_clr, obs_bal_df, codon_parts, resamples):
+def compare_values(tax_id, freq_funcs, gc, code_name, obs_cls, obs_clr, codon_parts, resamples):
 	# Load frequency functions for each amino acid based on the codons and GC content
 	pred_df, pred_cls = load_freq_funcs(tax_id, freq_funcs, gc, code_name)
 
-	# Calculate the balances between high codon amino acids and low codons
-	# as well as their distance to the observed balances
-	pred_bal_df = calculate_balances(tax_id, pred_cls, codon_parts)
-	pred_bal_delta_df = obs_bal_df - pred_bal_df
-	pred_bal_delta_df["Deg_load"] = np.sum(obs_cls * np.log(pred_cls))
-	pred_bal_delta_df["Aitchison_distance"] = np.sqrt((pred_bal_delta_df**2).sum(axis=1))
-
+	# Kullback-Leibler-entropies
+	clr_kl_df = calculate_kl_entropy(tax_id, obs_cls, pred_cls)
 	# CLR values
 	clr_df, pred_clr = transform_data(tax_id, skb.stats.composition.clr, pred_cls)
 	# CLR distances and Aitchison distance
-	clr_delta_df = calculate_distance(tax_id, obs_clr, pred_clr)
+	clr_delta_df = calculate_log_distance(tax_id, obs_clr, pred_clr)
 	# CLR correlations
 	clr_corr_df = correlate_data(tax_id, obs_clr, pred_clr, resamples)
 
-	return [pred_df, pred_bal_df, pred_bal_delta_df, clr_df, clr_delta_df, clr_corr_df]
+	return [pred_df, clr_kl_df, clr_df, clr_delta_df, clr_corr_df]
 
 
 def combine_distribution_stats(data):
@@ -153,11 +155,11 @@ def combine_distribution_stats(data):
 	return_dfs = [obs_df.to_frame().T, obs_bal_df, obs_clr_df]
 
 	# Compare observed and code frequencies
-	code_dfs = compare_values(tax_id, freq_funcs, 0.5, code_name, obs_cls, obs_clr, obs_bal_df, codon_parts, resamples)
+	code_dfs = compare_values(tax_id, freq_funcs, 0.5, code_name, obs_cls, obs_clr, codon_parts, resamples)
 	return_dfs.extend(code_dfs)
 
 	# Compare observed and code+GC frequencies
-	gc_dfs = compare_values(tax_id, freq_funcs, float(obs_df["GC"]), code_name, obs_cls, obs_clr, obs_bal_df, codon_parts, resamples)
+	gc_dfs = compare_values(tax_id, freq_funcs, float(obs_df["GC"]), code_name, obs_cls, obs_clr, codon_parts, resamples)
 	return_dfs.extend(gc_dfs)
 											
 	return return_dfs
@@ -220,8 +222,8 @@ if __name__ == "__main__":
 				frames.append(res)	
 
 	file_list = ["obs_freq", "obs_bal", "obs_clr",
-				 "code_freq", "code_bal", "code_bal_delta", "code_clr", "code_clr_delta", "code_clr_corr",
-				 "gc_freq", "gc_bal", "gc_bal_delta", "gc_clr", "gc_clr_delta", "gc_clr_corr"]
+				 "code_freq", "code_kl_entr", "code_clr", "code_clr_delta", "code_clr_corr",
+				 "gc_freq", "gc_kl_entr", "gc_clr", "gc_clr_delta", "gc_clr_corr"]
 	for index,file in enumerate(file_list):
 		comb_df = pd.concat([f[index] for f in frames])
 		comb_df.index.name = "TaxID"
@@ -229,9 +231,6 @@ if __name__ == "__main__":
 			comb_df["Pearson_q"] = sm.multipletests(comb_df["Pearson_p"], method="fdr_bh")[1]
 			comb_df["Spearman_q"] = sm.multipletests(comb_df["Spearman_p"], method="fdr_bh")[1]
 			comb_df["Kendall_q"] = sm.multipletests(comb_df["Kendall_p"], method="fdr_bh")[1]
-		if(file.endswith("_bal_delta")):
-			cols = [col for col in comb_df.columns if col != "Deg_load" and col != "Aitchison_distance"]
-			comb_df = comb_df[cols + ["Deg_load", "Aitchison_distance"]]
 
 		comb_df.to_csv(os.path.join(output, f"{file}.csv"), sep="\t")
 	
