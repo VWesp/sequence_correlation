@@ -207,6 +207,20 @@ if __name__ == "__main__":
 
 	gc_corr_df = pd.concat(frames)
 
+	### Plot Kullback-Leibler-entropies of each alternative code to the standard code
+	kl_code_df = pd.read_csv("code_kl_entropies.csv", sep="\t", header=0, index_col=0)
+	colors = ["royalblue" if code!="BAPP" else "darkgreen" for code in kl_code_df["Abbreviation"]]
+	g = sns.barplot(data=kl_code_df, x="Abbreviation", y="Kullback-Leibler-entropy", palette=colors, legend=False)
+	g.set_xlabel("Genetic code", fontweight="bold", fontsize=10)
+	g.set_xticklabels(kl_code_df["Abbreviation"], rotation=90)
+	g.set_ylabel("Kullback-Leibler-entropy", fontweight="bold", fontsize=10)
+	g.axhline(1, linestyle="--", linewidth=2, color="firebrick")
+	g.xaxis.grid(True, linestyle="--")
+	for ext in ["svg", "pdf"]:
+		plt.savefig(os.path.join(output, f"gen_kl_entropies.{ext}"), bbox_inches="tight")
+	
+	plt.close()
+
 	###### Plot number of proteins
 	g = sns.histplot(data=obs_freq_df, x="#Proteins", hue="Domain", alpha=0.5, kde=True, line_kws={"linewidth": 2, "linestyle": "--"}, stat="density", common_norm=False, 
 				 	 log_scale=True, palette=domain_colors)
@@ -321,6 +335,32 @@ if __name__ == "__main__":
 	fig.subplots_adjust(hspace=0.7)
 	for ext in ["svg", "pdf"]:
 		plt.savefig(os.path.join(output, f"amino_acid_freqs.{ext}"), bbox_inches="tight")
+		
+	plt.close()
+
+	###### Plot observed raw and CLR-transformed frequencies
+	fig,axes = plt.subplots(2, 1, sharex=True)
+	### Raw
+	melted_df = obs_freq_df.melt(id_vars="Domain", value_vars=amino_acids, var_name="AminoAcid", value_name="medVal")
+	sns.barplot(data=melted_df, x="AminoAcid", y="medVal", hue="Domain", estimator=np.median, errorbar=mad_interval, err_kws={"linewidth": 1.5}, palette=domain_colors, ax=axes[0])
+	axes[0].set_title(f"a) Raw frequencies", fontweight="bold", fontsize=10)
+	axes[0].set_xlabel("Amino acid", fontweight="bold", fontsize=8)
+	axes[0].set_ylabel("Frequency", fontweight="bold", fontsize=8)
+	axes[0].xaxis.set_tick_params(labelbottom=True)
+	axes[0].xaxis.grid(True, linestyle="--")
+	axes[0].legend([], frameon=False)
+	### CLR
+	melted_df = obs_clr_df.melt(id_vars="Domain", value_vars=amino_acids, var_name="AminoAcid", value_name="medVal")
+	sns.barplot(data=melted_df, x="AminoAcid", y="medVal", hue="Domain", estimator=np.median, errorbar=mad_interval, err_kws={"linewidth": 1.5}, palette=domain_colors, ax=axes[1])
+	axes[1].set_title(f"b) CLR-transformed frequencies", fontweight="bold", fontsize=10)
+	axes[1].set_xlabel("Amino acid", fontweight="bold", fontsize=8)
+	axes[1].set_ylabel("(CLR-)Frequency", fontweight="bold", fontsize=8)
+	axes[1].xaxis.grid(True, linestyle="--")
+	sns.move_legend(axes[1], "upper left", bbox_to_anchor=(0, 1.48), ncols=4, shadow=True, title="")
+	###
+	fig.subplots_adjust(hspace=0.7)
+	for ext in ["svg", "pdf"]:
+		plt.savefig(os.path.join(output, f"obs_raw_vs_clr.{ext}"), bbox_inches="tight")
 		
 	plt.close()
 
