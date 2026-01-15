@@ -264,7 +264,7 @@ if __name__ == "__main__":
 	df_descr.to_csv(os.path.join(output, "gene_gc_stats.csv"), sep="\t")
 
 	###### Plot observed balances
-	bal_df = obs_bal_df[(obs_bal_df["B1"]<=obs_bal_df["B1"].quantile(0.95)) & (obs_bal_df["B1"]>=obs_bal_df["B1"].quantile(0.05))]
+	bal_df = obs_bal_df[(obs_bal_df["B1"]<=obs_bal_df["B1"].quantile(0.9655)) & (obs_bal_df["B1"]>=obs_bal_df["B1"].quantile(0.001))]
 	g = sns.histplot(data=bal_df, x="B1", hue="Domain", alpha=0.5, kde=True, line_kws={"linewidth": 2, "linestyle": "--"}, stat="density", common_norm=False,
 					 palette=domain_colors)
 	g.set_xlabel("Balance between high-codon and low-codon amino acids", fontweight="bold", fontsize=10)
@@ -277,6 +277,7 @@ if __name__ == "__main__":
 	plt.close()
 	df_descr = obs_bal_df.groupby("Domain")["B1"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
 	df_descr.to_csv(os.path.join(output, "b1_balance_stats.csv"), sep="\t")
+	fdkslöfds
 
 	###### Plot median amino acid frequencies
 	fig,axes = plt.subplots(3, 1, sharey=True)
