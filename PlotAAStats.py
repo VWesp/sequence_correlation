@@ -209,12 +209,10 @@ if __name__ == "__main__":
 
 	### Plot Kullback-Leibler-entropies of each alternative code to the standard code
 	kl_code_df = pd.read_csv("code_kl_entropies.csv", sep="\t", header=0, index_col=0)
-	colors = ["royalblue" if code!="BAPP" else "darkgreen" for code in kl_code_df["Abbreviation"]]
-	g = sns.barplot(data=kl_code_df, x="Abbreviation", y="Kullback-Leibler-entropy", palette=colors, legend=False)
+	g = sns.barplot(data=kl_code_df, x="Abbreviation", y="Kullback-Leibler-entropy", color="royalblue", legend=False)
 	g.set_xlabel("Genetic code", fontweight="bold", fontsize=10)
 	g.set_xticklabels(kl_code_df["Abbreviation"], rotation=90)
 	g.set_ylabel("Kullback-Leibler-entropy", fontweight="bold", fontsize=10)
-	g.axhline(1, linestyle="--", linewidth=2, color="firebrick")
 	g.xaxis.grid(True, linestyle="--")
 	for ext in ["svg", "pdf"]:
 		plt.savefig(os.path.join(output, f"gen_kl_entropies.{ext}"), bbox_inches="tight")
@@ -277,7 +275,6 @@ if __name__ == "__main__":
 	plt.close()
 	df_descr = obs_bal_df.groupby("Domain")["B1"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
 	df_descr.to_csv(os.path.join(output, "b1_balance_stats.csv"), sep="\t")
-	fdkslöfds
 
 	###### Plot median amino acid frequencies
 	fig,axes = plt.subplots(3, 1, sharey=True)

@@ -23,7 +23,7 @@ if __name__=="__main__":
 				freq_funcs = ef.build_functions(alt_code)
 				freqs = ef.calculate_frequencies(freq_funcs, 0.5)["amino"]
 				alt_freqs = np.array(list(dict(sorted(freqs.items())).values()))
-				results[file.split(".")[0]] = np.sum(stand_freqs - np.log(stand_freqs / alt_freqs))
+				results[file.split(".")[0]] = np.sum(stand_freqs * np.log(stand_freqs / alt_freqs))
 
 	df = pd.DataFrame.from_dict(results, orient="index", columns=["Kullback-Leibler-entropy"])
 	df.index.name = "Genetic code"
