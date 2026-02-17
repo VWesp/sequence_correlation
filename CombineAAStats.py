@@ -47,34 +47,37 @@ def calculate_aitchison(tax_id, obs, pred):
 def solve_mip(tax_id, obs, code_pred, gc_pred, non_stop_codons):
 	mip_df = pd.Series(name=tax_id, index=amino_acids+["Code_JSD_entropy", "GC_JSD_entropy"])
 
-	m = pyo.ConcreteModel()
-	m.I = pyo.RangeSet(0, 19)
+	try:
+		m = pyo.ConcreteModel()
+		m.I = pyo.RangeSet(0, 19)
 
-	m.x = pyo.Var(m.I, domain=pyo.Integers, bounds=(1, None))
+		m.x = pyo.Var(m.I, domain=pyo.Integers, bounds=(1, None))
 
-	m.p = pyo.Var(m.I, domain=pyo.NonNegativeReals)
-	m.n = pyo.Var(m.I, domain=pyo.NonNegativeReals)
+		m.p = pyo.Var(m.I, domain=pyo.NonNegativeReals)
+		m.n = pyo.Var(m.I, domain=pyo.NonNegativeReals)
 
-	m.total = pyo.Constraint(expr=sum(m.x[i] for i in m.I) == non_stop_codons)
+		m.total = pyo.Constraint(expr=sum(m.x[i] for i in m.I) == non_stop_codons)
 
-	def dev_rule(m, i):
-		return m.x[i] - obs[i]*non_stop_codons == m.p[i] - m.n[i]
+		def dev_rule(m, i):
+			return m.x[i] - obs[i]*non_stop_codons == m.p[i] - m.n[i]
 
-	m.dev = pyo.Constraint(m.I, rule=dev_rule)
+		m.dev = pyo.Constraint(m.I, rule=dev_rule)
 
-	m.obj = pyo.Objective(expr=sum(m.p[i] + m.n[i] for i in m.I), sense=pyo.minimize)
+		m.obj = pyo.Objective(expr=sum(m.p[i] + m.n[i] for i in m.I), sense=pyo.minimize)
 
-	solver = pyo.SolverFactory("highs")
-	result = solver.solve(m)
+		solver = pyo.SolverFactory("highs")
+		result = solver.solve(m)
 
-	mip_df[amino_acids] = np.array([int(round(pyo.value(m.x[i]))) for i in m.I])
-	frac = np.array([f/non_stop_codons for f in mip_df[amino_acids]])
+		mip_df[amino_acids] = np.array([int(round(pyo.value(m.x[i]))) for i in m.I])
+		frac = np.array([f/non_stop_codons for f in mip_df[amino_acids]])
 
-	code_mid_p = (frac + code_pred) / 2
-	mip_df["Code_JSD_entropy"] = np.sum(frac*np.log(frac/code_mid_p))/2 + np.sum(code_pred*np.log(code_pred/code_mid_p))/2
+		code_mid_p = (frac + code_pred) / 2
+		mip_df["Code_JSD_entropy"] = np.sum(frac*np.log(frac/code_mid_p))/2 + np.sum(code_pred*np.log(code_pred/code_mid_p))/2
 
-	gc_mid_p = (frac + gc_pred) / 2
-	mip_df["GC_JSD_entropy"] = np.sum(frac*np.log(frac/gc_mid_p))/2 + np.sum(gc_pred*np.log(gc_pred/gc_mid_p))/2
+		gc_mid_p = (frac + gc_pred) / 2
+		mip_df["GC_JSD_entropy"] = np.sum(frac*np.log(frac/gc_mid_p))/2 + np.sum(gc_pred*np.log(gc_pred/gc_mid_p))/2
+	except:
+		pass
 
 	return mip_df.to_frame().T
 
@@ -133,14 +136,22 @@ def calculate_balances(tax_id, data, codon_parts):
 
 		scale = np.sqrt((r * s) / (r + s))
 		balance = scale * (r_mean - s_mean)
-		balances.append(balance)
+
+		r_names = [f"{c}" for c in r_codons]
+		s_names = [f"{c}" for c in s_codons]
+		bal_name = f"{"_".join(r_names)}_vs_{"_".join(s_names)}"
+		balances.append([bal_name, balance])
 		calculate_splits(r_data, codon_parts[split])
 		calculate_splits(s_data, codon_parts[mask])
 
 	calculate_splits(data, codon_parts)
-	names = [f"B{i+1}" for i in range(len(balances))] 
-	bal_df = pd.Series(data=balances, name=tax_id, index=names)
-	return bal_df.to_frame().T
+	names = [f"B{i+1}" for i in range(len(balances))]
+	data = [b[1] for b in balances]
+	bal_df = pd.Series(data=data, name=tax_id, index=names)
+
+	bal_names = [b[0] for b in balances]
+	bal_name_df = pd.Series(data=bal_names, name=tax_id, index=names)
+	return [bal_df.to_frame().T, bal_name_df.to_frame().T]
 
 
 def compare_values(tax_id, freq_funcs, gc, code_name, obs_cls, obs_clr, codon_parts, resamples):
@@ -178,8 +189,8 @@ def combine_distribution_stats(data):
 	# Observed CLR values
 	obs_clr_df, obs_clr = transform_data(tax_id, skb.stats.composition.clr, obs_cls)
 	# Calculate the balances between high codon amino acids and low codons
-	obs_bal_df = calculate_balances(tax_id, obs_cls, codon_parts)
-	return_dfs = [obs_df.to_frame().T, obs_bal_df, obs_clr_df]
+	obs_bal_df, obs_bal_name_df = calculate_balances(tax_id, obs_cls, codon_parts)
+	return_dfs = [obs_df.to_frame().T, obs_bal_df, obs_bal_name_df, obs_clr_df]
 
 	# Compare observed and code frequencies
 	code_dfs,code_cls = compare_values(tax_id, freq_funcs, 0.5, code_name, obs_cls, obs_clr, codon_parts, resamples)
@@ -253,7 +264,7 @@ if __name__ == "__main__":
 			for res in result:
 				frames.append(res)	
 
-	file_list = ["obs_freq", "obs_bal", "obs_clr",
+	file_list = ["obs_freq", "obs_bal", "obs_bal_names", "obs_clr",
 				 "code_freq", "code_clr", "code_clr_delta", "code_clr_corr",
 				 "gc_freq", "gc_clr", "gc_clr_delta", "gc_clr_corr",
 				 "mip_opt_codons"]

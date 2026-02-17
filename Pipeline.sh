@@ -9,5 +9,5 @@ for domain in "Archaea" "Bacteria" "Eukaryota" "Viruses"; do
 	echo ""
 done
 
-#echo "Plotting statistics..."
-#/root/anaconda3/bin/python3 PlotAAStats.py -i /home/vwesp/uniprot_knowledgebase/ -o /home/vwesp/uniprot_knowledgebase/results -r 100000
+echo "Plotting statistics..."
+/root/anaconda3/bin/python3 PlotAAStats.py -i /home/vwesp/uniprot_knowledgebase/ -o /home/vwesp/uniprot_knowledgebase/results -r 100000

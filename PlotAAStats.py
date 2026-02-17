@@ -7,6 +7,7 @@ import scipy as sci
 import skbio as skb
 import sklearn as skl
 import seaborn as sns
+import squarify as squ
 import mpl_axes_aligner
 import pypalettes as pp
 import matplotlib.pyplot as plt
@@ -94,7 +95,7 @@ if __name__ == "__main__":
 		frames.append(df)
 
 	obs_freq_df = pd.concat(frames)
-	# Dataframe of observed CLR frequencies
+	# Dataframe of observed balances
 	frames = []
 	for domain in domains:
 		path = os.path.join(input, os.path.join(domain, os.path.join("output", "obs_bal.csv")))
@@ -103,7 +104,16 @@ if __name__ == "__main__":
 		frames.append(df)
 
 	obs_bal_df = pd.concat(frames)
-	# Dataframe of observed balances
+	# Dataframe of observed balance names
+	frames = []
+	for domain in domains:
+		path = os.path.join(input, os.path.join(domain, os.path.join("output", "obs_bal_names.csv")))
+		df = pd.read_csv(path, sep="\t", header=0, index_col=0)
+		df["Domain"] = [domain] * len(df)
+		frames.append(df)
+
+	obs_bal_name_df = pd.concat(frames)
+	# Dataframe of observed CLR frequencies
 	frames = []
 	for domain in domains:
 		path = os.path.join(input, os.path.join(domain, os.path.join("output", "obs_clr.csv")))
@@ -123,15 +133,6 @@ if __name__ == "__main__":
 		frames.append(df)
 
 	code_freq_df = pd.concat(frames)
-	# Dataframe of code KL entropies
-	frames = []
-	for domain in domains:
-		path = os.path.join(input, os.path.join(domain, os.path.join("output", "code_kl_entr.csv")))
-		df = pd.read_csv(path, sep="\t", header=0, index_col=0)
-		df["Domain"] = [domain] * len(df)
-		frames.append(df)
-
-	code_kl_df = pd.concat(frames)
 	# Dataframe of code CLR frequencies
 	frames = []
 	for domain in domains:
@@ -170,15 +171,6 @@ if __name__ == "__main__":
 		frames.append(df)
 
 	gc_freq_df = pd.concat(frames)
-	# Dataframe of code+GC content KL entropies
-	frames = []
-	for domain in domains:
-		path = os.path.join(input, os.path.join(domain, os.path.join("output", "gc_kl_entr.csv")))
-		df = pd.read_csv(path, sep="\t", header=0, index_col=0)
-		df["Domain"] = [domain] * len(df)
-		frames.append(df)
-
-	gc_kl_df = pd.concat(frames)
 	# Dataframe of code+GC content CLR frequencies
 	frames = []
 	for domain in domains:
@@ -206,18 +198,15 @@ if __name__ == "__main__":
 		frames.append(df)
 
 	gc_corr_df = pd.concat(frames)
+	# Dataframe of the MIP optimisations
+	frames = []
+	for domain in domains:
+		path = os.path.join(input, os.path.join(domain, os.path.join("output", "mip_opt_codons.csv")))
+		df = pd.read_csv(path, sep="\t", header=0, index_col=0)
+		df["Domain"] = [domain] * len(df)
+		frames.append(df)
 
-	### Plot Kullback-Leibler-entropies of each alternative code to the standard code
-	kl_code_df = pd.read_csv("code_kl_entropies.csv", sep="\t", header=0, index_col=0)
-	g = sns.barplot(data=kl_code_df, x="Abbreviation", y="Kullback-Leibler-entropy", color="royalblue", legend=False)
-	g.set_xlabel("Genetic code", fontweight="bold", fontsize=10)
-	g.set_xticklabels(kl_code_df["Abbreviation"], rotation=90)
-	g.set_ylabel("Kullback-Leibler-entropy", fontweight="bold", fontsize=10)
-	g.xaxis.grid(True, linestyle="--")
-	for ext in ["svg", "pdf"]:
-		plt.savefig(os.path.join(output, f"gen_kl_entropies.{ext}"), bbox_inches="tight")
-	
-	plt.close()
+	mip_df = pd.concat(frames)
 
 	###### Plot number of proteins
 	g = sns.histplot(data=obs_freq_df, x="#Proteins", hue="Domain", alpha=0.5, kde=True, line_kws={"linewidth": 2, "linestyle": "--"}, stat="density", common_norm=False, 
@@ -260,21 +249,6 @@ if __name__ == "__main__":
 	plt.close()
 	df_descr = obs_freq_df.groupby("Domain")["GC"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
 	df_descr.to_csv(os.path.join(output, "gene_gc_stats.csv"), sep="\t")
-
-	###### Plot observed balances
-	bal_df = obs_bal_df[(obs_bal_df["B1"]<=obs_bal_df["B1"].quantile(0.9655)) & (obs_bal_df["B1"]>=obs_bal_df["B1"].quantile(0.001))]
-	g = sns.histplot(data=bal_df, x="B1", hue="Domain", alpha=0.5, kde=True, line_kws={"linewidth": 2, "linestyle": "--"}, stat="density", common_norm=False,
-					 palette=domain_colors)
-	g.set_xlabel("Balance between high-codon and low-codon amino acids", fontweight="bold", fontsize=10)
-	g.set_ylabel("Density", fontweight="bold", fontsize=10)
-	g.xaxis.grid(True, linestyle="--")
-	g.legend(g.get_legend().legend_handles, domains, shadow=True)
-	for ext in ["svg", "pdf"]:
-		plt.savefig(os.path.join(output, f"b1_balance.{ext}"), bbox_inches="tight")
-		
-	plt.close()
-	df_descr = obs_bal_df.groupby("Domain")["B1"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
-	df_descr.to_csv(os.path.join(output, "b1_balance_stats.csv"), sep="\t")
 
 	###### Plot median amino acid frequencies
 	fig,axes = plt.subplots(3, 1, sharey=True)
@@ -419,63 +393,6 @@ if __name__ == "__main__":
 		
 	plt.close()
 
-	###### Plot Kullback-Leibler-entropies as boxplots
-	fig,axes = plt.subplots(2, 1, sharey=True)
-	### Observed vs. code
-	melted_df = code_kl_df.melt(id_vars="Domain", value_vars=aa_group_order, var_name="AminoAcid", value_name="dCLR")
-	axes[0].axhline(y=0, color="brown", linestyle="--", linewidth=1)
-	sns.boxplot(data=melted_df, x="AminoAcid", y="dCLR", hue="Domain", showfliers=False, palette=domain_colors, ax=axes[0])
-	axes[0].set_xticks(np.arange(len(aa_group_order)), aa_group_order)
-	axes[0].set_title("a) Based on codon numbers", fontweight="bold", fontsize=10)
-	axes[0].set_xlabel("")
-	axes[0].set_ylabel("ΔCLR", fontweight="bold", fontsize=8)
-	axes[0].xaxis.grid(True, linestyle="--")
-	axes[0].legend([], frameon=False)
-	group_pos = 0
-	for group,aas in aa_groups.items():
-		group_pos += len(aas)
-		if(group_pos < 20):
-			axes[0].axvline(x=group_pos-0.5, color="brown", linestyle="--", linewidth=1)
-
-	frames = []
-	for domain in domains:
-		df_descr = describe_data(code_kl_df[code_kl_df["Domain"]==domain][aa_group_order])
-		df_descr.loc["Domain"] = domain
-		df_descr = pd.concat([df_descr, pd.DataFrame([{}], index=[""])])
-		frames.append(df_descr)
-
-	pd.concat(frames).to_csv(os.path.join(output, "code_cross_entr_stats.csv"), sep="\t")
-	### Observed vs. code+GC content
-	melted_df = gc_kl_df.melt(id_vars="Domain", value_vars=aa_group_order, var_name="AminoAcid", value_name="dCLR")
-	axes[1].axhline(y=0, color="brown", linestyle="--", linewidth=1)
-	sns.boxplot(data=melted_df, x="AminoAcid", y="dCLR", hue="Domain", showfliers=False, palette=domain_colors, ax=axes[1])
-	axes[1].set_xticks(np.arange(len(aa_group_order)), aa_group_order)
-	axes[1].set_title("b) Based on codon numbers and GC contents", fontweight="bold", fontsize=10)
-	axes[1].set_xlabel("Amino acid", fontweight="bold", fontsize=8)
-	axes[1].set_ylabel("ΔCLR", fontweight="bold", fontsize=8)
-	axes[1].xaxis.grid(True, linestyle="--")
-	sns.move_legend(axes[1], "upper left", bbox_to_anchor=(0, 1.48), ncols=4, shadow=True, title="")
-	group_pos = 0
-	for group,aas in aa_groups.items():
-		group_pos += len(aas)
-		if(group_pos < 20):
-			axes[1].axvline(x=group_pos-0.5, color="brown", linestyle="--", linewidth=1)
-
-	frames = []
-	for domain in domains:
-		df_descr = describe_data(gc_kl_df[gc_kl_df["Domain"]==domain][aa_group_order])
-		df_descr.loc["Domain"] = domain
-		df_descr = pd.concat([df_descr, pd.DataFrame([{}], index=[""])])
-		frames.append(df_descr)
-
-	pd.concat(frames).to_csv(os.path.join(output, "gc_cross_entr_stats.csv"), sep="\t")
-	###
-	fig.subplots_adjust(hspace=0.7)
-	for ext in ["svg", "pdf"]:
-		plt.savefig(os.path.join(output, f"cross_entr_boxplot.{ext}"), bbox_inches="tight")
-		
-	plt.close()
-
 	###### Plot delta CLR as radar plots
 	fig,axes = plt.subplots(1, 2, subplot_kw={"projection": "polar"})
 	### Observed vs. code
@@ -535,104 +452,6 @@ if __name__ == "__main__":
 	fig.set_size_inches(16, 10)
 	for ext in ["svg", "pdf"]:
 		plt.savefig(os.path.join(output, f"dclr_radar.{ext}"), bbox_inches="tight")
-		
-	plt.close()
-
-	###### Plot Kullback-Leibler-entropies as radar plots
-	fig,axes = plt.subplots(1, 2, subplot_kw={"projection": "polar"})
-	### Observed vs. code
-	abs_code_kl_df = code_kl_df.copy()
-	abs_code_kl_df[amino_acids] = abs_code_kl_df[amino_acids].abs()
-	median_code_kl_df = abs_code_kl_df.groupby("Domain")[aa_group_order].median()
-	num_aas = len(median_code_kl_df.columns)
-	angles = [n / float(num_aas)*2*np.pi for n in range(num_aas)]
-	angles += angles[:1]
-
-	rmin = np.min(median_code_kl_df.values) * 1.1
-	rmax = np.max(median_code_kl_df.values) * 1.1
-	line_pos = 0
-	index = 0
-	for i,angle in enumerate(angles[:-1]):
-	    if(i == line_pos): 
-	        axes[0].plot([angle-0.15, angle-0.15], [rmin, rmax], color="brown", linestyle="dotted", linewidth=2, alpha=0.5)
-	        line_pos += len(list(aa_groups.values())[index])
-	        index += 1
-
-	axes[0].plot(np.linspace(0, 2*np.pi, 100), [0]*100, color="brown", linestyle="dotted", linewidth=2, alpha=0.5)
-	for i,(domain,row) in enumerate(median_code_kl_df.iterrows()):
-		aa_medians = row.to_list()
-		aa_medians += aa_medians[:1]
-		axes[0].plot(angles, aa_medians, label=domain, linewidth=2.5, linestyle="dashed", color=domain_colors[i], alpha=0.75)
-
-	axes[0].set_xlabel("Amino acid", fontweight="bold", fontsize=12)
-	axes[0].set_xticks(angles[:-1], aa_group_order)
-	axes[0].set_ylabel("Kullback-Leibler-entropy", fontweight="bold", labelpad=20, fontsize=12)
-	axes[0].set_title("a) Based on codon numbers", fontweight="bold", pad=30, fontsize=14)
-	axes[0].legend(bbox_to_anchor=(1.24, 1), shadow=True, fontsize=12, title="")
-	### Observed vs. code+GC content
-	abs_gc_kl_df = gc_kl_df.copy()
-	abs_gc_kl_df[amino_acids] = abs_gc_kl_df[amino_acids].abs()
-	median_gc_kl_df = abs_gc_kl_df.groupby("Domain")[aa_group_order].median()
-	num_aas = len(median_gc_kl_df.columns)
-	angles = [n / float(num_aas)*2*np.pi for n in range(num_aas)]
-	angles += angles[:1]
-
-	rmin = np.min(median_gc_kl_df.values) * 1.1
-	rmax = np.max(median_gc_kl_df.values) * 1.1
-	line_pos = 0
-	index = 0
-	for i,angle in enumerate(angles[:-1]):
-	    if(i == line_pos): 
-	        axes[1].plot([angle-0.15, angle-0.15], [rmin, rmax], color="brown", linestyle="dotted", linewidth=2, alpha=0.5)
-	        line_pos += len(list(aa_groups.values())[index])
-	        index += 1
-
-	axes[1].plot(np.linspace(0, 2*np.pi, 100), [0]*100, color="brown", linestyle="dotted", linewidth=2, alpha=0.5)
-	for i,(domain,row) in enumerate(median_gc_kl_df.iterrows()):
-		aa_medians = row.to_list()
-		aa_medians += aa_medians[:1]
-		axes[1].plot(angles, aa_medians, label=domain, linewidth=2.5, linestyle="dashed", color=domain_colors[i], alpha=0.75)
-
-	axes[1].set_xlabel("Amino acid", fontweight="bold", fontsize=12)
-	axes[1].set_xticks(angles[:-1], aa_group_order)
-	axes[1].set_ylabel("Kullback-Leibler-entropy", fontweight="bold", labelpad=20, fontsize=12)
-	axes[1].set_title("b) Based on codon numbers and GC contents", fontweight="bold", pad=30, fontsize=14)
-	###
-	fig.set_size_inches(16, 10)
-	for ext in ["svg", "pdf"]:
-		plt.savefig(os.path.join(output, f"kl_entr_radar.{ext}"), bbox_inches="tight")
-		
-	plt.close()
-
-	###### Plot Kullback-Leibler-entropies
-	fig,axes = plt.subplots(2, 1, sharex=True, sharey=True)
-	### Observed vs. code
-	kl_code_df = code_kl_df[code_kl_df["KL_entropy"]<=code_kl_df["KL_entropy"].quantile(0.95)]
-	sns.kdeplot(data=kl_code_df, x="KL_entropy", hue="Domain", fill=True, common_norm=False, alpha=0.5, palette=domain_colors, ax=axes[0])
-	axes[0].set_title(f"a) Based on codon numbers", fontweight="bold", fontsize=10)
-	axes[0].set_xlabel("Kullback-Leibler-entropy", fontweight="bold", fontsize=8)
-	axes[0].set_ylabel("Density", fontweight="bold", fontsize=8)
-	axes[0].xaxis.set_tick_params(labelbottom=True)
-	axes[0].xaxis.grid(True, linestyle="--")
-	axes[0].legend([], frameon=False)
-	#
-	df_descr = code_kl_df.groupby("Domain")["KL_entropy"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
-	df_descr.to_csv(os.path.join(output, "code_kl_entr_stats.csv"), sep="\t")
-	### Observed vs. code+GC content
-	kl_gc_df = gc_kl_df[gc_kl_df["KL_entropy"]<=gc_kl_df["KL_entropy"].quantile(0.95)]
-	sns.kdeplot(data=kl_gc_df, x="KL_entropy", hue="Domain", fill=True, common_norm=False, alpha=0.5, palette=domain_colors, ax=axes[1])
-	axes[1].set_title(f"b) Based on codon numbers and GC contents", fontweight="bold", fontsize=10)
-	axes[1].set_xlabel("Kullback-Leibler-entropy", fontweight="bold", fontsize=8)
-	axes[1].set_ylabel("Density", fontweight="bold", fontsize=8)
-	axes[1].xaxis.grid(True, linestyle="--")
-	sns.move_legend(axes[1], "upper left", bbox_to_anchor=(0, 1.48), ncols=4, shadow=True, title="")
-	#
-	df_descr = gc_kl_df.groupby("Domain")["KL_entropy"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
-	df_descr.to_csv(os.path.join(output, "gc_kl_entr_stats.csv"), sep="\t")
-	###
-	fig.subplots_adjust(hspace=0.7)
-	for ext in ["svg", "pdf"]:
-		plt.savefig(os.path.join(output, f"kl_entropies.{ext}"), bbox_inches="tight")
 		
 	plt.close()
 
@@ -756,6 +575,76 @@ if __name__ == "__main__":
 		
 	plt.close()
 
+	##### Plot MIP JSD entropies
+	fig,axes = plt.subplots(2, 1, sharex=True, sharey=True)
+	### Observed vs. code
+	mip_code_df = mip_df[mip_df["Code_JSD_entropy"]<=mip_df["Code_JSD_entropy"].quantile(0.95)]
+	sns.kdeplot(data=mip_code_df, x="Code_JSD_entropy", hue="Domain", fill=True, common_norm=False, alpha=0.5, palette=domain_colors, ax=axes[0])
+	axes[0].set_title(f"a) Based on codon numbers", fontweight="bold", fontsize=10)
+	axes[0].set_xlabel("Jensen-Shannon divergence", fontweight="bold", fontsize=8)
+	axes[0].set_ylabel("Density", fontweight="bold", fontsize=8)
+	axes[0].xaxis.set_tick_params(labelbottom=True)
+	axes[0].xaxis.grid(True, linestyle="--")
+	axes[0].legend([], frameon=False)
+	#
+	df_descr = mip_df.groupby("Domain")["Code_JSD_entropy"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
+	df_descr.to_csv(os.path.join(output, "code_jsd_stats.csv"), sep="\t")
+	### Observed vs. code+GC content
+	mip_gc_df = mip_df[mip_df["GC_JSD_entropy"]<=mip_df["GC_JSD_entropy"].quantile(0.95)]
+	sns.kdeplot(data=mip_gc_df, x="GC_JSD_entropy", hue="Domain", fill=True, common_norm=False, alpha=0.5, palette=domain_colors, ax=axes[1])
+	axes[1].set_title(f"b) Based on codon numbers and GC contents", fontweight="bold", fontsize=10)
+	axes[1].set_xlabel("Jensen-Shannon divergence", fontweight="bold", fontsize=8)
+	axes[1].set_ylabel("Density", fontweight="bold", fontsize=8)
+	axes[1].xaxis.grid(True, linestyle="--")
+	sns.move_legend(axes[1], "upper left", bbox_to_anchor=(0, 1.48), ncols=4, shadow=True, title="")
+	#
+	df_descr = mip_df.groupby("Domain")["GC_JSD_entropy"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
+	df_descr.to_csv(os.path.join(output, "gc_jsd_stats.csv"), sep="\t")
+	###
+	fig.subplots_adjust(hspace=0.7)
+	for ext in ["svg", "pdf"]:
+		plt.savefig(os.path.join(output, f"js_divergence.{ext}"), bbox_inches="tight")
+		
+	plt.close()
+
+	##### Plot observed balances
+	balances = ["B1", "B2", "B3", "B4"]
+	bal_cols = pp.load_cmap("Acadia", keep_first_n=len(balances)).colors
+	tax_ids = obs_bal_name_df[balances]
+	tax_ids = tax_ids.loc[tax_ids["B1"]=="3_4_6_vs_1_2"]
+	tax_ids = tax_ids.loc[tax_ids["B2"]=="4_6_vs_3"]
+	tax_ids = tax_ids.loc[tax_ids["B3"]=="6_vs_4"]
+	tax_ids = tax_ids.loc[tax_ids["B4"]=="2_vs_1"].index
+	obs_bal_df = obs_bal_df.loc[tax_ids]
+	fig,axes = plt.subplots(2, 2, sharey=True)
+	i = 0
+	j = 0
+	frames = []
+	label_lst = ["a)", "b)", "c)", "d)"]
+	for index,domain in enumerate(domains):
+		domain_df = obs_bal_df[obs_bal_df["Domain"]==domain][balances]
+		med_bal = domain_df.median()
+		labels = [f"{idx}: {row:.2f}" for idx,row in med_bal.items()]
+		g = squ.plot(sizes=med_bal, color=bal_cols, alpha=0.8, pad=0.2, ax=axes[i,j])
+		axes[i,j].set_title(f"{label_lst[index]} {domain}", fontweight="bold", fontsize=10)
+		axes[i,j].axis("off")
+		axes[i,j].legend(handles=g.containers[0], labels=labels, shadow=True, bbox_to_anchor=(0, 1.02))
+		df_descr = describe_data(domain_df)
+		df_descr.loc["Domain"] = domain
+		df_descr = pd.concat([df_descr, pd.DataFrame([{}], index=[""])])
+		frames.append(df_descr)
+		j += 1
+		if(j > 1):
+			i += 1
+			j = 0
+	
+	fig.subplots_adjust(wspace=0.9)
+	for ext in ["svg", "pdf"]:
+		plt.savefig(os.path.join(output, f"balances.{ext}"), bbox_inches="tight")
+
+	plt.close()
+	pd.concat(frames).to_csv(os.path.join(output, "balances.csv"), sep="\t")
+	
 	###### PCA for raw and CLR-transformed observed data
 	fig, axes = plt.subplots(1, 2)
 	pca_comp = skl.decomposition.PCA(n_components=2)
