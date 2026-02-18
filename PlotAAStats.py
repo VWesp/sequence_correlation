@@ -104,15 +104,6 @@ if __name__ == "__main__":
 		frames.append(df)
 
 	obs_bal_df = pd.concat(frames)
-	# Dataframe of observed balance names
-	frames = []
-	for domain in domains:
-		path = os.path.join(input, os.path.join(domain, os.path.join("output", "obs_bal_names.csv")))
-		df = pd.read_csv(path, sep="\t", header=0, index_col=0)
-		df["Domain"] = [domain] * len(df)
-		frames.append(df)
-
-	obs_bal_name_df = pd.concat(frames)
 	# Dataframe of observed CLR frequencies
 	frames = []
 	for domain in domains:
@@ -608,28 +599,23 @@ if __name__ == "__main__":
 	plt.close()
 
 	##### Plot observed balances
-	balances = ["B1", "B2", "B3", "B4"]
-	bal_cols = pp.load_cmap("Acadia", keep_first_n=len(balances)).colors
-	tax_ids = obs_bal_name_df[balances]
-	tax_ids = tax_ids.loc[tax_ids["B1"]=="3_4_6_vs_1_2"]
-	tax_ids = tax_ids.loc[tax_ids["B2"]=="4_6_vs_3"]
-	tax_ids = tax_ids.loc[tax_ids["B3"]=="6_vs_4"]
-	tax_ids = tax_ids.loc[tax_ids["B4"]=="2_vs_1"].index
-	obs_bal_df = obs_bal_df.loc[tax_ids]
 	fig,axes = plt.subplots(2, 2, sharey=True)
 	i = 0
 	j = 0
 	frames = []
 	label_lst = ["a)", "b)", "c)", "d)"]
 	for index,domain in enumerate(domains):
-		domain_df = obs_bal_df[obs_bal_df["Domain"]==domain][balances]
+		domain_df = obs_bal_df[obs_bal_df["Domain"]==domain]
+		balances = [b for b in domain_df.columns if b != "Domain"]
+		domain_df[balances] = domain_df[balances].abs()
 		med_bal = domain_df.median()
 		labels = [f"{idx}: {row:.2f}" for idx,row in med_bal.items()]
+		bal_cols = pp.load_cmap("Acadia", keep_first_n=len(balances)).colors
 		g = squ.plot(sizes=med_bal, color=bal_cols, alpha=0.8, pad=0.2, ax=axes[i,j])
 		axes[i,j].set_title(f"{label_lst[index]} {domain}", fontweight="bold", fontsize=10)
 		axes[i,j].axis("off")
 		axes[i,j].legend(handles=g.containers[0], labels=labels, shadow=True, bbox_to_anchor=(0, 1.02))
-		df_descr = describe_data(domain_df)
+		df_descr = describe_data(domain_df[balances])
 		df_descr.loc["Domain"] = domain
 		df_descr = pd.concat([df_descr, pd.DataFrame([{}], index=[""])])
 		frames.append(df_descr)
