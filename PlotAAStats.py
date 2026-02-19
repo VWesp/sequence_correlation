@@ -211,7 +211,7 @@ if __name__ == "__main__":
 		
 	plt.close()
 	df_descr = obs_freq_df.groupby("Domain")["#Proteins"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
-	df_descr.to_csv(os.path.join(output, "number_of_protein_stats.csv"), sep="\t")
+	df_descr.to_csv(os.path.join(output, "number_of_protein.csv"), sep="\t")
 
 	###### Plot median protein lengths
 	g = sns.histplot(data=obs_freq_df, x="Length", hue="Domain", log_scale=10, alpha=0.5, kde=True, line_kws={"linewidth": 2, "linestyle": "--"}, stat="density",
@@ -225,7 +225,7 @@ if __name__ == "__main__":
 				
 	plt.close()
 	df_descr = obs_freq_df.groupby("Domain")["Length"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
-	df_descr.to_csv(os.path.join(output, "protein_length_stats.csv"), sep="\t")
+	df_descr.to_csv(os.path.join(output, "protein_length.csv"), sep="\t")
 
 	###### Plot median gene GC contents
 	g = sns.histplot(data=obs_freq_df, x="GC", hue="Domain", alpha=0.5, kde=True, line_kws={"linewidth": 2, "linestyle": "--"}, stat="density", common_norm=False, 
@@ -239,7 +239,7 @@ if __name__ == "__main__":
 		
 	plt.close()
 	df_descr = obs_freq_df.groupby("Domain")["GC"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
-	df_descr.to_csv(os.path.join(output, "gene_gc_stats.csv"), sep="\t")
+	df_descr.to_csv(os.path.join(output, "gene_gc.csv"), sep="\t")
 
 	###### Plot median amino acid frequencies
 	fig,axes = plt.subplots(3, 1, sharey=True)
@@ -259,7 +259,7 @@ if __name__ == "__main__":
 		df_descr = pd.concat([df_descr, pd.DataFrame([{}], index=[""])])
 		frames.append(df_descr)
 
-	pd.concat(frames).to_csv(os.path.join(output, "obs_freq_stats.csv"), sep="\t")
+	pd.concat(frames).to_csv(os.path.join(output, "freqs_obs.csv"), sep="\t")
 	### Code
 	melted_df = code_freq_df.melt(id_vars="Domain", value_vars=amino_acids, var_name="AminoAcid", value_name="medVal")
 	sns.barplot(data=melted_df, x="AminoAcid", y="medVal", hue="Domain", estimator=np.median, errorbar=mad_interval, err_kws={"linewidth": 1.5}, palette=domain_colors, ax=axes[1])
@@ -276,7 +276,7 @@ if __name__ == "__main__":
 		df_descr = pd.concat([df_descr, pd.DataFrame([{}], index=[""])])
 		frames.append(df_descr)
 
-	pd.concat(frames).to_csv(os.path.join(output, "code_freq_stats.csv"), sep="\t")
+	pd.concat(frames).to_csv(os.path.join(output, "freqs_code.csv"), sep="\t")
 	### Code+GC content
 	melted_df = gc_freq_df.melt(id_vars="Domain", value_vars=amino_acids, var_name="AminoAcid", value_name="medVal")
 	sns.barplot(data=melted_df, x="AminoAcid", y="medVal", hue="Domain", estimator=np.median, errorbar=mad_interval, err_kws={"linewidth": 1.5}, palette=domain_colors, ax=axes[2])
@@ -293,11 +293,11 @@ if __name__ == "__main__":
 		df_descr = pd.concat([df_descr, pd.DataFrame([{}], index=[""])])
 		frames.append(df_descr)
 
-	pd.concat(frames).to_csv(os.path.join(output, "gc_freq_stats.csv"), sep="\t")
+	pd.concat(frames).to_csv(os.path.join(output, "freqs_gc.csv"), sep="\t")
 	###
 	fig.subplots_adjust(hspace=0.7)
 	for ext in ["svg", "pdf"]:
-		plt.savefig(os.path.join(output, f"amino_acid_freqs.{ext}"), bbox_inches="tight")
+		plt.savefig(os.path.join(output, f"freqs_all.{ext}"), bbox_inches="tight")
 		
 	plt.close()
 
@@ -323,7 +323,7 @@ if __name__ == "__main__":
 	###
 	fig.subplots_adjust(hspace=0.7)
 	for ext in ["svg", "pdf"]:
-		plt.savefig(os.path.join(output, f"obs_raw_vs_clr.{ext}"), bbox_inches="tight")
+		plt.savefig(os.path.join(output, f"obs_raw_and_clr.{ext}"), bbox_inches="tight")
 		
 	plt.close()
 
@@ -352,7 +352,7 @@ if __name__ == "__main__":
 		df_descr = pd.concat([df_descr, pd.DataFrame([{}], index=[""])])
 		frames.append(df_descr)
 
-	pd.concat(frames).to_csv(os.path.join(output, "code_dclr_stats.csv"), sep="\t")
+	pd.concat(frames).to_csv(os.path.join(output, "dclr_code.csv"), sep="\t")
 	### Observed vs. code+GC content
 	melted_df = gc_clr_delta_df.melt(id_vars="Domain", value_vars=aa_group_order, var_name="AminoAcid", value_name="dCLR")
 	axes[1].axhline(y=0, color="brown", linestyle="--", linewidth=1)
@@ -376,7 +376,7 @@ if __name__ == "__main__":
 		df_descr = pd.concat([df_descr, pd.DataFrame([{}], index=[""])])
 		frames.append(df_descr)
 
-	pd.concat(frames).to_csv(os.path.join(output, "gc_dclr_stats.csv"), sep="\t")
+	pd.concat(frames).to_csv(os.path.join(output, "dclr_gc.csv"), sep="\t")
 	###
 	fig.subplots_adjust(hspace=0.7)
 	for ext in ["svg", "pdf"]:
@@ -459,7 +459,7 @@ if __name__ == "__main__":
 	axes[0].legend([], frameon=False)
 	#
 	df_descr = code_clr_delta_df.groupby("Domain")["Aitchison_distance"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
-	df_descr.to_csv(os.path.join(output, "code_aitchison_stats.csv"), sep="\t")
+	df_descr.to_csv(os.path.join(output, "aitchison_code.csv"), sep="\t")
 	### Observed vs. code+GC content
 	aitch_gc_df = gc_clr_delta_df[gc_clr_delta_df["Aitchison_distance"]<=gc_clr_delta_df["Aitchison_distance"].quantile(0.95)]
 	sns.kdeplot(data=aitch_gc_df, x="Aitchison_distance", hue="Domain", fill=True, common_norm=False, alpha=0.5, palette=domain_colors, ax=axes[1])
@@ -470,11 +470,11 @@ if __name__ == "__main__":
 	sns.move_legend(axes[1], "upper left", bbox_to_anchor=(0, 1.48), ncols=4, shadow=True, title="")
 	#
 	df_descr = gc_clr_delta_df.groupby("Domain")["Aitchison_distance"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
-	df_descr.to_csv(os.path.join(output, "gc_aitchison_stats.csv"), sep="\t")
+	df_descr.to_csv(os.path.join(output, "aitchison_gc.csv"), sep="\t")
 	###
 	fig.subplots_adjust(hspace=0.7)
 	for ext in ["svg", "pdf"]:
-		plt.savefig(os.path.join(output, f"aitchison_distance.{ext}"), bbox_inches="tight")
+		plt.savefig(os.path.join(output, f"aitchison.{ext}"), bbox_inches="tight")
 		
 	plt.close()
 
@@ -512,7 +512,7 @@ if __name__ == "__main__":
 	###
 	fig.subplots_adjust(hspace=0.7)
 	for ext in ["svg", "pdf"]:
-		plt.savefig(os.path.join(output, f"corr_coefficients.{ext}"), bbox_inches="tight")
+		plt.savefig(os.path.join(output, f"corr_coeffs.{ext}"), bbox_inches="tight")
 		
 	plt.close()
 	###
@@ -524,14 +524,14 @@ if __name__ == "__main__":
 															   "Kendall", "Kendall_p", "Kendall_q"])
 	fisher_code_corr_df.loc[domains, corr_cols] = code_corr_df.groupby("Domain")[corr_cols].agg(fisher_Z_transform)
 	fisher_code_corr_df.loc[domains, p_cols] = code_corr_df.groupby("Domain")[p_cols].agg(fisher_method)
-	fisher_code_corr_df.to_csv(os.path.join(output, "code_corr_stats.csv"), sep="\t")
+	fisher_code_corr_df.to_csv(os.path.join(output, "corr_coeffs_code.csv"), sep="\t")
 	#
 	fisher_gc_corr_df = pd.DataFrame(index=domains, columns=["Pearson", "Pearson_p", "Pearson_q",
 															 "Spearman", "Spearman_p", "Spearman_q",
 															 "Kendall", "Kendall_p", "Kendall_q"])
 	fisher_gc_corr_df.loc[domains, corr_cols] = gc_corr_df.groupby("Domain")[corr_cols].agg(fisher_Z_transform)
 	fisher_gc_corr_df.loc[domains, p_cols] = gc_corr_df.groupby("Domain")[p_cols].agg(fisher_method)
-	fisher_gc_corr_df.to_csv(os.path.join(output, "gc_corr_stats.csv"), sep="\t")
+	fisher_gc_corr_df.to_csv(os.path.join(output, "corr_coeffs_gc.csv"), sep="\t")
 
 	###### Plot median observed frequencies of charged amino acids
 	fig,axes = plt.subplots(2, 2, sharey=True)
@@ -562,7 +562,7 @@ if __name__ == "__main__":
 	###
 	fig.subplots_adjust(hspace=0.9)
 	for ext in ["svg", "pdf"]:
-		plt.savefig(os.path.join(output, f"charged_amino_acid_freqs.{ext}"), bbox_inches="tight")
+		plt.savefig(os.path.join(output, f"freqs_charged.{ext}"), bbox_inches="tight")
 		
 	plt.close()
 
@@ -579,7 +579,7 @@ if __name__ == "__main__":
 	axes[0].legend([], frameon=False)
 	#
 	df_descr = mip_df.groupby("Domain")["Code_JSD_entropy"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
-	df_descr.to_csv(os.path.join(output, "code_jsd_stats.csv"), sep="\t")
+	df_descr.to_csv(os.path.join(output, "js_divergence_code.csv"), sep="\t")
 	### Observed vs. code+GC content
 	mip_gc_df = mip_df[mip_df["GC_JSD_entropy"]<=mip_df["GC_JSD_entropy"].quantile(0.95)]
 	sns.kdeplot(data=mip_gc_df, x="GC_JSD_entropy", hue="Domain", fill=True, common_norm=False, alpha=0.5, palette=domain_colors, ax=axes[1])
@@ -590,7 +590,7 @@ if __name__ == "__main__":
 	sns.move_legend(axes[1], "upper left", bbox_to_anchor=(0, 1.48), ncols=4, shadow=True, title="")
 	#
 	df_descr = mip_df.groupby("Domain")["GC_JSD_entropy"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
-	df_descr.to_csv(os.path.join(output, "gc_jsd_stats.csv"), sep="\t")
+	df_descr.to_csv(os.path.join(output, "js_divergence_gc.csv"), sep="\t")
 	###
 	fig.subplots_adjust(hspace=0.7)
 	for ext in ["svg", "pdf"]:
@@ -605,10 +605,10 @@ if __name__ == "__main__":
 	frames = []
 	label_lst = ["a)", "b)", "c)", "d)"]
 	for index,domain in enumerate(domains):
-		domain_df = obs_bal_df[obs_bal_df["Domain"]==domain]
+		domain_df = obs_bal_df[obs_bal_df["Domain"]==domain].dropna(axis=1, how="all").fillna(0.01).copy()
 		balances = [b for b in domain_df.columns if b != "Domain"]
 		domain_df[balances] = domain_df[balances].abs()
-		med_bal = domain_df.median()
+		med_bal = domain_df[balances].median()
 		labels = [f"{idx}: {row:.2f}" for idx,row in med_bal.items()]
 		bal_cols = pp.load_cmap("Acadia", keep_first_n=len(balances)).colors
 		g = squ.plot(sizes=med_bal, color=bal_cols, alpha=0.8, pad=0.2, ax=axes[i,j])
@@ -630,7 +630,7 @@ if __name__ == "__main__":
 
 	plt.close()
 	pd.concat(frames).to_csv(os.path.join(output, "balances.csv"), sep="\t")
-	
+
 	###### PCA for raw and CLR-transformed observed data
 	fig, axes = plt.subplots(1, 2)
 	pca_comp = skl.decomposition.PCA(n_components=2)
@@ -650,7 +650,7 @@ if __name__ == "__main__":
 	fig.subplots_adjust(wspace=0.25)
 	fig.set_size_inches(12, 8)
 	for ext in ["svg", "pdf"]:
-		plt.savefig(os.path.join(output, f"observed_pca.{ext}"), bbox_inches="tight")
+		plt.savefig(os.path.join(output, f"pca_obs_raw_and_clr.{ext}"), bbox_inches="tight")
 
 	plt.close()
 
@@ -701,10 +701,10 @@ if __name__ == "__main__":
 	g.set_ylabel("Corr. coefficient", fontweight="bold", fontsize=10)
 	g.xaxis.grid(True, linestyle="--")
 	for ext in ["svg", "pdf"]:
-		plt.savefig(os.path.join(output, f"ecoli_cost_corr_coefficients.{ext}"), bbox_inches="tight")
+		plt.savefig(os.path.join(output, f"corr_coeffs_ecoli.{ext}"), bbox_inches="tight")
 		
 	plt.close()
 	###
 	ecoli_df["Correlation test"] = ["Pearson", "Spearman", "Kendall's tau"] * 3
-	ecoli_df.to_csv(os.path.join(output, "ecoli_cost_corr_stats.csv"), sep="\t", index=False)
+	ecoli_df.to_csv(os.path.join(output, "corr_coeffs_ecoli.csv"), sep="\t", index=False)
 
