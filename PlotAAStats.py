@@ -104,6 +104,15 @@ if __name__ == "__main__":
 		frames.append(df)
 
 	obs_bal_df = pd.concat(frames)
+	# Dataframe of the labels of the observed balances
+	frames = []
+	for domain in domains:
+		path = os.path.join(input, os.path.join(domain, os.path.join("output", "obs_bal_names.csv")))
+		df = pd.read_csv(path, sep="\t", header=0, index_col=0)
+		df["Domain"] = [domain] * len(df)
+		frames.append(df)
+
+	obs_bal_name_df = pd.concat(frames)
 	# Dataframe of observed CLR frequencies
 	frames = []
 	for domain in domains:
@@ -205,6 +214,7 @@ if __name__ == "__main__":
 	g.set_xlabel("#Proteins", fontweight="bold", fontsize=10)
 	g.set_ylabel("Density", fontweight="bold", fontsize=10)
 	g.xaxis.grid(True, linestyle="--")
+	g.yaxis.grid(True, linestyle="--")
 	g.legend(g.get_legend().legend_handles, domains, shadow=True)
 	for ext in ["svg", "pdf"]:
 		plt.savefig(os.path.join(output, f"number_of_proteins.{ext}"), bbox_inches="tight")
@@ -219,6 +229,7 @@ if __name__ == "__main__":
 	g.set_xlabel("Length", fontweight="bold", fontsize=10)
 	g.set_ylabel("Density", fontweight="bold", fontsize=10)
 	g.xaxis.grid(True, linestyle="--")
+	g.yaxis.grid(True, linestyle="--")
 	g.legend(g.get_legend().legend_handles, domains, shadow=True)
 	for ext in ["svg", "pdf"]:
 		plt.savefig(os.path.join(output, f"protein_lengths.{ext}"), bbox_inches="tight")
@@ -233,6 +244,7 @@ if __name__ == "__main__":
 	g.set_xlabel("GC content", fontweight="bold", fontsize=10)
 	g.set_ylabel("Density", fontweight="bold", fontsize=10)
 	g.xaxis.grid(True, linestyle="--")
+	g.yaxis.grid(True, linestyle="--")
 	g.legend(g.get_legend().legend_handles, domains, shadow=True)
 	for ext in ["svg", "pdf"]:
 		plt.savefig(os.path.join(output, f"gene_gc.{ext}"), bbox_inches="tight")
@@ -251,6 +263,7 @@ if __name__ == "__main__":
 	axes[0].set_xlabel("")
 	axes[0].set_ylabel("Frequency", fontweight="bold", fontsize=8)
 	axes[0].xaxis.grid(True, linestyle="--")
+	axes[0].yaxis.grid(True, linestyle="--")
 	axes[0].legend([], frameon=False)
 	frames = []
 	for domain in domains:
@@ -268,6 +281,7 @@ if __name__ == "__main__":
 	axes[1].set_xlabel("")
 	axes[1].set_ylabel("Frequency", fontweight="bold", fontsize=8)
 	axes[1].xaxis.grid(True, linestyle="--")
+	axes[1].yaxis.grid(True, linestyle="--")
 	sns.move_legend(axes[1], "upper left", bbox_to_anchor=(1, 1.1), shadow=True, title="")
 	frames = []
 	for domain in domains:
@@ -285,6 +299,7 @@ if __name__ == "__main__":
 	axes[2].set_xlabel("Amino acid", fontweight="bold", fontsize=8)
 	axes[2].set_ylabel("Frequency", fontweight="bold", fontsize=8)
 	axes[2].xaxis.grid(True, linestyle="--")
+	axes[2].yaxis.grid(True, linestyle="--")
 	axes[2].legend([], frameon=False)
 	frames = []
 	for domain in domains:
@@ -311,6 +326,7 @@ if __name__ == "__main__":
 	axes[0].set_ylabel("Frequency", fontweight="bold", fontsize=8)
 	axes[0].xaxis.set_tick_params(labelbottom=True)
 	axes[0].xaxis.grid(True, linestyle="--")
+	axes[0].yaxis.grid(True, linestyle="--")
 	axes[0].legend([], frameon=False)
 	### CLR
 	melted_df = obs_clr_df.melt(id_vars="Domain", value_vars=amino_acids, var_name="AminoAcid", value_name="medVal")
@@ -319,6 +335,7 @@ if __name__ == "__main__":
 	axes[1].set_xlabel("Amino acid", fontweight="bold", fontsize=8)
 	axes[1].set_ylabel("(CLR-)Frequency", fontweight="bold", fontsize=8)
 	axes[1].xaxis.grid(True, linestyle="--")
+	axes[1].yaxis.grid(True, linestyle="--")
 	sns.move_legend(axes[1], "upper left", bbox_to_anchor=(0, 1.48), ncols=4, shadow=True, title="")
 	###
 	fig.subplots_adjust(hspace=0.7)
@@ -338,6 +355,7 @@ if __name__ == "__main__":
 	axes[0].set_xlabel("")
 	axes[0].set_ylabel("ΔCLR", fontweight="bold", fontsize=8)
 	axes[0].xaxis.grid(True, linestyle="--")
+	axes[0].yaxis.grid(True, linestyle="--")
 	axes[0].legend([], frameon=False)
 	group_pos = 0
 	for group,aas in aa_groups.items():
@@ -362,6 +380,7 @@ if __name__ == "__main__":
 	axes[1].set_xlabel("Amino acid", fontweight="bold", fontsize=8)
 	axes[1].set_ylabel("ΔCLR", fontweight="bold", fontsize=8)
 	axes[1].xaxis.grid(True, linestyle="--")
+	axes[1].yaxis.grid(True, linestyle="--")
 	sns.move_legend(axes[1], "upper left", bbox_to_anchor=(0, 1.48), ncols=4, shadow=True, title="")
 	group_pos = 0
 	for group,aas in aa_groups.items():
@@ -456,6 +475,7 @@ if __name__ == "__main__":
 	axes[0].set_ylabel("Density", fontweight="bold", fontsize=8)
 	axes[0].xaxis.set_tick_params(labelbottom=True)
 	axes[0].xaxis.grid(True, linestyle="--")
+	axes[0].yaxis.grid(True, linestyle="--")
 	axes[0].legend([], frameon=False)
 	#
 	df_descr = code_clr_delta_df.groupby("Domain")["Aitchison_distance"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
@@ -467,6 +487,7 @@ if __name__ == "__main__":
 	axes[1].set_xlabel("Aitchison distance", fontweight="bold", fontsize=8)
 	axes[1].set_ylabel("Density", fontweight="bold", fontsize=8)
 	axes[1].xaxis.grid(True, linestyle="--")
+	axes[1].yaxis.grid(True, linestyle="--")
 	sns.move_legend(axes[1], "upper left", bbox_to_anchor=(0, 1.48), ncols=4, shadow=True, title="")
 	#
 	df_descr = gc_clr_delta_df.groupby("Domain")["Aitchison_distance"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
@@ -498,6 +519,7 @@ if __name__ == "__main__":
 		axes[i,j].tick_params(axis="x", which="major", labelsize=8)
 		axes[i,j].yaxis.set_tick_params(labelleft=True)
 		axes[i,j].xaxis.grid(True, linestyle="--")
+		axes[i,j].yaxis.grid(True, linestyle="--")
 		if(i == 1 and j == 1):
 			sns.move_legend(axes[i,j], "upper left", bbox_to_anchor=(-1.1, 1.48), ncols=3, shadow=True, title="")
 		else:
@@ -549,6 +571,7 @@ if __name__ == "__main__":
 		sns.lineplot(data=comb_df, x="GC content", y="Frequency", hue="AminoAcid", style="AminoAcid", estimator=np.median, errorbar=mad_interval, markers=True, palette=["royalblue", "firebrick"], ax=axes[i,j])
 		axes[i,j].set_title(f"{label_lst[index]} {domain}", fontweight="bold", fontsize=10)
 		axes[i,j].xaxis.grid(True, linestyle="--")
+		axes[i,j].yaxis.grid(True, linestyle="--")
 		if(i == 1 and j == 1):
 			sns.move_legend(axes[i,j], "upper left", bbox_to_anchor=(-1, 1.48), ncols=2, shadow=True, title="")
 		else:
@@ -576,6 +599,7 @@ if __name__ == "__main__":
 	axes[0].set_ylabel("Density", fontweight="bold", fontsize=8)
 	axes[0].xaxis.set_tick_params(labelbottom=True)
 	axes[0].xaxis.grid(True, linestyle="--")
+	axes[0].yaxis.grid(True, linestyle="--")
 	axes[0].legend([], frameon=False)
 	#
 	df_descr = mip_df.groupby("Domain")["Code_JSD_entropy"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
@@ -587,6 +611,7 @@ if __name__ == "__main__":
 	axes[1].set_xlabel("Jensen-Shannon divergence", fontweight="bold", fontsize=8)
 	axes[1].set_ylabel("Density", fontweight="bold", fontsize=8)
 	axes[1].xaxis.grid(True, linestyle="--")
+	axes[1].yaxis.grid(True, linestyle="--")
 	sns.move_legend(axes[1], "upper left", bbox_to_anchor=(0, 1.48), ncols=4, shadow=True, title="")
 	#
 	df_descr = mip_df.groupby("Domain")["GC_JSD_entropy"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
@@ -598,7 +623,7 @@ if __name__ == "__main__":
 		
 	plt.close()
 
-	##### Plot observed balances
+	##### Plot observed balances as rectangles
 	fig,axes = plt.subplots(2, 2, sharey=True)
 	i = 0
 	j = 0
@@ -607,8 +632,7 @@ if __name__ == "__main__":
 	for index,domain in enumerate(domains):
 		domain_df = obs_bal_df[obs_bal_df["Domain"]==domain].dropna(axis=1, how="all").fillna(0.01).copy()
 		balances = [b for b in domain_df.columns if b != "Domain"]
-		domain_df[balances] = domain_df[balances].abs()
-		med_bal = domain_df[balances].median()
+		med_bal = domain_df[balances].median().abs()
 		labels = [f"{idx}: {row:.2f}" for idx,row in med_bal.items()]
 		bal_cols = pp.load_cmap("Acadia", keep_first_n=len(balances)).colors
 		g = squ.plot(sizes=med_bal, color=bal_cols, alpha=0.8, pad=0.2, ax=axes[i,j])
@@ -629,7 +653,61 @@ if __name__ == "__main__":
 		plt.savefig(os.path.join(output, f"balances.{ext}"), bbox_inches="tight")
 
 	plt.close()
-	pd.concat(frames).to_csv(os.path.join(output, "balances.csv"), sep="\t")
+	pd.concat(frames).to_csv(os.path.join(output, "balances_rect.csv"), sep="\t")
+
+	##### Plot observed balances as dendrograms of the standard balances
+	tax_ids = obs_bal_name_df[obs_bal_name_df["B1"]=="3_4_6_vs_1_2"]
+	chosen_bal_df = obs_bal_df.loc[tax_ids.index]
+	fig,axes = plt.subplots(2, 2)
+	i = 0
+	j = 0
+	label_lst = ["a)", "b)", "c)", "d)"]
+	codons = ["3", "6", "4", "2", "1"]
+	max_y = 0
+	for index,domain in enumerate(domains):
+		domain_df = chosen_bal_df[chosen_bal_df["Domain"]==domain].dropna(axis=1, how="all").fillna(0.01).copy()
+		balances = [b for b in domain_df.columns if b != "Domain"]
+		med_bal = domain_df[balances].median().abs()
+		b3 = med_bal["B3"]
+		b4 = med_bal["B4"]
+		b2 = b3 + med_bal["B2"]
+		b1 = max(b2, b4) + med_bal["B1"]
+		D = np.array([
+			[0, b2, b2, b1, b1],
+			[b2, 0, b3, b1, b1],
+			[b2, b3, 0, b1, b1],
+			[b1, b1, b1, 0, b4],
+			[b1, b1, b1, b4, 0]
+			])
+		max_y = max(max_y, D.max())
+		Z = sci.cluster.hierarchy.linkage(sci.spatial.distance.squareform(D), "complete", optimal_ordering=True)
+		sci.cluster.hierarchy.dendrogram(Z, labels=codons, ax=axes[i,j])
+		axes[i,j].xaxis.grid(True, linestyle="--")
+		axes[i,j].yaxis.grid(True, linestyle="--")
+		axes[i,j].set_xlabel("Codon number", fontweight="bold", fontsize=8)
+		if(j == 0):
+			axes[i,j].set_ylabel("Balance", fontweight="bold", fontsize=8)
+
+		axes[i,j].set_title(f"{label_lst[index]} {domain}", fontweight="bold", fontsize=10)
+		j += 1
+		if(j > 1):
+			i += 1
+			j = 0
+
+	i = 0
+	j = 0
+	for index,domain in enumerate(domains):
+		axes[i,j].set_ylim([0, max_y*1.1])
+		j += 1
+		if(j > 1):
+			i += 1
+			j = 0
+	
+	fig.subplots_adjust(hspace=0.5)
+	for ext in ["svg", "pdf"]:
+		plt.savefig(os.path.join(output, f"balances_dendro.{ext}"), bbox_inches="tight")
+
+	plt.close()
 
 	###### PCA for raw and CLR-transformed observed data
 	fig, axes = plt.subplots(1, 2)
@@ -700,6 +778,7 @@ if __name__ == "__main__":
 	g.set_xlabel("Starting synthesis compound", fontweight="bold", fontsize=10)
 	g.set_ylabel("Corr. coefficient", fontweight="bold", fontsize=10)
 	g.xaxis.grid(True, linestyle="--")
+	g.yaxis.grid(True, linestyle="--")
 	for ext in ["svg", "pdf"]:
 		plt.savefig(os.path.join(output, f"corr_coeffs_ecoli.{ext}"), bbox_inches="tight")
 		
