@@ -44,8 +44,8 @@ def calculate_aitchison(tax_id, obs, pred):
 	return dist_df.to_frame().T
 
 
-def solve_mip(tax_id, obs, code_pred, gc_pred, non_stop_codons):
-	mip_df = pd.Series(name=tax_id, index=amino_acids+["Code_JSD_entropy", "GC_JSD_entropy"])
+def solve_ilp(tax_id, obs, code_pred, gc_pred, non_stop_codons):
+	ilp_df = pd.Series(name=tax_id, index=amino_acids+["Code_JSD_entropy", "GC_JSD_entropy"])
 
 	try:
 		m = pyo.ConcreteModel()
@@ -68,18 +68,18 @@ def solve_mip(tax_id, obs, code_pred, gc_pred, non_stop_codons):
 		solver = pyo.SolverFactory("highs")
 		result = solver.solve(m)
 
-		mip_df[amino_acids] = np.array([int(round(pyo.value(m.x[i]))) for i in m.I])
-		frac = np.array([f/non_stop_codons for f in mip_df[amino_acids]])
+		ilp_df[amino_acids] = np.array([int(round(pyo.value(m.x[i]))) for i in m.I])
+		frac = np.array([f/non_stop_codons for f in ilp_df[amino_acids]])
 
 		code_mid_p = (frac + code_pred) / 2
-		mip_df["Code_JSD_entropy"] = np.sum(frac*np.log(frac/code_mid_p))/2 + np.sum(code_pred*np.log(code_pred/code_mid_p))/2
+		ilp_df["Code_JSD_entropy"] = np.sum(frac*np.log(frac/code_mid_p))/2 + np.sum(code_pred*np.log(code_pred/code_mid_p))/2
 
 		gc_mid_p = (frac + gc_pred) / 2
-		mip_df["GC_JSD_entropy"] = np.sum(frac*np.log(frac/gc_mid_p))/2 + np.sum(gc_pred*np.log(gc_pred/gc_mid_p))/2
+		ilp_df["GC_JSD_entropy"] = np.sum(frac*np.log(frac/gc_mid_p))/2 + np.sum(gc_pred*np.log(gc_pred/gc_mid_p))/2
 	except:
 		pass
 
-	return mip_df.to_frame().T
+	return ilp_df.to_frame().T
 
 
 def calculate_p_value(obs, perms):
@@ -200,8 +200,8 @@ def combine_distribution_stats(data):
 	gc_dfs,gc_cls = compare_values(tax_id, freq_funcs, float(obs_df["GC"]), code_name, obs_cls, obs_clr, codon_parts, resamples)
 	return_dfs.extend(gc_dfs)
 
-	mip_df = solve_mip(tax_id, obs_cls, code_cls, gc_cls, non_stop_codons)
-	return_dfs.append(mip_df)
+	ilp_df = solve_ilp(tax_id, obs_cls, code_cls, gc_cls, non_stop_codons)
+	return_dfs.append(ilp_df)
 											
 	return return_dfs
 
@@ -267,7 +267,7 @@ if __name__ == "__main__":
 	file_list = ["obs_freq", "obs_bal", "obs_bal_names", "obs_clr",
 				 "code_freq", "code_clr", "code_clr_delta", "code_clr_corr",
 				 "gc_freq", "gc_clr", "gc_clr_delta", "gc_clr_corr",
-				 "mip_opt_codons"]
+				 "ilp_opt_codons"]
 	for index,file in enumerate(file_list):
 		comb_df = pd.concat([f[index] for f in frames])
 		comb_df.index.name = "TaxID"

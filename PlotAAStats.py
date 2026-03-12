@@ -20,6 +20,7 @@ plt.style.use("ggplot")
 
 # Pandas describe_function but with median and mad instead of mean and std
 def describe_data(x):
+	x = x[~np.isnan(x)]
 	if(isinstance(x, pd.Series)):
 		desc_df = pd.Series(index=["count", "median", "mad", "min", "25%", "75%", "max"])
 		desc_df["count"] = len(x)
@@ -198,15 +199,15 @@ if __name__ == "__main__":
 		frames.append(df)
 
 	gc_corr_df = pd.concat(frames)
-	# Dataframe of the MIP optimisations
+	# Dataframe of the ILP optimisations
 	frames = []
 	for domain in domains:
-		path = os.path.join(input, os.path.join(domain, os.path.join("output", "mip_opt_codons.csv")))
+		path = os.path.join(input, os.path.join(domain, os.path.join("output", "ilp_opt_codons.csv")))
 		df = pd.read_csv(path, sep="\t", header=0, index_col=0)
 		df["Domain"] = [domain] * len(df)
 		frames.append(df)
 
-	mip_df = pd.concat(frames)
+	ilp_df = pd.concat(frames)
 
 	###### Plot number of proteins
 	g = sns.histplot(data=obs_freq_df, x="#Proteins", hue="Domain", alpha=0.5, kde=True, line_kws={"linewidth": 2, "linestyle": "--"}, stat="density", common_norm=False, 
@@ -589,11 +590,11 @@ if __name__ == "__main__":
 		
 	plt.close()
 
-	##### Plot MIP JSD entropies
+	##### Plot ILP JSD entropies
 	fig,axes = plt.subplots(2, 1, sharex=True, sharey=True)
 	### Observed vs. code
-	mip_code_df = mip_df[mip_df["Code_JSD_entropy"]<=mip_df["Code_JSD_entropy"].quantile(0.95)]
-	sns.kdeplot(data=mip_code_df, x="Code_JSD_entropy", hue="Domain", fill=True, common_norm=False, alpha=0.5, palette=domain_colors, ax=axes[0])
+	ilp_code_df = ilp_df[ilp_df["Code_JSD_entropy"]<=ilp_df["Code_JSD_entropy"].quantile(0.95)]
+	sns.kdeplot(data=ilp_code_df, x="Code_JSD_entropy", hue="Domain", fill=True, common_norm=False, alpha=0.5, palette=domain_colors, ax=axes[0])
 	axes[0].set_title(f"a) Based on codon numbers", fontweight="bold", fontsize=10)
 	axes[0].set_xlabel("Jensen-Shannon divergence", fontweight="bold", fontsize=8)
 	axes[0].set_ylabel("Density", fontweight="bold", fontsize=8)
@@ -602,11 +603,11 @@ if __name__ == "__main__":
 	axes[0].yaxis.grid(True, linestyle="--")
 	axes[0].legend([], frameon=False)
 	#
-	df_descr = mip_df.groupby("Domain")["Code_JSD_entropy"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
+	df_descr = ilp_df.groupby("Domain")["Code_JSD_entropy"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
 	df_descr.to_csv(os.path.join(output, "js_divergence_code.csv"), sep="\t")
 	### Observed vs. code+GC content
-	mip_gc_df = mip_df[mip_df["GC_JSD_entropy"]<=mip_df["GC_JSD_entropy"].quantile(0.95)]
-	sns.kdeplot(data=mip_gc_df, x="GC_JSD_entropy", hue="Domain", fill=True, common_norm=False, alpha=0.5, palette=domain_colors, ax=axes[1])
+	ilp_gc_df = ilp_df[ilp_df["GC_JSD_entropy"]<=ilp_df["GC_JSD_entropy"].quantile(0.95)]
+	sns.kdeplot(data=ilp_gc_df, x="GC_JSD_entropy", hue="Domain", fill=True, common_norm=False, alpha=0.5, palette=domain_colors, ax=axes[1])
 	axes[1].set_title(f"b) Based on codon numbers and GC contents", fontweight="bold", fontsize=10)
 	axes[1].set_xlabel("Jensen-Shannon divergence", fontweight="bold", fontsize=8)
 	axes[1].set_ylabel("Density", fontweight="bold", fontsize=8)
@@ -614,7 +615,7 @@ if __name__ == "__main__":
 	axes[1].yaxis.grid(True, linestyle="--")
 	sns.move_legend(axes[1], "upper left", bbox_to_anchor=(0, 1.48), ncols=4, shadow=True, title="")
 	#
-	df_descr = mip_df.groupby("Domain")["GC_JSD_entropy"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
+	df_descr = ilp_df.groupby("Domain")["GC_JSD_entropy"].apply(lambda x: describe_data(x)).reset_index(level=1, drop=True)
 	df_descr.to_csv(os.path.join(output, "js_divergence_gc.csv"), sep="\t")
 	###
 	fig.subplots_adjust(hspace=0.7)
